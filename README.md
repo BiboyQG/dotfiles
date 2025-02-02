@@ -25,3 +25,5 @@ Next, use Stow to create symlinks
 ```
 stow .
 ```
+
+Now you are good to go!
