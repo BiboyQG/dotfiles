@@ -59,6 +59,7 @@ eval "$(fzf --zsh)"
 eval "$(direnv hook zsh)"
 
 alias ll="eza -alh"
+alias ssh="kitten ssh"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
