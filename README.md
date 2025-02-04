@@ -26,4 +26,22 @@ Next, use Stow to create symlinks
 stow .
 ```
 
+### Tips
+
+#### tmux
+
+When installing tmux, run the following command:
+
+```
+mkdir -p ~/.tmux/plugins $$ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+```
+
+#### yabai
+
+run the following command before rebooting:
+
+```
+sudo nvram boot-args=-arm64e_preview_abi
+```
+
 Now you are good to go!
