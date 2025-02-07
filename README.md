@@ -38,7 +38,13 @@ mkdir -p ~/.tmux/plugins $$ git clone https://github.com/tmux-plugins/tpm ~/.tmu
 
 #### yabai
 
-run the following command before rebooting:
+First you need to start the yabai:
+
+```
+yabai --start-service
+```
+
+Then run the following command before rebooting:
 
 ```
 sudo nvram boot-args=-arm64e_preview_abi
