@@ -1,4 +1,14 @@
 #!/bin/zsh
+set -e  # Exit on error
+
+echo "This script will set up your macOS system with various tools and configurations."
+echo "Please make sure you have reviewed the script before proceeding."
+read -q "REPLY?Do you want to continue? (y/n) "
+echo    # move to a new line
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Installation cancelled."
+    exit 1
+fi
 
 # Check if System Integrity Protection (SIP) is disabled
 if csrutil status | grep -q "System Integrity Protection status: disabled"; then
@@ -12,22 +22,31 @@ else
     exit 1
 fi
 
-# Install xCode cli tools
-echo "Installing commandline tools..."
-xcode-select --install
+# Check if Xcode is installed before trying to install command line tools
+if ! xcode-select -p &>/dev/null; then
+    echo "Installing commandline tools..."
+    xcode-select --install
+else
+    echo "Xcode command line tools already installed"
+fi
 
 # Install Xcode
 mas install 497799835
 
-# Install Miniforge
+# Install Miniforge more safely
 echo "Installing Python Packages..."
-curl https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh | sh
+MINIFORGE_SCRIPT="Miniforge3-MacOSX-arm64.sh"
+curl -L "https://github.com/conda-forge/miniforge/releases/latest/download/${MINIFORGE_SCRIPT}" -o "/tmp/${MINIFORGE_SCRIPT}"
+chmod +x "/tmp/${MINIFORGE_SCRIPT}"
+/tmp/${MINIFORGE_SCRIPT}
+rm "/tmp/${MINIFORGE_SCRIPT}"
 # revert to not using base
 conda config --set auto_activate_base false
 
-# Install Brew
+# Install Brew and add to PATH
 echo "Installing Brew..."
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+eval "$(/opt/homebrew/bin/brew shellenv)"  # Add Brew to PATH for current session
 brew analytics off
 
 # create symlinks of my dotfiles (will not override if already exists)
