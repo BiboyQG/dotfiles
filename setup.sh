@@ -33,22 +33,6 @@ fi
 # Install Xcode
 mas install 497799835
 
-# Install Miniforge more safely
-echo "Installing Python Packages..."
-MINIFORGE_SCRIPT="Miniforge3-MacOSX-arm64.sh"
-curl -L "https://github.com/conda-forge/miniforge/releases/latest/download/${MINIFORGE_SCRIPT}" -o "/tmp/${MINIFORGE_SCRIPT}"
-chmod +x "/tmp/${MINIFORGE_SCRIPT}"
-/tmp/${MINIFORGE_SCRIPT}
-rm "/tmp/${MINIFORGE_SCRIPT}"
-# revert to not using base
-conda config --set auto_activate_base false
-
-# Install Brew and add to PATH
-echo "Installing Brew..."
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-eval "$(/opt/homebrew/bin/brew shellenv)"  # Add Brew to PATH for current session
-brew analytics off
-
 # create symlinks of my dotfiles (will not override if already exists)
 echo "Creating symlinks"
 [ -d "$HOME/.config" ] && ln -s $HOME/dotfiles/.config/* $HOME/.config || ln -s $HOME/dotfiles/.config $HOME
