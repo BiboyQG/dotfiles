@@ -91,3 +91,6 @@ function y() {
 	fi
 	rm -f -- "$tmp"
 }
+
+# Environment variables
+export EDITOR="nvim" # For Yazi default editor
