@@ -16,6 +16,10 @@ This repo contains the dotfiles for my MacOS system.
 
 ## Requirements
 
+> [!IMPORTANT]
+>
+> Please disable SIP before running the setup script.
+
 Before everything, intall homebrew and miniforge.
 
 ```bash
