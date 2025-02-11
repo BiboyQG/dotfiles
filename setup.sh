@@ -36,6 +36,9 @@ brew install mas stow
 # Install Xcode
 mas install 497799835
 
+# delete existing dotfiles
+rm -rf $HOME/.config $HOME/.tmux.conf $HOME/.skhdrc $HOME/.yabairc $HOME/.zshrc $HOME/OpenArcWindow.scpt
+
 # create symlinks of my dotfiles (will override if exists)
 echo "Creating symlinks"
 stow --adopt .
