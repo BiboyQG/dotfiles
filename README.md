@@ -60,6 +60,12 @@ Then run the following command before rebooting:
 sudo nvram boot-args=-arm64e_preview_abi
 ```
 
+After that, you need to manually add the following line into `sudo visudo /etc/sudoers`:
+
+```bash
+Defaults	env_keep += "TERMINFO"
+```
+
 Now you are good to go!
 
 
