@@ -22,20 +22,6 @@ else
     exit 1
 fi
 
-# Check if Xcode is installed before trying to install command line tools
-if ! xcode-select -p &>/dev/null; then
-    echo "Installing commandline tools..."
-    xcode-select --install
-else
-    echo "Xcode command line tools already installed"
-fi
-
-# Install mas and stow
-brew install mas stow
-
-# Install Xcode
-mas install 497799835
-
 # delete existing dotfiles
 rm -rf $HOME/.config $HOME/.tmux.conf $HOME/.skhdrc $HOME/.yabairc $HOME/.zshrc $HOME/OpenArcWindow.scpt
 
