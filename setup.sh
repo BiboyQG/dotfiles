@@ -30,35 +30,15 @@ else
     echo "Xcode command line tools already installed"
 fi
 
-# Install mas
-brew install mas
+# Install mas and stow
+brew install mas stow
 
 # Install Xcode
 mas install 497799835
 
 # create symlinks of my dotfiles (will override if exists)
 echo "Creating symlinks"
-# Create .config directory if it doesn't exist and set permissions
-mkdir -p "$HOME/.config"
-chmod 755 "$HOME/.config"
-
-# Handle .config directory contents
-if [ -d "$HOME/.config" ]; then
-    # Copy contents instead of symlink if permission issues
-    cp -R "$HOME/dotfiles/.config/"* "$HOME/.config/" || {
-        echo "Warning: Could not copy .config contents. You may need to copy files manually."
-    }
-else
-    echo "Warning: Could not create .config directory"
-fi
-
-# Continue with other symlinks
-ln -sf $HOME/dotfiles/.tmux.conf $HOME/.tmux.conf
-ln -sf $HOME/dotfiles/.skhdrc $HOME/.skhdrc
-ln -sf $HOME/dotfiles/.yabairc $HOME/.yabairc
-ln -sf $HOME/dotfiles/.zshrc $HOME/.zshrc
-ln -sf $HOME/dotfiles/.gitconfig $HOME/.gitconfig
-ln -sf $HOME/dotfiles/OpenArcWindow.scpt $HOME/OpenArcWindow.scpt
+stow .
 
 # install dependencies
 echo "Installing Dependencies using Homebrew"
@@ -109,7 +89,7 @@ echo "After that, run yabai --load-sa"
 
 # start services
 echo "Starting Services (grant permissions)..."
-brew services start skhd
+skhd --start-service
 brew services start yabai
 brew services start sketchybar
 
