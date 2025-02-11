@@ -74,7 +74,8 @@ curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v2.0.
 # install skhd
 brew install koekeishiya/formulae/skhd
 
-# install tmux plugin manager
+# install tmux and tmux plugin manager
+brew install tmux
 echo "Installing Tmux Plugin Manager"
 mkdir -p ~/.tmux/plugins && git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
