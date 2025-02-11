@@ -38,12 +38,6 @@ mas install 497799835
 
 # create symlinks of my dotfiles (will override if exists)
 echo "Creating symlinks"
-chmod -f 644 $HOME/.gitconfig $HOME/.skhdrc $HOME/.tmux.conf $HOME/.yabairc $HOME/.zshrc $HOME/OpenArcWindow.scpt 2>/dev/null || true
-# Recursively set permissions for .config directory
-find $HOME/.config -type f -exec chmod 644 {} + 2>/dev/null || true
-find $HOME/.config -type d -exec chmod 755 {} + 2>/dev/null || true
-# Ensure we have write permissions on the source directory
-chmod 755 $(pwd)
 stow --adopt .
 
 # install dependencies
