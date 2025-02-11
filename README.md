@@ -52,4 +52,14 @@ After that, you need to manually add the following line into `sudo visudo /etc/s
 Defaults	env_keep += "TERMINFO"
 ```
 
-Now you are good to go!
+```bash
+echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
+```
+
+#### Sktart services
+
+```bash
+brew services start sketchybar
+skhd --restart-service
+sudo yabai --load-sa
+```
