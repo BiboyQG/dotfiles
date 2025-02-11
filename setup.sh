@@ -30,6 +30,9 @@ else
     echo "Xcode command line tools already installed"
 fi
 
+# Install mas
+brew install mas
+
 # Install Xcode
 mas install 497799835
 
