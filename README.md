@@ -38,23 +38,9 @@ stow .
 
 ### Tips
 
-#### tmux
-
-When installing tmux, run the following command:
-
-```bash
-mkdir -p ~/.tmux/plugins $$ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-```
-
 #### yabai
 
-First you need to start the yabai:
-
-```bash
-yabai --start-service
-```
-
-Then run the following command before rebooting:
+You need to run the following command before rebooting:
 
 ```bash
 sudo nvram boot-args=-arm64e_preview_abi
@@ -67,12 +53,3 @@ Defaults	env_keep += "TERMINFO"
 ```
 
 Now you are good to go!
-
-
-#### Terminal fonts for Chinese
-
-For displaying Chinese within terminal, we can to install a dedicated fonts:
-
-```bash
-brew install --cask font-maple-mono-nf-cn
-```
