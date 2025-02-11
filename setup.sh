@@ -36,15 +36,15 @@ brew install mas
 # Install Xcode
 mas install 497799835
 
-# create symlinks of my dotfiles (will not override if already exists)
+# create symlinks of my dotfiles (will override if exists)
 echo "Creating symlinks"
-[ -d "$HOME/.config" ] && ln -s $HOME/dotfiles/.config/* $HOME/.config || ln -s $HOME/dotfiles/.config $HOME
-[ -f "$HOME/.tmux.conf" ] || ln -s $HOME/dotfiles/.tmux.conf $HOME/.tmux.conf
-[ -f "$HOME/.skhdrc" ] || ln -s $HOME/dotfiles/.skhdrc $HOME/.skhdrc
-[ -f "$HOME/.yabairc" ] || ln -s $HOME/dotfiles/.yabairc $HOME/.yabairc
-[ -f "$HOME/.zshrc" ] || ln -s $HOME/dotfiles/.zshrc $HOME/.zshrc
-[ -f "$HOME/.gitconfig" ] || ln -s $HOME/dotfiles/.gitconfig $HOME/.gitconfig
-[ -f "$HOME/OpenArcWindow.scpt" ] || ln -s $HOME/dotfiles/OpenArcWindow.scpt $HOME/OpenArcWindow.scpt
+[ -d "$HOME/.config" ] && ln -sf $HOME/dotfiles/.config/* $HOME/.config || ln -sf $HOME/dotfiles/.config $HOME
+ln -sf $HOME/dotfiles/.tmux.conf $HOME/.tmux.conf
+ln -sf $HOME/dotfiles/.skhdrc $HOME/.skhdrc
+ln -sf $HOME/dotfiles/.yabairc $HOME/.yabairc
+ln -sf $HOME/dotfiles/.zshrc $HOME/.zshrc
+ln -sf $HOME/dotfiles/.gitconfig $HOME/.gitconfig
+ln -sf $HOME/dotfiles/OpenArcWindow.scpt $HOME/OpenArcWindow.scpt
 
 # install dependencies
 echo "Installing Dependencies using Homebrew"
