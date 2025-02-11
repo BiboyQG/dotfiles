@@ -90,8 +90,8 @@ echo "After that, run yabai --load-sa"
 # start services
 echo "Starting Services (grant permissions)..."
 skhd --start-service
-brew services start yabai
-brew services start sketchybar
+yabai --start-service
+sketchybar --start-service
 
 echo "(optional) Add sudoer manually:\n '$(whoami) ALL = (root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | awk "{print \$1;}") $(which yabai) --load-sa' to '/private/etc/sudoers.d/yabai'"
 echo "Installation complete...\n"
