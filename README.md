@@ -4,16 +4,6 @@ This repo contains the dotfiles for my MacOS system
 
 ## Requirements
 
-Ensure you have the following installed on your system
-
-### Stow 
-
-```bash
-brew install stow
-```
-
-## Install
-
 Before everything, intall homebrew and miniforge.
 
 ```bash
@@ -30,10 +20,11 @@ Then, pull the repo and enter the folder
 git clone git@github.com:BiboyQG/dotfiles.git && cd dotfiles
 ```
 
-Next, use Stow to create symlinks
+Next, we run the setup script
 
 ```bash
-stow .
+zsh setup_1.sh
+zsh setup_2.sh
 ```
 
 ### Tips
@@ -56,7 +47,7 @@ Defaults	env_keep += "TERMINFO"
 echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
 ```
 
-#### Sktart services
+#### Start services
 
 ```bash
 brew services start sketchybar
