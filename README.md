@@ -1,6 +1,18 @@
 # My dotfiles
 
-This repo contains the dotfiles for my MacOS system
+This repo contains the dotfiles for my MacOS system.
+
+## Tools
+
+| Tool       | Version | Description                                           |
+| ---------- | ------- | ----------------------------------------------------- |
+| kitty      | 0.37.0  | Fast, feature-rich, GPU-based terminal emulator       |
+| zsh        | N/A     | Modern shell with advanced features and customization |
+| nvim       | N/A     | Highly extensible Vim-based text editor               |
+| sketchybar | N/A     | Highly customizable macOS status bar replacement      |
+| yabai      | N/A     | Tiling window manager for macOS                       |
+| skhd       | N/A     | Simple hotkey daemon for macOS                        |
+| tmux       | 3.5a    | Terminal multiplexer for multiple sessions            |
 
 ## Requirements
 
