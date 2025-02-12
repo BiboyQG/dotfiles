@@ -13,6 +13,8 @@ This repo contains the dotfiles for my MacOS system.
 | yabai      | N/A     | Tiling window manager for macOS                       |
 | skhd       | N/A     | Simple hotkey daemon for macOS                        |
 | tmux       | 3.5a    | Terminal multiplexer for multiple sessions            |
+| yazi       | N/A     | Rust-based terminal file manager for macOS            |
+| lazygit    | N/A     | Simple terminal UI for git operations                 |
 
 ## Requirements
 
