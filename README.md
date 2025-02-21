@@ -22,7 +22,15 @@ This repo contains the dotfiles for my MacOS system.
 >
 > Please disable SIP before running the setup script.
 
-Before everything, intall homebrew and miniforge.
+Before everything, shut down your Mac and hold the power button for a while to boot into recovery mode.
+
+Then, run the following command to disable SIP:
+
+```bash
+csrutil disable
+```
+
+Then, intall homebrew and miniforge.
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
