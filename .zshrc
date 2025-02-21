@@ -58,7 +58,7 @@ eval "$(fzf --zsh)"
 
 eval "$(direnv hook zsh)"
 
-alias ll="eza -alh"
+alias ll="eza -alh --icons=automatic"
 alias ssh="kitten ssh"
 
 # >>> conda initialize >>>
