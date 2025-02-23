@@ -103,6 +103,8 @@ npx -y @smithery/cli@latest install @suekou/mcp-notion-server --client claude
 npx -y @smithery/cli@latest install @executeautomation/playwright-mcp-server --client claude
 ```
 
+And google calendar MCP server: https://github.com/GongRzhe/Calendar-Autoauth-MCP-Server
+
 #### How to Fix MCP Server Installation Issues
 
 Here's a step-by-step guide to resolve the Playwright MCP server errors:
