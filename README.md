@@ -30,10 +30,14 @@ Then, run the following command to disable SIP:
 csrutil disable
 ```
 
-Then, intall homebrew and miniforge.
+Then, intall homebrew, nvm and miniforge.
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 ```
 
 ```bash
@@ -80,3 +84,59 @@ brew services start sketchybar
 skhd --restart-service
 sudo yabai --load-sa
 ```
+
+#### Install MCP servers
+
+```bash
+npx -y @smithery/cli@latest install @smithery-ai/github --client claude
+```
+
+```bash
+npx -y @smithery/cli@latest install @wonderwhy-er/desktop-commander --client claude
+```
+
+```bash
+npx -y @smithery/cli@latest install @suekou/mcp-notion-server --client claude
+```
+
+```bash
+npx -y @smithery/cli@latest install @executeautomation/playwright-mcp-server --client claude
+```
+
+#### How to Fix MCP Server Installation Issues
+
+Here's a step-by-step guide to resolve the Playwright MCP server errors:
+
+1. Clean NPM Cache
+
+First, clear your NPM cache to ensure a clean installation:
+
+```bash
+npm cache clean --force
+```
+
+2. Remove Existing Playwright
+
+Uninstall any existing Playwright installations:
+
+```bash
+npm uninstall -g playwright playwright-core @playwright/test
+```
+
+3. Install Specific Playwright Version
+
+Install a stable version of Playwright with better compatibility:
+
+```bash
+npm install -g playwright@1.41.2 playwright-core@1.41.2
+```
+
+4. Install MCP Server
+
+Install the latest version of the MCP server:
+
+```bash
+npm install -g @executeautomation/playwright-mcp-server@latest
+```
+
+You are all set!
