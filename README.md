@@ -15,8 +15,8 @@ This repo contains the dotfiles for my MacOS system.
 | tmux       | 3.5a    | Terminal multiplexer for multiple sessions            |
 | yazi       | N/A     | Rust-based terminal file manager for macOS            |
 | lazygit    | N/A     | Simple terminal UI for git operations                 |
-
-## Requirements
+| hammerspoon| N/A     | Powerful automation tool for macOS (auto-switch input source) |
+| fastfetch  | N/A     | Fastfetch is a fast alternative to neofetch for macOS |
 
 > [!IMPORTANT]
 >
