@@ -33,7 +33,8 @@ sudo /opt/homebrew/bin/yabai --load-sa
 /opt/homebrew/bin/yabai -m config left_padding 0
 /opt/homebrew/bin/yabai -m config right_padding 0
 /opt/homebrew/bin/yabai -m config window_gap 0
-# yabai -m config window_animation_duration    0.00
+/opt/homebrew/bin/yabai -m config window_animation_duration 0.3
+/opt/homebrew/bin/yabai -m config window_animation_easing ease_out_quint
 
 /opt/homebrew/bin/yabai -m rule --add app="^iStat*" sticky=on layer=above manage=off border=off
 /opt/homebrew/bin/yabai -m rule --add app="^System Preferences*" manage=off
