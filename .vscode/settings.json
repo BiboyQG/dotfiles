@@ -45,7 +45,7 @@
     "files.autoSave": "afterDelay",
     "files.autoGuessEncoding": true,
     "editor.cursorSmoothCaretAnimation": "on",
-    "editor.cursorBlinking": "smooth",
+    "editor.cursorBlinking": "solid",
     "editor.mouseWheelZoom": true,
     "editor.formatOnPaste": true,
     "editor.formatOnType": true,
