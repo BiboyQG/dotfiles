@@ -1,0 +1,153 @@
+{
+    "security.workspace.trust.untrustedFiles": "open",
+    "[python]": {
+        "editor.formatOnType": true,
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "terminal.integrated.inheritEnv": false,
+    "launch": {
+        "python.defaultInterpreterPath": "/Users/biboy/miniforge3/envs/ai-service/bin/python",
+        "configurations": [],
+        "compounds": []
+    },
+    "json.schemas": [],
+    "workbench.iconTheme": "eq-material-theme-icons-palenight",
+    "vim.insertModeKeyBindings": [
+        {
+            "before": [
+                "k",
+                "j"
+            ],
+            "after": [
+                "<Esc>"
+            ]
+        }
+    ],
+    "vim.visualModeKeyBindings": [
+        {
+            "before": [
+                "k",
+                "j"
+            ],
+            "after": [
+                "<Esc>"
+            ]
+        }
+    ],
+    "explorer.confirmDelete": false,
+    "terminal.external.osxExec": "Warp.app",
+    "github.gitProtocol": "ssh",
+    "workbench.colorTheme": "Snazzy Operator",
+    "explorer.compactFolders": false,
+    "workbench.list.smoothScrolling": true,
+    "editor.smoothScrolling": true,
+    "terminal.integrated.smoothScrolling": true,
+    "files.autoSave": "afterDelay",
+    "files.autoGuessEncoding": true,
+    "editor.cursorSmoothCaretAnimation": "on",
+    "editor.cursorBlinking": "smooth",
+    "editor.mouseWheelZoom": true,
+    "editor.formatOnPaste": true,
+    "editor.formatOnType": true,
+    "editor.formatOnSave": true,
+    "editor.wordWrap": "on",
+    "editor.guides.bracketPairs": true,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.acceptSuggestionOnEnter": "smart",
+    "editor.suggestSelection": "recentlyUsed",
+    "window.dialogStyle": "custom",
+    "debug.showBreakpointsInOverviewRuler": true,
+    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "workbench.settings.applyToAllProfiles": [
+        "editor.fontSize"
+    ],
+    "terminal.integrated.defaultProfile.windows": "Git Bash",
+    "git.openRepositoryInParentFolders": "always",
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "explorer.confirmDragAndDrop": false,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "extensions.ignoreRecommendations": true,
+    "python.defaultInterpreterPath": "",
+    "cursor.cpp.disabledLanguages": [
+        "plaintext",
+        "scminput"
+    ],
+    "cursor.general.enableShadowWorkspace": true,
+    "editor.fontSize": 14,
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[go]": {
+        "editor.defaultFormatter": "golang.go"
+    },
+    "[sql]": {
+        "editor.defaultFormatter": "inferrinizzard.prettier-sql-vscode"
+    },
+    "workbench.editorAssociations": {
+        "{hexdiff}:/**/*.*": "hexEditor.hexedit",
+        "*.pdf": "latex-workshop-pdf-hook"
+    },
+    "latex-workshop.view.pdf.invert": 1,
+    "update.releaseTrack": "prerelease",
+    "cursor.composer.shouldChimeAfterChatFinishes": true,
+    "explorer.confirmPasteNative": false,
+    "workbench.editor.showTabs": "single",
+    "breadcrumbs.enabled": false,
+    "window.customTitleBarVisibility": "never",
+    "window.titleBarStyle": "native",
+    "custom-ui-style.electron": {
+        "titleBarStyle": "hiddenInset",
+        "trafficLightPosition": {
+            "x": 20,
+            "y": 16
+        }
+    },
+    "custom-ui-style.stylesheet": {
+        ".notification-toast": "box-shadow: none !important",
+        ".quick-input-widget.show-file-icons": "box-shadow: none !important",
+        ".quick-input-widget": "top: 25vh !important",
+        ".quick-input-list .scrollbar": "display: none",
+        ".monaco-action-bar.quick-input-inline-action-bar": "display: none",
+        ".editor-widget.find-widget": "box-shadow: none; border-radius: 4px",
+        ".quick-input-titlebar": "background: #100B15 !important",
+        ".monaco-workbench .part.editor > .content .editor-group-container > .title.title-border-bottom:after": "display: none",
+        ".monaco-scrollable-element > .shadow.top": "display: none",
+        ".sidebar .title-label": "padding: 0 !important",
+        ".sidebar": "border: none !important",
+        ".monaco-workbench .monaco-list:not(.element-focused):focus:before": "outline: none !important",
+        ".monaco-list-row.focused": "outline: none !important",
+        ".monaco-editor .scroll-decoration": "display: none",
+        ".title-actions": "display: none !important",
+        ".title.show-file-icons .label-container .monaco-icon-label.file-icon": "justify-content: center; padding: 0 !important",
+        ".title .monaco-icon-label:after": "margin-right: 0",
+        ".monaco-workbench .part.editor > .content .editor-group-container > .title > .label-container > .title-label": "padding-left: 60px",
+        ".title .monaco-icon-label.file-icon": "margin: 0 60px",
+        ".monaco-editor .cursors-layer .cursor": "background-image: linear-gradient(135deg, #ffaffc 10%, #DA70D6 100%)"
+    },
+    "custom-ui-style.font.sansSerif": "Dank Mono",
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+            {
+                "scope": "comment",
+                "settings": {
+                    "fontStyle": "italic"
+                }
+            }
+        ]
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.lineNumbers": "relative",
+    "editor.showFoldingControls": "never"
+}
+
