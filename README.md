@@ -55,6 +55,7 @@ Next, we run the setup script
 ```bash
 zsh setup_1.sh
 zsh setup_2.sh
+zsh setup_3.sh
 ```
 
 ### Tips
@@ -83,62 +84,6 @@ echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut
 brew services start sketchybar
 skhd --restart-service
 sudo yabai --load-sa
-```
-
-#### Install MCP servers
-
-```bash
-npx -y @smithery/cli@latest install @smithery-ai/github --client claude
-```
-
-```bash
-npx -y @smithery/cli@latest install @wonderwhy-er/desktop-commander --client claude
-```
-
-```bash
-npx -y @smithery/cli@latest install @suekou/mcp-notion-server --client claude
-```
-
-```bash
-npx -y @smithery/cli@latest install @executeautomation/playwright-mcp-server --client claude
-```
-
-And google calendar MCP server: https://github.com/GongRzhe/Calendar-Autoauth-MCP-Server
-
-#### How to Fix MCP Server Installation Issues
-
-Here's a step-by-step guide to resolve the Playwright MCP server errors:
-
-1. Clean NPM Cache
-
-First, clear your NPM cache to ensure a clean installation:
-
-```bash
-npm cache clean --force
-```
-
-2. Remove Existing Playwright
-
-Uninstall any existing Playwright installations:
-
-```bash
-npm uninstall -g playwright playwright-core @playwright/test
-```
-
-3. Install Specific Playwright Version
-
-Install a stable version of Playwright with better compatibility:
-
-```bash
-npm install -g playwright@1.41.2 playwright-core@1.41.2
-```
-
-4. Install MCP Server
-
-Install the latest version of the MCP server:
-
-```bash
-npm install -g @executeautomation/playwright-mcp-server@latest
 ```
 
 You are all set!
