@@ -86,6 +86,12 @@ yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yab
 
 # focus window after active display changes
 yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
+
+# focus window after window is destroyed
+yabai -m signal --add event=window_destroyed action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus mouse"
+
+# focus window after application is terminated
+yabai -m signal --add event=application_terminated action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus mouse"
 ```
 
 #### Start services
