@@ -78,6 +78,16 @@ Defaults	env_keep += "TERMINFO"
 echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
 ```
 
+And then, execute the following commands to avoid "no window to select" problem:
+
+```bash
+# focus window after active space changes
+yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
+
+# focus window after active display changes
+yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
+```
+
 #### Start services
 
 ```bash
