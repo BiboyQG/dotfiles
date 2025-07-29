@@ -17,6 +17,7 @@ This repo contains the dotfiles for my MacOS system.
 | lazygit    | N/A     | Simple terminal UI for git operations                 |
 | hammerspoon| N/A     | Powerful automation tool for macOS (auto-switch input source) |
 | fastfetch  | N/A     | Fastfetch is a fast alternative to neofetch for macOS |
+| cloc       | N/A     | Count lines of code                                   |
 
 > [!IMPORTANT]
 >
