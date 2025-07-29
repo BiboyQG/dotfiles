@@ -78,7 +78,7 @@ Defaults	env_keep += "TERMINFO"
 echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
 ```
 
-And then, execute the following commands to avoid "no window to select" problem:
+And then, execute the following commands to add hooks to yabai to avoid "no window to focus" problem:
 
 ```bash
 # focus window after active space changes
