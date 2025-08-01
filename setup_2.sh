@@ -37,6 +37,7 @@ echo "Installing Dependencies using Homebrew"
 [ -x "$(command -v yazi)" ] || brew install yazi ffmpeg sevenzip jq poppler fd ripgrep fzf imagemagick font-symbols-only-nerd-font
 [ -x "$(command -v direnv)" ] || brew install direnv
 [ -x "$(command -v fastfetch)" ] || brew install fastfetch
+[ -x "$(command -v cloc)" ] || brew install cloc
 
 # install fonts for terminal
 brew install --cask font-jetbrains-mono-nerd-font
