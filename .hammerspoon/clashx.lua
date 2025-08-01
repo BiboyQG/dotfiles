@@ -28,22 +28,14 @@ function mod.toggleProxy()
     hs.notify.new({title="ClashX Meta", informativeText="已切换系统代理"}):send()
 end
 
--- 切换 TUN 模式
-function mod.toggleTun()
-    applescriptF([[tell application "ClashX Meta" to TunMode]])
-    hs.notify.new({title="ClashX Meta", informativeText="已切换 TUN 模式"}):send()
-end
-
 ---------------------------------------------------------------
 -- 快捷键绑定
 -- ⌘P  → 代理开关
--- ⌘T  → TUN 模式开关
 ---------------------------------------------------------------
 
 local hyper = {"cmd"}
 
 hs.hotkey.bind(hyper, "P", "ClashX Meta: Toggle Proxy", mod.toggleProxy)
-hs.hotkey.bind(hyper, "T", "ClashX Meta: Toggle TUN",   mod.toggleTun)
 
 ---------------------------------------------------------------
 --  End of file
