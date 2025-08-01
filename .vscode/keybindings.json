@@ -1,0 +1,138 @@
+[
+    // Basic
+    {
+        "key": "escape",
+        "command": "notifications.hideToasts",
+        "when": "notificationToastsVisible"
+    },
+    // Terminal
+    {
+        "key": "shift+cmd+n",
+        "command": "workbench.action.terminal.new",
+        "when": "terminalProcessSupported || terminalWebExtensionContributedProfile"
+    },
+    {
+        "key": "ctrl+w",
+        "command": "workbench.action.terminal.kill",
+        "when": "terminalFocus"
+    },
+    // Sidebar
+    {
+        "key": "r",
+        "command": "renameFile",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "c",
+        "command": "filesExplorer.copy",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "p",
+        "command": "filesExplorer.paste",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "x",
+        "command": "filesExplorer.cut",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "d",
+        "command": "deleteFile",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "a",
+        "command": "explorer.newFile",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "s",
+        "command": "explorer.openToSide",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
+    },
+    {
+        "key": "shift-s",
+        "command": "runCommands",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus",
+        "args": {
+            "commands": [
+                "workbench.action.splitEditorDown",
+                "explorer.openAndPassFocus",
+                "workbench.action.closeOtherEditors"
+            ]
+        }
+    },
+    {
+        "key": "enter",
+        "command": "explorer.openAndPassFocus",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceIsFolder && !inputFocus"
+    },
+    {
+        "key": "enter",
+        "command": "list.toggleExpand",
+        "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && explorerResourceIsFolder && !inputFocus"
+    },
+    // Coding
+    {
+        "key": "space space",
+        "command": "workbench.action.quickOpen",
+        "when": "vim.mode == 'Normal' && (editorTextFocus || !inputFocus)"
+    },
+    // Navigation
+    {
+        "key": "ctrl+j",
+        "command": "workbench.action.terminal.focus"
+    },
+    {
+        "key": "ctrl+j",
+        "command": "workbench.action.focusActiveEditorGroup",
+        "when": "terminalFocus"
+    },
+    {
+        "key": "ctrl+k",
+        "command": "workbench.action.terminal.focus"
+    },
+    {
+        "key": "ctrl+k",
+        "command": "workbench.action.focusActiveEditorGroup",
+        "when": "terminalFocus"
+    },
+    { // Move focus to the SideBar if not (!) there
+        "key": "ctrl+h",
+        "when": "!sideBarFocus",
+        "command": "workbench.action.focusSideBar"
+    },
+    { // Move focus to the Editor, if currently in the SideBar
+        "key": "ctrl+l",
+        "when": "sideBarFocus || explorerViewletFocus || filesExplorerFocus",
+        "command": "workbench.action.focusActiveEditorGroup"
+    },
+    { // Move focus to the Editor, if currently in the SideBar
+        "key": "ctrl+h",
+        "when": "sideBarFocus || explorerViewletFocus || filesExplorerFocus",
+        "command": "workbench.action.focusActiveEditorGroup"
+    },
+    {
+        "key": "ctrl+]",
+        "command": "workbench.action.nextEditor"
+    },
+    {
+        "key": "ctrl+[",
+        "command": "workbench.action.previousEditor"
+    },
+    {
+        "key": "cmd+i",
+        "command": "composerMode.agent"
+    },
+    {
+        "key": "] ]",
+        "command": "hideCustomTitleBar",
+        "when": "titleBarVisible"
+    },
+    {
+        "key": "cmd+e",
+        "command": "composerMode.background"
+    }
+]
