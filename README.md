@@ -4,20 +4,20 @@ This repo contains the dotfiles for my MacOS system.
 
 ## Tools
 
-| Tool       | Version | Description                                           |
-| ---------- | ------- | ----------------------------------------------------- |
-| kitty      | 0.37.0  | Fast, feature-rich, GPU-based terminal emulator       |
-| zsh        | N/A     | Modern shell with advanced features and customization |
-| nvim       | N/A     | Highly extensible Vim-based text editor               |
-| sketchybar | N/A     | Highly customizable macOS status bar replacement      |
-| yabai      | N/A     | Tiling window manager for macOS                       |
-| skhd       | N/A     | Simple hotkey daemon for macOS                        |
-| tmux       | 3.5a    | Terminal multiplexer for multiple sessions            |
-| yazi       | N/A     | Rust-based terminal file manager for macOS            |
-| lazygit    | N/A     | Simple terminal UI for git operations                 |
-| hammerspoon| N/A     | Powerful automation tool for macOS (auto-switch input source) |
-| fastfetch  | N/A     | Fastfetch is a fast alternative to neofetch for macOS |
-| cloc       | N/A     | Count lines of code                                   |
+| Tool        | Version | Description                                                   |
+| ----------- | ------- | ------------------------------------------------------------- |
+| kitty       | 0.37.0  | Fast, feature-rich, GPU-based terminal emulator               |
+| zsh         | N/A     | Modern shell with advanced features and customization         |
+| nvim        | N/A     | Highly extensible Vim-based text editor                       |
+| sketchybar  | N/A     | Highly customizable macOS status bar replacement              |
+| yabai       | N/A     | Tiling window manager for macOS                               |
+| skhd        | N/A     | Simple hotkey daemon for macOS                                |
+| tmux        | 3.5a    | Terminal multiplexer for multiple sessions                    |
+| yazi        | N/A     | Rust-based terminal file manager for macOS                    |
+| lazygit     | N/A     | Simple terminal UI for git operations                         |
+| hammerspoon | N/A     | Powerful automation tool for macOS (auto-switch input source) |
+| fastfetch   | N/A     | Fastfetch is a fast alternative to neofetch for macOS         |
+| cloc        | N/A     | Count lines of code                                           |
 
 > [!IMPORTANT]
 >
@@ -88,3 +88,14 @@ sudo yabai --load-sa
 ```
 
 You are all set!
+
+### Hammerspoon
+
+Thanks to [Hammerspoon](https://www.hammerspoon.org/), I can easily create shortcuts for many functionality that improves our productivity.
+
+#### Shortcuts
+
+| Shortcuts | Description                       |
+| --------- | --------------------------------- |
+| CMD + p   | Toggle ClashX.Meta Proxy          |
+| CMD + g   | Toggle WeChat messages auto reply |
