@@ -6,4 +6,5 @@ log = hs.logger.new("init", "debug")
 
 -- require 'autoscript'
 require("clashx")
+require("autoreply")
 require("utils")
