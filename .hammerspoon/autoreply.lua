@@ -1,6 +1,7 @@
 ---------------------------------------------------------------------------
---  WeChat LLM-reply with AXUIElement + Ollama
---  ⌘G → 读取最近 nMessages 条 → 调用 qwen2.5:14b → 写入输入框
+--  Multi-App LLM-reply with AXUIElement + Ollama
+--  ⌘G → 检测聚焦应用 → 读取最近 nMessages 条 → 调用 qwen2.5:14b → 写入输入框
+--  支持: WeChat, ...
 ---------------------------------------------------------------------------
 
 local ax        = require("hs.axuielement")
@@ -8,12 +9,19 @@ local appFinder = require("hs.appfinder")
 local hotkey    = require("hs.hotkey")
 local http      = require("hs.http")
 local json      = require("hs.json")
+local window    = require("hs.window")
 
 -- ⚙️ tweak here
 local nMessages  = 10               -- 最近 N 条
-local appName    = "WeChat"        -- 确保已运行
 local modelName  = "qwen2.5:14b"
 local ollamaBin = "/usr/local/bin/ollama"
+
+local appConfigs = {
+    WeChat = {
+        messageList = {role = "AXList", title = "Messages"},
+        textField = {role = "AXTextArea"}
+    },
+}
 
 ---------------------------------------------------------------------------
 --  AX helper：深度优先查找
@@ -30,9 +38,9 @@ end
 ---------------------------------------------------------------------------
 --  收集最近 N 条消息文本
 ---------------------------------------------------------------------------
-local function collectLastMessages(axApp, n)
+local function collectLastMessages(axApp, n, config)
     local msgList = dfs(axApp, function(el)
-        return el.AXRole == "AXList" and (el.AXTitle or "") == "Messages"
+        return el.AXRole == config.messageList.role and (el.AXTitle or "") == config.messageList.title
     end)
     if not msgList then error("🥲 找不到消息列表") end
 
@@ -54,8 +62,9 @@ end
 --  调用 Ollama 生成回复（流式）
 --  prompt   : 要发送给模型的提示
 --  onUpdate : 每收到新 token 时调用，一般用来写入输入框
+--  appName  : 应用名称，用于通知显示
 ---------------------------------------------------------------------------
-local function requestOllama(prompt, onUpdate)
+local function requestOllama(prompt, onUpdate, appName)
     local ollamaUrl = "http://localhost:11434/api/generate"
     local requestBody = {
         model = modelName,
@@ -88,7 +97,7 @@ local function requestOllama(prompt, onUpdate)
 
                     -- 如果 done=true，表示流结束
                     if jsonObj.done then
-                        hs.notify.new({title = "WeChat", informativeText = "✅ 回复生成完成"}):send()
+                        hs.notify.new({title = appName or "Chat App", informativeText = "✅ 回复生成完成"}):send()
                         break
                     end
                 end
@@ -101,8 +110,8 @@ end
 ---------------------------------------------------------------------------
 --  把文本写入输入框
 ---------------------------------------------------------------------------
-local function writeToInput(axApp, text)
-    local input = dfs(axApp, function(el) return el.AXRole == "AXTextArea" end)
+local function writeToInput(axApp, text, config)
+    local input = dfs(axApp, function(el) return el.AXRole == config.textField.role end)
     if not input then
         hs.alert.show("✏️ 找不到输入框")
         return
@@ -116,20 +125,36 @@ end
 --  热键触发主流程
 ---------------------------------------------------------------------------
 local function handleHotkey()
-    local app = appFinder.appFromName(appName)
-    if not app then hs.alert.show(appName.." 未运行"); return end
+    -- 获取当前聚焦的窗口和应用
+    local focusedWindow = window.focusedWindow()
+    if not focusedWindow then hs.alert.show("❌ 没有聚焦的窗口"); return end
+
+    local app = focusedWindow:application()
+    if not app then hs.alert.show("❌ 无法获取应用信息"); return end
+
+    local appName = app:name()
     local axApp = ax.applicationElement(app)
 
-    local ok, texts = pcall(collectLastMessages, axApp, nMessages)
+    local config = appConfigs[appName]
+    if not config then
+        local supportedApps = {}
+        for k, _ in pairs(appConfigs) do
+            table.insert(supportedApps, k)
+        end
+        hs.alert.show("❌ 不支持的应用: " .. appName .. "\n支持的应用: " .. table.concat(supportedApps, ", "))
+        return
+    end
+
+    local ok, texts = pcall(collectLastMessages, axApp, nMessages, config)
     if not ok then hs.alert.show(texts); return end
 
     local prompt = table.concat(texts, "\n")
     prompt = "你是一个真实的即时聊天软件用户，正在与其他用户进行日常对话。请根据以下聊天历史记录，理解对话的语境、语气和情感，生成一句简短、自然、得体的回复。回复应符合真实用户的表达方式，既不过于生硬，也不夸张造作，避免AI腔。请用中文作答，最多不超过25字。聊天记录：" .. prompt
-    hs.notify.new({title = "WeChat", informativeText = "🤖 正在生成回复..."}):send()
+    hs.notify.new({title = appName, informativeText = "🤖 正在生成回复..."}):send()
 
     requestOllama(prompt, function(reply)
-        writeToInput(axApp, reply)
-    end)
+        writeToInput(axApp, reply, config)
+    end, appName)
 end
 
 hotkey.bind({"cmd"}, "g", handleHotkey)
