@@ -13,7 +13,6 @@ if command -v sketchybar &>/dev/null; then
     yabai -m config top_padding 20
   else
     yabai -m config top_padding 0
-    yabai -m config bottom_padding 0
   fi
 fi
 
