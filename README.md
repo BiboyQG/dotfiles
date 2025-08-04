@@ -93,7 +93,11 @@ You are all set!
 
 Thanks to [Hammerspoon](https://www.hammerspoon.org/), I can easily create shortcuts for many functionality that improves our productivity.
 
-#### Shortcuts
+#### Video Tutorial
+
+[Bilibili](https://www.bilibili.com/video/BV1cHhPzCE11)
+
+#### Shortcuts Description
 
 | Shortcuts | Description                       |
 | --------- | --------------------------------- |
