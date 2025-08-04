@@ -3,7 +3,7 @@
 cmd - return : /Applications/kitty.app/Contents/MacOS/kitty --single-instance -d ~
 
 # open chrome
-cmd + shift - return : osascript "${HOME}"/OpenArcWindow.scpt
+cmd + shift - return : osascript -e 'tell application "Arc" to make new window' -e 'activate'
 
 # Show system statistics
 fn + lalt - 1 : "${HOME}"/.config/yabai/scripts/show_cpu.sh
