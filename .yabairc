@@ -11,9 +11,10 @@ if command -v sketchybar &>/dev/null; then
     yabai -m config top_padding 8
   elif [[ "$display_resolution" == *"4096 x 2304"* ]]; then
     yabai -m config top_padding 20
-else
-  yabai -m config top_padding 0
-  yabai -m config bottom_padding 0
+  else
+    yabai -m config top_padding 0
+    yabai -m config bottom_padding 0
+  fi
 fi
 
 # global settings
@@ -57,8 +58,6 @@ yabai -m signal --add event=window_destroyed action="yabai -m query --windows --
 
 # focus window after application is terminated
 yabai -m signal --add event=application_terminated action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus mouse"
-
-# yabai -m config window_animation_duration    0.00
 
 # Disable specific apps from being managed
 yabai -m rule --add app="^(Raycast|腾讯会议)$" manage=off
