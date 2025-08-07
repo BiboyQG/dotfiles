@@ -31,11 +31,7 @@ Then, run the following command to disable SIP:
 csrutil disable
 ```
 
-Then, intall homebrew, nvm and miniforge.
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
+Then, intall nvm and miniforge if needed.
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -61,15 +57,9 @@ zsh setup.sh
 
 #### yabai
 
-You need to run the following command before rebooting:
+You need to manually add the following line into `sudo visudo /etc/sudoers`:
 
-```bash
-sudo nvram boot-args=-arm64e_preview_abi
 ```
-
-After that, you need to manually add the following line into `sudo visudo /etc/sudoers`:
-
-```bash
 Defaults	env_keep += "TERMINFO"
 ```
 
