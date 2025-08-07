@@ -54,7 +54,7 @@ git clone git@github.com:BiboyQG/dotfiles.git && cd dotfiles
 Next, we run the setup script
 
 ```bash
-zsh setup_1.sh && zsh setup_2.sh && zsh setup_3.sh && zsh setup_4.sh
+zsh setup.sh
 ```
 
 ### Tips
