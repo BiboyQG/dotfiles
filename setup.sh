@@ -184,12 +184,17 @@ mkdir -p ~/.tmux/plugins && git clone https://github.com/tmux-plugins/tpm ~/.tmu
 brew install koekeishiya/formulae/yabai
 
 # configure yabai
-yabai --start-service
 sudo nvram boot-args=-arm64e_preview_abi
 echo "IMPORTANT: Follow the following instructions to configure yabai:"
 echo "sudo visudo /etc/sudoers"
 echo "Defaults	env_keep += \"TERMINFO\""
 echo "'$(whoami) ALL = (root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | awk "{print \$1;}") $(which yabai) --load-sa' to '/private/etc/sudoers.d/yabai'"
 echo "After that, reboot and run: sudo yabai --load-sa"
+
+# start services
+echo "Starting Services (grant permissions)..."
+skhd --start-service
+yabai --start-service
+sketchybar --start-service
 
 echo "Installation would be completed once you've done the above steps!"
