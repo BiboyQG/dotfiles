@@ -120,6 +120,13 @@ else
     echo "Xcode command line tools already installed"
 fi
 
+if ! command -v brew &>/dev/null; then
+    echo "Installing Homebrew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+else
+    echo "Homebrew already installed"
+fi
+
 # install stow
 brew install stow
 
@@ -179,14 +186,10 @@ brew install koekeishiya/formulae/yabai
 # configure yabai
 yabai --start-service
 sudo nvram boot-args=-arm64e_preview_abi
-echo "Please add TERM manually"
-echo "After that, run yabai --load-sa"
+echo "IMPORTANT: Follow the following instructions to configure yabai:"
+echo "sudo visudo /etc/sudoers"
+echo "Defaults	env_keep += \"TERMINFO\""
+echo "'$(whoami) ALL = (root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | awk "{print \$1;}") $(which yabai) --load-sa' to '/private/etc/sudoers.d/yabai'"
+echo "After that, reboot and run: sudo yabai --load-sa"
 
-# start services
-echo "Starting Services (grant permissions)..."
-skhd --start-service
-yabai --start-service
-sketchybar --start-service
-
-echo "(optional) Add sudoer manually:\n '$(whoami) ALL = (root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | awk "{print \$1;}") $(which yabai) --load-sa' to '/private/etc/sudoers.d/yabai'"
-echo "Installation complete...\n"
+echo "Installation would be completed once you've done the above steps!"
