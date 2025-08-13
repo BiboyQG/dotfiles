@@ -112,6 +112,10 @@ defaults write com.apple.finder WarnOnEmptyTrash -bool false
 # Automatically hide and show the Dock
 defaults write com.apple.dock autohide -bool true
 
+# Disable startup sound and any other sound effects on boot
+sudo nvram StartupMute=%01
+sudo nvram SystemAudioVolume=' '
+
 # Check if Xcode is installed before trying to install command line tools
 if ! xcode-select -p &>/dev/null; then
     echo "Installing commandline tools..."
