@@ -18,6 +18,8 @@ This repo contains the dotfiles for my MacOS system.
 | hammerspoon | N/A     | Powerful automation tool for macOS (auto-switch input source) |
 | fastfetch   | N/A     | Fastfetch is a fast alternative to neofetch for macOS         |
 | cloc        | N/A     | Count lines of code                                           |
+| dust        | N/A     | A more intuitive version of du in rust                        |
+| asitop      | N/A     | System monitor for terminal                                   |
 
 > [!IMPORTANT]
 >
