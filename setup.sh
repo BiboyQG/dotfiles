@@ -150,6 +150,8 @@ echo "Installing Dependencies using Homebrew"
 [ -x "$(command -v direnv)" ] || brew install direnv
 [ -x "$(command -v fastfetch)" ] || brew install fastfetch
 [ -x "$(command -v cloc)" ] || brew install cloc
+[ -x "$(command -v dust)" ] || brew install dust
+[ -x "$(command -v asitop)" ] || brew install asitop
 brew install appcleaner
 brew install hammerspoon
 
