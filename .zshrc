@@ -62,7 +62,7 @@ alias ll="eza -alh --icons=automatic"
 alias ssh="kitten ssh"
 alias s="fastfetch"
 alias l="lazygit"
-alias top="sudo asitop"
+alias t="sudo asitop"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
