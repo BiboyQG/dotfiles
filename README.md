@@ -92,6 +92,7 @@ To make our life easier, some useful aliases are defined in `.zshrc`:
 | l     | lazygit          | Terminal Git UI                                |
 | t     | sudo asitop      | System monitor for macOS                       |
 | y     | yazi function    | File manager with directory changing support   |
+| c     | claude           | Claude Code CLI                                |
 
 ### Hammerspoon
 
