@@ -152,6 +152,7 @@ echo "Installing Dependencies using Homebrew"
 [ -x "$(command -v cloc)" ] || brew install cloc
 [ -x "$(command -v dust)" ] || brew install dust
 [ -x "$(command -v asitop)" ] || brew install asitop
+[ -x "$(command -v gh)" ] || brew install gh
 brew install appcleaner
 brew install hammerspoon
 
