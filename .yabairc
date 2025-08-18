@@ -59,7 +59,8 @@ yabai -m signal --add event=window_destroyed action="yabai -m query --windows --
 yabai -m signal --add event=application_terminated action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus mouse"
 
 # Disable specific apps from being managed
-yabai -m rule --add app="^(Raycast|腾讯会议)$" manage=off
+yabai -m rule --add app="^(Raycast|TencentMeeting)$" manage=off
 yabai -m rule --add title="(Hammerspoon Console)" manage=off
+yabai -m rule --add app="^(.*zoom\.us.*)$" title="^(Zoom)$" manage=off
 
 echo "yabai configuration loaded.."
