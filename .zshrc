@@ -63,6 +63,7 @@ alias ssh="kitten ssh"
 alias s="fastfetch"
 alias l="lazygit"
 alias t="sudo asitop"
+alias c="claude"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
