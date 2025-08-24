@@ -1,3 +1,5 @@
 **/lazy-lock.json
 
 .claude/
+
+.config/clash.meta/
