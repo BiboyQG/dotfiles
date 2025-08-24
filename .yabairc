@@ -9,8 +9,8 @@ if command -v sketchybar &>/dev/null; then
   # First condition is to match my macbook pro, the * are used as wildcards
   if [[ "$display_resolution" == *"3024 x 1964"* ]]; then
     yabai -m config top_padding 8
-  elif [[ "$display_resolution" == *"4096 x 2304"* ]]; then
-    yabai -m config top_padding 20
+  elif [[ "$display_resolution" == *"3840 x 2160"* ]]; then
+    yabai -m config top_padding 40
   else
     yabai -m config top_padding 0
   fi
