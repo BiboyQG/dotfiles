@@ -155,6 +155,7 @@ echo "Installing Dependencies using Homebrew"
 [ -x "$(command -v gh)" ] || brew install gh
 brew install appcleaner
 brew install hammerspoon
+brew install --cask mos
 
 # install fonts for terminal
 brew install --cask font-jetbrains-mono-nerd-font
