@@ -167,6 +167,10 @@ brew install lua
 brew install switchaudio-osx
 brew install nowplaying-cli
 
+# accept xcode license
+sudo xcodebuild -license accept
+
+# install sketchybar
 brew tap FelixKratz/formulae
 brew install sketchybar
 
@@ -203,6 +207,6 @@ echo "After that, reboot and run: sudo yabai --load-sa"
 echo "Starting Services (grant permissions)..."
 skhd --start-service
 yabai --start-service
-sketchybar --start-service
+brew services start sketchybar
 
 echo "Installation would be completed once you've done the above steps!"
