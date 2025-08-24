@@ -6,10 +6,11 @@ yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
 if command -v sketchybar &>/dev/null; then
   # Check the display size (e.g., grab the resolution here)
   display_resolution=$(system_profiler SPDisplaysDataType | grep Resolution)
-  # First condition is to match my macbook pro, the * are used as wildcards
   if [[ "$display_resolution" == *"3024 x 1964"* ]]; then
+    # 14-inch MacBook Pro
     yabai -m config top_padding 8
   elif [[ "$display_resolution" == *"3840 x 2160"* ]]; then
+    # Mac Studio
     yabai -m config top_padding 40
   else
     yabai -m config top_padding 0
