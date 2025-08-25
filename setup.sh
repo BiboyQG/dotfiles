@@ -210,6 +210,7 @@ yabai --start-service
 brew services start sketchybar
 
 # ollama setup
+brew install ollama
 cp com.ollama.serve.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.ollama.serve.plist
 
