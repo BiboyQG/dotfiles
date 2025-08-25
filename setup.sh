@@ -200,7 +200,7 @@ sudo nvram boot-args=-arm64e_preview_abi
 echo "IMPORTANT: Follow the following instructions to configure yabai:"
 echo "sudo visudo /etc/sudoers"
 echo "Defaults	env_keep += \"TERMINFO\""
-echo "'$(whoami) ALL = (root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | awk "{print \$1;}") $(which yabai) --load-sa' to '/private/etc/sudoers.d/yabai'"
+echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d " " -f 1) $(which yabai) --load-sa" | sudo tee /private/etc/sudoers.d/yabai
 echo "After that, reboot and run: sudo yabai --load-sa"
 
 # start services
