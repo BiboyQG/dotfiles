@@ -78,6 +78,12 @@ skhd --restart-service
 sudo yabai --load-sa
 ```
 
+#### Ollama LaunchAgent Setup
+
+To ensure a good experience in WeChat auto reply, we made Ollama serve start automatically at boot and restart on crashes.
+
+To stop the service: `launchctl unload ~/Library/LaunchAgents/com.ollama.serve.plist`
+
 You are all set!
 
 ### Aliases
