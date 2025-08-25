@@ -209,4 +209,8 @@ skhd --start-service
 yabai --start-service
 brew services start sketchybar
 
+# ollama setup
+cp com.ollama.serve.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.ollama.serve.plist
+
 echo "Installation would be completed once you've done the above steps!"
