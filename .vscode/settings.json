@@ -147,7 +147,6 @@
     },
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
-    "editor.lineNumbers": "relative",
+    "editor.lineNumbers": "on",
     "editor.showFoldingControls": "never"
 }
-
