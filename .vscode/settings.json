@@ -148,5 +148,6 @@
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "editor.lineNumbers": "on",
-    "editor.showFoldingControls": "never"
+    "editor.showFoldingControls": "never",
+    "extensions.gallery.serviceUrl": "https://marketplace.visualstudio.com/_apis/public/gallery"
 }
