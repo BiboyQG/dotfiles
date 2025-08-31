@@ -1,0 +1,3 @@
+[2025-08-24 12:22:07] Status line triggered with input:
+---
+[2025-08-24 12:22:07] Extracted: dir=/home/user/projects/my-project, model=Opus 4.1, version=20250805, git=, context=, cost=, cost_ph=, tokens=, tpm=, session_pct=0
