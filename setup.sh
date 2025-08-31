@@ -153,6 +153,7 @@ echo "Installing Dependencies using Homebrew"
 [ -x "$(command -v dust)" ] || brew install dust
 [ -x "$(command -v asitop)" ] || brew install asitop
 [ -x "$(command -v gh)" ] || brew install gh
+[ -x "$(command -v nvim)" ] || brew install neovim
 brew install appcleaner
 brew install hammerspoon
 brew install --cask mos
