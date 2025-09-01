@@ -22,6 +22,8 @@ else
     exit 1
 fi
 
+echo "Setting up system preferences..."
+
 # Close any open System Preferences panes, to prevent them from overriding
 # settings we’re about to change
 osascript -e 'tell application "System Preferences" to quit'
@@ -116,6 +118,8 @@ defaults write com.apple.dock autohide -bool true
 sudo nvram StartupMute=%01
 sudo nvram SystemAudioVolume=' '
 
+echo "Setting up xcode-select..."
+
 # Check if Xcode is installed before trying to install command line tools
 if ! xcode-select -p &>/dev/null; then
     echo "Installing commandline tools..."
@@ -128,7 +132,7 @@ fi
 if ! command -v brew &>/dev/null; then
   echo
   echo -e "$>>>>>>>>>>>>>>>>>>>>>>>>>>"
-  echo "Installing brew"
+  echo "Installing Homebrew"
   echo "Enter your password below (if required)"
   # Only install brew if not installed yet
   echo
@@ -164,17 +168,18 @@ fi
 source $FILE
 
 # install stow
+echo "Installing Stow"
 brew install stow
 
 # delete existing dotfiles
 rm -rf $HOME/.config $HOME/.tmux.conf $HOME/.skhdrc $HOME/.yabairc $HOME/.zshrc $HOME/.hammerspoon
 
 # create symlinks of my dotfiles (will override if exists)
-echo "Creating symlinks"
+echo "Creating symlinks..."
 stow --adopt .
 
 # install other dependencies
-echo "Installing Dependencies using Homebrew"
+echo "Installing other dependencies using Homebrew..."
 [ -x "$(command -v lazygit)" ] || brew install jesseduffield/lazygit/lazygit
 [ -x "$(command -v zoxide)" ] || brew install zoxide
 [ -x "$(command -v eza)" ] || brew install eza
@@ -195,7 +200,7 @@ brew install --cask mos
 brew install --cask font-jetbrains-mono-nerd-font
 brew install --cask font-maple-mono-nf-cn
 
-echo "Installing Dependencies for Sketchybar"
+echo "Installing dependencies for Sketchybar..."
 # Packages
 brew install lua
 brew install switchaudio-osx
@@ -205,6 +210,7 @@ brew install nowplaying-cli
 sudo xcodebuild -license accept
 
 # install sketchybar
+echo "Installing Sketchybar..."
 brew tap FelixKratz/formulae
 brew install sketchybar
 
@@ -219,9 +225,11 @@ curl -L https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v2.0.
 (git clone https://github.com/FelixKratz/SbarLua.git /tmp/SbarLua && cd /tmp/SbarLua/ && make install && rm -rf /tmp/SbarLua/)
 
 # install skhd
+echo "Installing skhd..."
 brew install koekeishiya/formulae/skhd
 
 # install tmux and tmux plugin manager
+echo "Installing tmux..."
 brew install tmux
 echo "Installing Tmux Plugin Manager"
 mkdir -p ~/.tmux/plugins && git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
@@ -230,6 +238,7 @@ mkdir -p ~/.tmux/plugins && git clone https://github.com/tmux-plugins/tpm ~/.tmu
 bash ~/.tmux/plugins/tpm/scripts/install_plugins.sh
 
 # install yabai
+echo "Installing yabai..."
 brew install koekeishiya/formulae/yabai
 
 # configure yabai
@@ -247,6 +256,7 @@ yabai --start-service
 brew services start sketchybar
 
 # ollama setup
+echo "Installing ollama..."
 brew install ollama
 cp com.ollama.serve.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.ollama.serve.plist
