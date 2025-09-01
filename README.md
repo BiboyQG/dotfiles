@@ -95,6 +95,8 @@ To make our life easier, some useful aliases are defined in `.zshrc`:
 | t     | sudo asitop      | System monitor for macOS                       |
 | y     | yazi function    | File manager with directory changing support   |
 | c     | claude           | Claude Code CLI                                |
+| tn    | tmux new -s      | Create a new tmux session                      |
+| ta    | tmux attach -t   | Attach to a tmux session                       |
 
 ### Hammerspoon
 
