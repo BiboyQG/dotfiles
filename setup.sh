@@ -264,6 +264,6 @@ ollama pull qwen2.5:14b
 
 # oco setup
 npm i -g opencommit@latest
-oco config set OCO_AI_PROVIDER='ollama' OCO_MODEL='qwen2.5:14b' OCO_API_URL=http://localhost:11434/api/chat
+oco config set OCO_AI_PROVIDER='ollama' OCO_MODEL='qwen2.5:14b' OCO_API_URL=http://localhost:11434/api/chat OCO_ONE_LINE_COMMIT=true
 
 echo "Installation would be completed once you've done the above steps!"
