@@ -225,6 +225,9 @@ brew install tmux
 echo "Installing Tmux Plugin Manager"
 mkdir -p ~/.tmux/plugins && git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
+# run script to download all plugins for tmux
+bash ~/.tmux/plugins/tpm/scripts/install_plugins.sh
+
 # install yabai
 brew install koekeishiya/formulae/yabai
 
