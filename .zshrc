@@ -66,6 +66,7 @@ alias t="sudo asitop"
 alias tn="tmux new -s"
 alias ta="tmux attach -t"
 alias c="claude"
+alias cat="bat"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!

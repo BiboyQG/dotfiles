@@ -97,6 +97,7 @@ To make our life easier, some useful aliases are defined in `.zshrc`:
 | c     | claude           | Claude Code CLI                                |
 | tn    | tmux new -s      | Create a new tmux session                      |
 | ta    | tmux attach -t   | Attach to a tmux session                       |
+| cat   | bat              | Cat with wings                                 |
 
 ### Hammerspoon
 
