@@ -124,12 +124,44 @@ else
     echo "Xcode command line tools already installed"
 fi
 
+# install homebrew
 if ! command -v brew &>/dev/null; then
-    echo "Installing Homebrew"
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  echo
+  echo -e "$>>>>>>>>>>>>>>>>>>>>>>>>>>"
+  echo "Installing brew"
+  echo "Enter your password below (if required)"
+  # Only install brew if not installed yet
+  echo
+  echo -e ">>>>>>>>>>>>>>>>>>>>>>>>>>"
+  # Install Homebrew
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  echo
+  echo -e "Homebrew installed successfully."
 else
-    echo "Homebrew already installed"
+  echo
+  echo -e "Homebrew is already installed."
 fi
+
+# After brew is installed, we need to configure our shell for homebrew
+echo
+echo -e ">>>>>>>>>>>>>>>>>>>>>>>>>>"
+echo "Modifying .zprofile file"
+CHECK_LINE='eval "$(/opt/homebrew/bin/brew shellenv)"'
+
+# File to be checked and modified
+FILE="$HOME/.zprofile"
+
+# Check if the specific line exists in the file
+if grep -Fq "$CHECK_LINE" "$FILE"; then
+  echo "Content already exists in $FILE"
+else
+  # Append the content if it does not exist
+  echo -e '\n# Configure shell for brew\n'"$CHECK_LINE" >>"$FILE"
+  echo "Content added to $FILE"
+fi
+
+# After adding it to the .zprofile file, make sure to run the command
+source $FILE
 
 # install stow
 brew install stow
