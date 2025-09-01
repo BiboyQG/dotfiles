@@ -21,6 +21,7 @@ This repo contains the dotfiles for my MacOS system.
 | dust        | N/A     | A more intuitive version of du in rust                        |
 | asitop      | N/A     | System monitor for terminal                                   |
 | gh          | N/A     | GitHub CLI                                                    |
+| bat         | N/A     | Cat with wings                                                |
 
 > [!IMPORTANT]
 >
