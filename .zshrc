@@ -63,6 +63,8 @@ alias ssh="kitten ssh"
 alias s="fastfetch"
 alias l="lazygit"
 alias t="sudo asitop"
+alias tn="tmux new -s"
+alias ta="tmux attach -t"
 alias c="claude"
 
 # >>> conda initialize >>>
@@ -102,3 +104,16 @@ export EDITOR="nvim" # For Yazi default editor
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# >>> mamba initialize >>>
+# !! Contents within this block are managed by 'mamba shell init' !!
+export MAMBA_EXE='/Users/biboy/miniforge3/bin/mamba';
+export MAMBA_ROOT_PREFIX='/Users/biboy/miniforge3';
+__mamba_setup="$("$MAMBA_EXE" shell hook --shell zsh --root-prefix "$MAMBA_ROOT_PREFIX" 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__mamba_setup"
+else
+    alias mamba="$MAMBA_EXE"  # Fallback on help from mamba activate
+fi
+unset __mamba_setup
+# <<< mamba initialize <<<
