@@ -260,6 +260,7 @@ echo "Installing ollama..."
 brew install ollama
 cp com.ollama.serve.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.ollama.serve.plist
+ollama pull qwen2.5:14b
 
 # oco setup
 brew install oco
