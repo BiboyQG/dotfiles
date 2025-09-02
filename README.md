@@ -89,18 +89,18 @@ You are all set!
 
 To make our life easier, some useful aliases are defined in `.zshrc`:
 
-| Alias | Command          | Description                                    |
-| ----- | ---------------- | ---------------------------------------------- |
-| ll    | eza -alh --icons | Enhanced file listing with icons and details   |
-| ssh   | kitten ssh       | SSH through Kitty terminal                     |
-| s     | fastfetch        | System information display                     |
-| l     | lazygit          | Terminal Git UI                                |
-| t     | sudo asitop      | System monitor for macOS                       |
-| y     | yazi function    | File manager with directory changing support   |
-| c     | claude           | Claude Code CLI                                |
-| tn    | tmux new -s      | Create a new tmux session                      |
-| ta    | tmux attach -t   | Attach to a tmux session                       |
-| cat   | bat              | Cat with wings                                 |
+| Alias | Command          | Description                                  |
+| ----- | ---------------- | -------------------------------------------- |
+| ll    | eza -alh --icons | Enhanced file listing with icons and details |
+| ssh   | kitten ssh       | SSH through Kitty terminal                   |
+| s     | fastfetch        | System information display                   |
+| l     | lazygit          | Terminal Git UI                              |
+| t     | sudo asitop      | System monitor for macOS                     |
+| y     | yazi function    | File manager with directory changing support |
+| c     | claude           | Claude Code CLI                              |
+| tn    | tmux new -s      | Create a new tmux session                    |
+| ta    | tmux attach -t   | Attach to a tmux session                     |
+| cat   | bat              | Cat with wings                               |
 
 ### Hammerspoon
 
