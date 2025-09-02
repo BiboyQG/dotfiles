@@ -23,6 +23,7 @@ This repo contains the dotfiles for my MacOS system.
 | gh          | N/A     | GitHub CLI                                                    |
 | bat         | N/A     | Cat with wings                                                |
 | oco         | N/A     | Generate commit messages with LLMs                            |
+| uv          | N/A     | Rust package manager for Python                               |
 
 > [!IMPORTANT]
 >
