@@ -69,11 +69,6 @@
     "typescript.updateImportsOnFileMove.enabled": "always",
     "extensions.ignoreRecommendations": true,
     "python.defaultInterpreterPath": "",
-    "cursor.cpp.disabledLanguages": [
-        "plaintext",
-        "scminput"
-    ],
-    "cursor.general.enableShadowWorkspace": true,
     "editor.fontSize": 14,
     "[json]": {
         "editor.defaultFormatter": "vscode.json-language-features"
@@ -99,7 +94,6 @@
     },
     "latex-workshop.view.pdf.invert": 1,
     "update.releaseTrack": "prerelease",
-    "cursor.composer.shouldChimeAfterChatFinishes": true,
     "explorer.confirmPasteNative": false,
     "workbench.editor.showTabs": "single",
     "breadcrumbs.enabled": false,
