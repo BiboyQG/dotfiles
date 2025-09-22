@@ -99,7 +99,7 @@
     "custom-ui-style.electron": {
         "titleBarStyle": "hiddenInset",
         "trafficLightPosition": {
-            "x": 20,
+            "x": -9999,
             "y": 16
         }
     },
