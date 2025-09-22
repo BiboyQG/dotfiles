@@ -1,17 +1,19 @@
 {
     "security.workspace.trust.untrustedFiles": "open",
+    "editor.accessibilitySupport": "off",
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
+    "python.analysis.typeCheckingMode": "basic",
     "[python]": {
         "editor.formatOnType": true,
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
+    "workbench.colorTheme": "Snazzy Operator",
+    "workbench.iconTheme": "eq-material-theme-icons-light",
+    "workbench.activityBar.location": "top",
+    "workbench.list.smoothScrolling": true,
+    "terminal.integrated.smoothScrolling": true,
     "terminal.integrated.inheritEnv": false,
-    "launch": {
-        "python.defaultInterpreterPath": "/Users/biboy/miniforge3/envs/ai-service/bin/python",
-        "configurations": [],
-        "compounds": []
-    },
-    "json.schemas": [],
-    "workbench.iconTheme": "eq-material-theme-icons-palenight",
     "vim.insertModeKeyBindings": [
         {
             "before": [
@@ -35,13 +37,8 @@
         }
     ],
     "explorer.confirmDelete": false,
-    "terminal.external.osxExec": "Warp.app",
-    "github.gitProtocol": "ssh",
-    "workbench.colorTheme": "Snazzy Operator",
     "explorer.compactFolders": false,
-    "workbench.list.smoothScrolling": true,
-    "editor.smoothScrolling": true,
-    "terminal.integrated.smoothScrolling": true,
+    "github.gitProtocol": "ssh",
     "files.autoSave": "afterDelay",
     "files.autoGuessEncoding": true,
     "editor.cursorSmoothCaretAnimation": "on",
@@ -68,7 +65,6 @@
     "explorer.confirmDragAndDrop": false,
     "typescript.updateImportsOnFileMove.enabled": "always",
     "extensions.ignoreRecommendations": true,
-    "python.defaultInterpreterPath": "",
     "editor.fontSize": 14,
     "[json]": {
         "editor.defaultFormatter": "vscode.json-language-features"
@@ -143,5 +139,5 @@
     "files.insertFinalNewline": true,
     "editor.lineNumbers": "on",
     "editor.showFoldingControls": "never",
-    "extensions.gallery.serviceUrl": "https://marketplace.visualstudio.com/_apis/public/gallery"
+    "git.ignoreLimitWarning": true
 }
