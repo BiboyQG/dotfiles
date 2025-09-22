@@ -1,6 +1,7 @@
 {
     "security.workspace.trust.untrustedFiles": "open",
     "editor.accessibilitySupport": "off",
+    "github.gitProtocol": "ssh",
     "github.copilot.nextEditSuggestions.enabled": true,
     "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
     "python.analysis.typeCheckingMode": "basic",
@@ -12,8 +13,14 @@
     "workbench.iconTheme": "eq-material-theme-icons-light",
     "workbench.activityBar.location": "top",
     "workbench.list.smoothScrolling": true,
+    "workbench.editor.showTabs": "single",
+    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.smoothScrolling": true,
     "terminal.integrated.inheritEnv": false,
+    "terminal.integrated.defaultProfile.windows": "Git Bash",
+    "workbench.settings.applyToAllProfiles": [
+        "editor.fontSize"
+    ],
     "vim.insertModeKeyBindings": [
         {
             "before": [
@@ -38,9 +45,11 @@
     ],
     "explorer.confirmDelete": false,
     "explorer.compactFolders": false,
-    "github.gitProtocol": "ssh",
     "files.autoSave": "afterDelay",
     "files.autoGuessEncoding": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.fontSize": 14,
     "editor.cursorSmoothCaretAnimation": "on",
     "editor.cursorBlinking": "solid",
     "editor.mouseWheelZoom": true,
@@ -52,20 +61,16 @@
     "editor.suggest.snippetsPreventQuickSuggestions": false,
     "editor.acceptSuggestionOnEnter": "smart",
     "editor.suggestSelection": "recentlyUsed",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
     "window.dialogStyle": "custom",
     "debug.showBreakpointsInOverviewRuler": true,
-    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "workbench.settings.applyToAllProfiles": [
-        "editor.fontSize"
-    ],
-    "terminal.integrated.defaultProfile.windows": "Git Bash",
     "git.openRepositoryInParentFolders": "always",
+    "git.ignoreLimitWarning": true,
     "javascript.updateImportsOnFileMove.enabled": "always",
     "explorer.confirmDragAndDrop": false,
+    "explorer.confirmPasteNative": false,
     "typescript.updateImportsOnFileMove.enabled": "always",
     "extensions.ignoreRecommendations": true,
-    "editor.fontSize": 14,
     "[json]": {
         "editor.defaultFormatter": "vscode.json-language-features"
     },
@@ -90,8 +95,6 @@
     },
     "latex-workshop.view.pdf.invert": 1,
     "update.releaseTrack": "prerelease",
-    "explorer.confirmPasteNative": false,
-    "workbench.editor.showTabs": "single",
     "breadcrumbs.enabled": false,
     "window.customTitleBarVisibility": "never",
     "window.titleBarStyle": "native",
@@ -135,9 +138,6 @@
             }
         ]
     },
-    "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
     "editor.lineNumbers": "on",
-    "editor.showFoldingControls": "never",
-    "git.ignoreLimitWarning": true
+    "editor.showFoldingControls": "never"
 }
