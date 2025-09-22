@@ -90,7 +90,6 @@
         "editor.defaultFormatter": "inferrinizzard.prettier-sql-vscode"
     },
     "workbench.editorAssociations": {
-        "{hexdiff}:/**/*.*": "hexEditor.hexedit",
         "*.pdf": "latex-workshop-pdf-hook"
     },
     "latex-workshop.view.pdf.invert": 1,
