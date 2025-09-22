@@ -93,7 +93,6 @@
         "*.pdf": "latex-workshop-pdf-hook"
     },
     "latex-workshop.view.pdf.invert": 1,
-    "update.releaseTrack": "prerelease",
     "breadcrumbs.enabled": false,
     "window.customTitleBarVisibility": "never",
     "window.titleBarStyle": "native",
