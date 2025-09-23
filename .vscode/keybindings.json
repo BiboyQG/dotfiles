@@ -123,16 +123,8 @@
         "command": "workbench.action.previousEditor"
     },
     {
-        "key": "cmd+i",
-        "command": "composerMode.agent"
-    },
-    {
         "key": "] ]",
         "command": "hideCustomTitleBar",
         "when": "titleBarVisible"
-    },
-    {
-        "key": "cmd+e",
-        "command": "composerMode.background"
     }
 ]
