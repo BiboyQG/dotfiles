@@ -1,10 +1,6 @@
 **/lazy-lock.json
 
 .config/clash.meta/
+.config/nvim/lazyvim.json
 
-.claude/projects
-.claude/statsig
-.claude/todos
-.claude/ide/
-.claude/shell-snapshots/
-.claude/statusline.log
+.claude/
