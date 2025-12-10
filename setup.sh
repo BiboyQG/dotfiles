@@ -188,12 +188,12 @@ echo "Installing other dependencies using Homebrew..."
 [ -x "$(command -v fastfetch)" ] || brew install fastfetch
 [ -x "$(command -v cloc)" ] || brew install cloc
 [ -x "$(command -v dust)" ] || brew install dust
-[ -x "$(command -v asitop)" ] || brew install asitop
+[ -x "$(command -v macmon)" ] || brew install macmon
 [ -x "$(command -v gh)" ] || brew install gh
 [ -x "$(command -v nvim)" ] || brew install neovim
 [ -x "$(command -v bat)" ] || brew install bat
 [ -x "$(command -v uv)" ] || brew install uv
-brew install appcleaner
+brew install pearcleaner
 brew install hammerspoon
 brew install --cask mos
 
