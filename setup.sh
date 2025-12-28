@@ -151,6 +151,7 @@ echo
 echo -e ">>>>>>>>>>>>>>>>>>>>>>>>>>"
 echo "Modifying .zprofile file"
 CHECK_LINE='eval "$(/opt/homebrew/bin/brew shellenv)"'
+BIN_PATH_LINE='export PATH="$HOME/bin:$PATH"'
 
 # File to be checked and modified
 FILE="$HOME/.zprofile"
@@ -161,6 +162,14 @@ if grep -Fq "$CHECK_LINE" "$FILE"; then
 else
   # Append the content if it does not exist
   echo -e '\n# Configure shell for brew\n'"$CHECK_LINE" >>"$FILE"
+  echo "Content added to $FILE"
+fi
+
+# Ensure ~/bin is on PATH (for scripts like myip)
+if grep -Fq "$BIN_PATH_LINE" "$FILE"; then
+  echo "Content already exists in $FILE"
+else
+  echo -e '\n# Add ~/bin to PATH\n'"$BIN_PATH_LINE" >>"$FILE"
   echo "Content added to $FILE"
 fi
 
@@ -178,6 +187,10 @@ rm -rf $HOME/.config $HOME/.tmux.conf $HOME/.skhdrc $HOME/.yabairc $HOME/.zshrc 
 echo "Creating symlinks..."
 stow --adopt .
 
+# setup agent tracker
+echo "Setting up agent tracker..."
+bash ./setup_agent_tracker.sh
+
 # install other dependencies
 echo "Installing other dependencies using Homebrew..."
 [ -x "$(command -v lazygit)" ] || brew install jesseduffield/lazygit/lazygit
@@ -193,6 +206,7 @@ echo "Installing other dependencies using Homebrew..."
 [ -x "$(command -v nvim)" ] || brew install neovim
 [ -x "$(command -v bat)" ] || brew install bat
 [ -x "$(command -v uv)" ] || brew install uv
+[ -x "$(command -v terminal-notifier)" ] || brew install terminal-notifier
 brew install pearcleaner
 brew install hammerspoon
 brew install --cask mos
