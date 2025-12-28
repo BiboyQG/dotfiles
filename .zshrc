@@ -65,6 +65,7 @@ alias l="lazygit"
 alias m="macmon"
 alias tn="tmux new -s"
 alias ta="tmux attach -t"
+alias tls="tmux ls"
 alias c="claude"
 alias cat="bat"
 
