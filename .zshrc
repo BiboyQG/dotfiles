@@ -35,6 +35,10 @@ bindkey '$' autosuggest-accept
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 
+if [[ -t 0 ]]; then
+	stty -ixon 2>/dev/null || true
+fi
+
 HISTSIZE=10000
 HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
