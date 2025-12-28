@@ -4,3 +4,5 @@
 .config/nvim/lazyvim.json
 
 .claude/
+
+__pycache__/
