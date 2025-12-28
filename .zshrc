@@ -68,7 +68,41 @@ alias s="fastfetch"
 alias l="lazygit"
 alias m="macmon"
 alias tn="tmux new -s"
-alias ta="tmux attach -t"
+unalias ta 2>/dev/null || true
+function ta {
+	local query="${1:-}"
+	shift || true
+	if [[ -z "$query" ]]; then
+		tmux attach "$@"
+		return $?
+	fi
+	if [[ "$query" == -* ]]; then
+		tmux attach "$query" "$@"
+		return $?
+	fi
+
+	local target=""
+	local sessions
+	sessions="$(tmux list-sessions -F '#{session_id}:::#{session_name}' 2>/dev/null)"
+
+	if [[ -n "$sessions" ]]; then
+		if [[ "$query" =~ ^[0-9]+$ ]]; then
+			target="$(printf '%s\n' "$sessions" | awk -F ':::' -v idx="$query" '$2 ~ "^"idx"-" {print $1; exit}')"
+		else
+			target="$(printf '%s\n' "$sessions" | awk -F ':::' -v name="$query" '$2 == name {print $1; exit}')"
+			if [[ -z "$target" ]]; then
+				target="$(printf '%s\n' "$sessions" | awk -F ':::' -v label="$query" '{name=$2; sub(/^[0-9]+-/, "", name); if (name == label) {print $1; exit}}')"
+			fi
+		fi
+	fi
+
+	if [[ -n "$target" ]]; then
+		tmux attach -t "$target" "$@"
+		return $?
+	fi
+
+	tmux attach -t "$query" "$@"
+}
 alias tls="tmux ls"
 alias c="claude"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"
