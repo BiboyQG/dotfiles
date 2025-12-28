@@ -69,8 +69,6 @@ alias tls="tmux ls"
 alias c="claude"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"
 alias cat="bat"
-# Binary
-alias ip="~/bin/myip"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
