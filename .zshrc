@@ -67,6 +67,7 @@ alias tn="tmux new -s"
 alias ta="tmux attach -t"
 alias tls="tmux ls"
 alias c="claude"
+alias codex="codex --dangerously-bypass-approvals-and-sandbox"
 alias cat="bat"
 
 # >>> conda initialize >>>
