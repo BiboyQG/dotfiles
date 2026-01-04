@@ -25,7 +25,7 @@ Rationale placement:
 When you need to call tools from the shell, **use this rubric**:
 - JSON: `jq`
 - YAML/XML: `yq`
-- Use `uv run` for python call if uv virtual environment for the project exists; use the `python3` command for python otherwise. There is no `python` command on this system.
+- Use `uv run` for python call if uv virtual environment for the project exists; if no uv environment exists for the project, create one if possible; use the `python3` command for python otherwise. There is no `python` command on this system.
 
 ## TRACKER INTEGRATION
 - Before starting substantive work, call the MCP tool `tracker_mark_start_working` exactly once with:
