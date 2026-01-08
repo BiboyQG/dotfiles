@@ -108,20 +108,18 @@ alias c="claude"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"
 alias cat="bat"
 
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/biboy/miniforge3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/Users/biboy/miniforge3/etc/profile.d/conda.sh" ]; then
-        . "/Users/biboy/miniforge3/etc/profile.d/conda.sh"
-    else
-        export PATH="/Users/biboy/miniforge3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
+# Suffix Aliases - Open Files by Extension
+# Just type the filename to open it with the associated program
+alias -s md='$EDITOR'
+alias -s txt=bat
+alias -s log=bat
+alias -s py='$EDITOR'
+alias -s html=open  # macOS: open in default browser
+
+# Hotkey Insertions - Text Snippets
+# Insert git commit template (Ctrl+x, g, c)
+# \C-b moves cursor back one position
+bindkey -s '^xgc' 'git commit -m ""\C-b'
 
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/biboy/.docker/completions $fpath)
@@ -145,16 +143,3 @@ export EDITOR="nvim" # For Yazi default editor
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-# >>> mamba initialize >>>
-# !! Contents within this block are managed by 'mamba shell init' !!
-export MAMBA_EXE='/Users/biboy/miniforge3/bin/mamba';
-export MAMBA_ROOT_PREFIX='/Users/biboy/miniforge3';
-__mamba_setup="$("$MAMBA_EXE" shell hook --shell zsh --root-prefix "$MAMBA_ROOT_PREFIX" 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__mamba_setup"
-else
-    alias mamba="$MAMBA_EXE"  # Fallback on help from mamba activate
-fi
-unset __mamba_setup
-# <<< mamba initialize <<<
