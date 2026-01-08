@@ -4,26 +4,51 @@ This repo contains the dotfiles for my MacOS system.
 
 ## Tools
 
-| Tool        | Version | Description                                                   |
-| ----------- | ------- | ------------------------------------------------------------- |
-| kitty       | 0.37.0  | Fast, feature-rich, GPU-based terminal emulator               |
-| zsh         | N/A     | Modern shell with advanced features and customization         |
-| nvim        | N/A     | Highly extensible Vim-based text editor                       |
-| sketchybar  | N/A     | Highly customizable macOS status bar replacement              |
-| yabai       | N/A     | Tiling window manager for macOS                               |
-| skhd        | N/A     | Simple hotkey daemon for macOS                                |
-| tmux        | 3.5a    | Terminal multiplexer for multiple sessions                    |
-| yazi        | N/A     | Rust-based terminal file manager for macOS                    |
-| lazygit     | N/A     | Simple terminal UI for git operations                         |
-| hammerspoon | N/A     | Powerful automation tool for macOS (auto-switch input source) |
-| fastfetch   | N/A     | Fastfetch is a fast alternative to neofetch for macOS         |
-| cloc        | N/A     | Count lines of code                                           |
-| dust        | N/A     | A more intuitive version of du in rust                        |
-| asitop      | N/A     | System monitor for terminal                                   |
-| gh          | N/A     | GitHub CLI                                                    |
-| bat         | N/A     | Cat with wings                                                |
-| oco         | N/A     | Generate commit messages with LLMs                            |
-| uv          | N/A     | Rust package manager for Python                               |
+Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
+
+| Tool                | Install                  | Description                                      |
+| ------------------- | ------------------------ | ------------------------------------------------ |
+| Homebrew            | `brew`                   | Package manager for macOS                        |
+| GNU Stow            | `brew`                   | Symlink manager for dotfiles                     |
+| Kitty               | `brew --cask`            | GPU-based terminal emulator                      |
+| Zsh                 | macOS                    | Shell and interactive environment                |
+| Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
+| Tmux                | `brew`                   | Terminal multiplexer                             |
+| Tmux Plugin Manager | `git`                    | Tmux plugin manager (`tpm`)                      |
+| Agent tracker       | `setup_agent_tracker.sh` | Local tracker for tmux/Codex integration         |
+| Sketchybar          | `brew`                   | macOS status bar replacement                     |
+| Lua                 | `brew`                   | Runtime for Sketchybar scripting                 |
+| SwitchAudioSource   | `brew`                   | Switch macOS audio devices (`SwitchAudioSource`) |
+| NowPlaying CLI      | `brew`                   | Now Playing metadata (for Sketchybar)            |
+| SbarLua             | `git`                    | Lua API for Sketchybar                           |
+| Yabai               | `brew`                   | Tiling window manager for macOS                  |
+| Skhd                | `brew`                   | Hotkey daemon for macOS                          |
+| Hammerspoon         | `brew --cask`            | macOS automation tool (Lua)                      |
+| Yazi                | `brew`                   | Terminal file manager                            |
+| Lazygit             | `brew`                   | Terminal UI for git operations                   |
+| Eza                 | `brew`                   | Modern `ls` replacement                          |
+| Zoxide              | `brew`                   | Smarter `cd` replacement                         |
+| Direnv              | `brew`                   | Per-directory environment loader                 |
+| Ripgrep             | `brew`                   | Fast text search (`rg`)                          |
+| Fzf                 | `brew`                   | Fuzzy finder                                     |
+| Fd                  | `brew`                   | Fast `find` alternative                          |
+| Jq                  | `brew`                   | JSON processor                                   |
+| 7zip                | `brew`                   | Archive tool (`7zz`)                             |
+| FFmpeg              | `brew`                   | Media toolkit                                    |
+| ImageMagick         | `brew`                   | Image processing tools                           |
+| Poppler             | `brew`                   | PDF utilities (`pdfinfo`, `pdftotext`, ...)      |
+| Bat                 | `brew`                   | `cat` replacement with syntax highlighting       |
+| Gh                  | `brew`                   | GitHub CLI                                       |
+| Fastfetch           | `brew`                   | System info summary                              |
+| Cloc                | `brew`                   | Count lines of code                              |
+| Dust                | `brew`                   | `du` alternative                                 |
+| Macmon              | `brew`                   | System monitor (TUI)                             |
+| Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
+| Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
+| Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
+| Ollama              | `brew`                   | Local LLM runner                                 |
+| OpenCommit          | `npm -g`                 | LLM-assisted commit messages (`oco`)             |
+| Uv                  | `brew`                   | Python package/venv manager                      |
 
 > [!IMPORTANT]
 >
@@ -37,14 +62,10 @@ Then, run the following command to disable SIP:
 csrutil disable
 ```
 
-Then, intall nvm and miniforge if needed.
+Then, intall nvm if needed.
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-```
-
-```bash
-curl https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh | sh
 ```
 
 Then, pull the repo and enter the folder
@@ -130,7 +151,6 @@ To make our life easier, some useful aliases are defined in `.zshrc`:
 | ssh   | kitten ssh       | SSH through Kitty terminal                   |
 | s     | fastfetch        | System information display                   |
 | l     | lazygit          | Terminal Git UI                              |
-| t     | sudo asitop      | System monitor for macOS                     |
 | y     | yazi function    | File manager with directory changing support |
 | c     | claude           | Claude Code CLI                              |
 | tn    | tmux new -s      | Create a new tmux session                    |
