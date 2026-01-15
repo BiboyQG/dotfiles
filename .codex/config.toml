@@ -1,4 +1,4 @@
-tui    = { theme = { name = "dark-zen-garden" }, spinner = { name = "brailleDotsClassic" }, alternate_screen = true, notifications = true }
+tui    = { theme = { name = "dark-zen-garden" }, spinner = { name = "brailleDotsClassic" }, notifications = true }
 notify = ["/opt/homebrew/bin/python3", "/Users/biboy/.codex/notify.py"]
 
 model                    = "gpt-5.2"
