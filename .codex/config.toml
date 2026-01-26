@@ -17,11 +17,6 @@ web_search_request   = true
 streamable_shell     = true
 apply_patch_freeform = true
 
-[mcp_servers.macos-ui-automation]
-command = "uv"
-args = ["--directory", "/Users/biboy/projects/macos-ui-automation-mcp", "run", "macos-ui-automation-mcp"]
-startup_timeout_ms = 20000
-
 [mcp_servers.chrome-devtools]
 command = "npx"
 args = ["chrome-devtools-mcp@latest"]
