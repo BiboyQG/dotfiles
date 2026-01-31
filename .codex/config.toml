@@ -13,7 +13,7 @@ rmcp_client     = true
 hide_gpt5_1_migration_prompt = true
 
 [features]
-web_search_request   = true
+web_search           = "live"
 streamable_shell     = true
 apply_patch_freeform = true
 
