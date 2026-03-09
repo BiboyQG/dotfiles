@@ -10,8 +10,20 @@
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
     "workbench.colorTheme": "Snazzy Operator",
-    "workbench.iconTheme": "eq-material-theme-icons-light",
-    "workbench.activityBar.location": "top",
+    "workbench.iconTheme": "material-icon-theme",
+    "workbench.colorCustomizations": {
+        "list.focusBackground": "#5A274F",
+        "list.focusForeground": "#FFFFFF",
+        "list.focusOutline": "#FFAFFC",
+        "list.activeSelectionBackground": "#5A274F",
+        "list.activeSelectionForeground": "#FFFFFF",
+        "list.inactiveSelectionBackground": "#40203A",
+        "list.inactiveSelectionForeground": "#F8F8F2",
+        "list.inactiveFocusBackground": "#4B2444",
+        "list.inactiveFocusOutline": "#FFAFFC80",
+        "list.hoverBackground": "#FFFFFF12",
+        "list.highlightForeground": "#FFAFFC"
+    },
     "workbench.list.smoothScrolling": true,
     "workbench.editor.showTabs": "single",
     "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
@@ -94,7 +106,6 @@
     },
     "latex-workshop.view.pdf.invert": 1,
     "breadcrumbs.enabled": false,
-    "window.customTitleBarVisibility": "never",
     "window.titleBarStyle": "native",
     "custom-ui-style.electron": {
         "titleBarStyle": "hiddenInset",
@@ -115,8 +126,8 @@
         ".monaco-scrollable-element > .shadow.top": "display: none",
         ".sidebar .title-label": "padding: 0 !important",
         ".sidebar": "border: none !important",
-        ".monaco-workbench .monaco-list:not(.element-focused):focus:before": "outline: none !important",
-        ".monaco-list-row.focused": "outline: none !important",
+        ".monaco-workbench .monaco-list:not(.element-focused):focus:before": "outline: 1px solid #FFAFFC !important; outline-offset: -1px !important",
+        ".monaco-list-row.focused": "outline: 1px solid #FFAFFC !important; outline-offset: -1px !important; border-radius: 6px !important; box-shadow: inset 0 0 0 1px #FFAFFC !important",
         ".monaco-editor .scroll-decoration": "display: none",
         ".title-actions": "display: none !important",
         ".title.show-file-icons .label-container .monaco-icon-label.file-icon": "justify-content: center; padding: 0 !important",
@@ -137,5 +148,10 @@
         ]
     },
     "editor.lineNumbers": "on",
-    "editor.showFoldingControls": "never"
+    "editor.showFoldingControls": "never",
+    "workbench.activityBar.location": "top",
+    "window.customTitleBarVisibility": "never",
+    "editor.largeFileOptimizations": false,
+    "editor.unicodeHighlight.ambiguousCharacters": false,
+    "terminal.integrated.enableMultiLinePasteWarning": "never"
 }
