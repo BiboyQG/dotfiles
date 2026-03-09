@@ -15,7 +15,6 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
 | Tmux                | `brew`                   | Terminal multiplexer                             |
 | Tmux Plugin Manager | `git`                    | Tmux plugin manager (`tpm`)                      |
-| Agent tracker       | `setup_agent_tracker.sh` | Local tracker for tmux/Codex integration         |
 | Sketchybar          | `brew`                   | macOS status bar replacement                     |
 | Lua                 | `brew`                   | Runtime for Sketchybar scripting                 |
 | SwitchAudioSource   | `brew`                   | Switch macOS audio devices (`SwitchAudioSource`) |
@@ -84,7 +83,6 @@ This will:
 
 - Symlink the dotfiles into place (via `stow --adopt`)
 - Install dependencies via Homebrew
-- Set up the tmux agent-tracker integration (build binaries + start a brew service)
 
 ### Tips
 
@@ -113,21 +111,12 @@ Some tmux behavior in this repo is optimized for “session slots” (fast switc
 - Create a new session with `Ctrl+s` (keeps numbering contiguous)
 - Switch sessions with `F1..F10` (in Kitty, `⌘1..⌘0` sends `F1..F10` to tmux)
 - Move the current window to session slot with `<prefix> + 1..0`
-- Toggle the tmux agent-tracker UI with `F12` (in Kitty, `⌘t` sends `F12`)
 
 Shell helpers:
 
 - `ta <label>` attaches by label (example: `ta dot` attaches to `1-dot`)
 - `ta <idx>` attaches by slot (example: `ta 1`)
 - `tls` lists sessions
-
-#### Agent tracker
-
-This repo includes a lightweight “agent-tracker” used by tmux hooks and (optionally) Codex:
-
-- `setup.sh` runs `setup_agent_tracker.sh` to build and install `~/.config/agent-tracker/bin/*` and start the `agent-tracker-server` brew service
-- tmux hooks keep task state in sync on attach, pane focus, and pane exit
-- If `~/.codex/config.toml` exists, the installer appends an MCP server entry so Codex can talk to the tracker
 
 #### zsh
 

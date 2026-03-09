@@ -187,10 +187,6 @@ rm -rf $HOME/.config $HOME/.tmux.conf $HOME/.skhdrc $HOME/.yabairc $HOME/.zshrc 
 echo "Creating symlinks..."
 stow --adopt .
 
-# setup agent tracker
-echo "Setting up agent tracker..."
-bash ./setup_agent_tracker.sh
-
 # install other dependencies
 echo "Installing other dependencies using Homebrew..."
 [ -x "$(command -v lazygit)" ] || brew install jesseduffield/lazygit/lazygit

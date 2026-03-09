@@ -127,21 +127,6 @@ def main() -> int:
         if combined:
             title = combined
 
-    # Persist latest target so tmux hotkey can jump to it later
-    if tmux_ids is not None:
-        try:
-            run_dir = os.path.join(
-                os.path.expanduser("~"), ".config", "agent-tracker", "run"
-            )
-            os.makedirs(run_dir, exist_ok=True)
-            tmp_path = os.path.join(run_dir, ".latest_notified.tmp")
-            final_path = os.path.join(run_dir, "latest_notified.txt")
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                f.write("%s:::%s:::%s\n" % tmux_ids)
-            os.replace(tmp_path, final_path)
-        except Exception:
-            pass
-
     args = [
         "terminal-notifier",
         "-title",
@@ -158,40 +143,6 @@ def main() -> int:
         "-activate",
         "net.kovidgoyal.kitty",
     ]
-
-    # Before showing the banner: tell the tracker server we responded,
-    # attaching the assistant's response text as the completion note.
-    if tmux_ids is not None and assistant_message:
-        try:
-            tracker_bin = shutil.which("tracker-client")
-            if not tracker_bin:
-                tracker_bin = os.path.join(
-                    os.path.expanduser("~"),
-                    ".config",
-                    "agent-tracker",
-                    "bin",
-                    "tracker-client",
-                )
-            if os.path.exists(tracker_bin):
-                sid, wid, pid = [s.strip() for s in tmux_ids]
-                subprocess.check_output(
-                    [
-                        tracker_bin,
-                        "command",
-                        "-session-id",
-                        sid,
-                        "-window-id",
-                        wid,
-                        "-pane",
-                        pid,
-                        "-summary",
-                        assistant_message,
-                        "finish_task",
-                    ],
-                    text=True,
-                )
-        except Exception:
-            pass
 
     # On click: focus the terminal app and switch tmux to the originating pane
     if tmux_ids is not None:

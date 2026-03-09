@@ -1,8 +1,23 @@
 **/lazy-lock.json
 
+.config/cagent/
 .config/clash.meta/
+.config/configstore/
+.config/gh/
+.config/mole/
 .config/nvim/lazyvim.json
+.config/rstudio/
+.config/stripe/
 
-.claude/
+.claude/**
+!.claude/plugins/
+!.claude/plugins/config.json
+!.claude/settings.json
+!.claude/statusline.sh
+
+.codex/**
+!.codex/AGENTS.md
+!.codex/config.toml
+!.codex/notify.py
 
 __pycache__/

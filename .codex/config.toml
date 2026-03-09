@@ -1,27 +1,25 @@
-tui    = { theme = { name = "dark-zen-garden" }, spinner = { name = "brailleDotsClassic" }, notifications = true }
 notify = ["/opt/homebrew/bin/python3", "/Users/biboy/.codex/notify.py"]
 
-model                    = "gpt-5.2"
+model                    = "gpt-5.4"
 model_verbosity          = "medium"  # low|medium|high
 model_reasoning_effort   = "xhigh"
 show_raw_agent_reasoning = true
 
 exec_timeout_ms = 900000               # 15 minutes
 rmcp_client     = true
+web_search      = "live"
+
+[tui    ]
+spinner = { name = "brailleDotsClassic" }
+notifications = true
+status_line = ["model-with-reasoning", "current-dir", "context-remaining", "five-hour-limit"]
 
 [notice]
 hide_gpt5_1_migration_prompt = true
+hide_rate_limit_model_nudge = true
+
+[notice.model_migrations]
+"gpt-5.2" = "gpt-5.3-codex"
 
 [features]
-web_search           = "live"
 streamable_shell     = true
-apply_patch_freeform = true
-
-[mcp_servers.chrome-devtools]
-command = "npx"
-args = ["chrome-devtools-mcp@latest"]
-startup_timeout_ms = 20000
-
-[mcp_servers.tracker]
-command = "/Users/biboy/.config/agent-tracker/bin/tracker-mcp"
-startup_timeout_ms = 20000
