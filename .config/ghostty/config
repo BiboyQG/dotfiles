@@ -1,0 +1,13 @@
+# Theme
+theme = "Catppuccin Macchiato"
+font-family = "Cascadia Mono NF"
+font-synthetic-style = false
+font-size = 18
+
+# Custom Shader
+# See https://github.com/sahaj-b/ghostty-cursor-shaders
+custom-shader = shaders/cursor_tail.glsl
+
+# Cursor
+cursor-style = bar
+cursor-style-blink = false
