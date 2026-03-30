@@ -6,7 +6,7 @@ font-size = 18
 
 # Custom Shader
 # See https://github.com/sahaj-b/ghostty-cursor-shaders
-custom-shader = shaders/cursor_tail.glsl
+custom-shader = shaders/cursor_warp.glsl
 
 # Cursor
 cursor-style = bar
