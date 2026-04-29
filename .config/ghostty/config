@@ -3,6 +3,8 @@ theme = "Catppuccin Macchiato"
 font-family = "Cascadia Mono NF"
 font-synthetic-style = false
 font-size = 18
+background-opacity = 0.65
+background-blur = macos-glass-regular
 
 # Custom Shader
 # See https://github.com/sahaj-b/ghostty-cursor-shaders
