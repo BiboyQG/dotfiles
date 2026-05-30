@@ -1,6 +1,5 @@
-# opens Alacritty
-# cmd - return : open -n -a "kitty"
-cmd - return : /Applications/kitty.app/Contents/MacOS/kitty --single-instance -d ~
+# open kitty
+cmd - return : /Applications/kitty.app/Contents/MacOS/kitty --single-instance -d "$HOME"
 
 # open Arc browser
 cmd + shift - return : osascript -e 'tell application "Arc" to make new window' -e 'tell application "Arc" to activate'
