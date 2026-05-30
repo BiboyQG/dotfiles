@@ -1,6 +1,4 @@
-notify = ["/opt/homebrew/bin/python3", "/Users/biboy/.codex/notify.py"]
-
-model                    = "gpt-5.4"
+model                    = "gpt-5.5"
 model_verbosity          = "medium"  # low|medium|high
 model_reasoning_effort   = "xhigh"
 show_raw_agent_reasoning = true
@@ -8,18 +6,178 @@ show_raw_agent_reasoning = true
 exec_timeout_ms = 900000               # 15 minutes
 rmcp_client     = true
 web_search      = "live"
+service_tier = "fast"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+notify = ["/Users/biboy/.codex/plugins/cache/openai-bundled/computer-use/1.0.758/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended", "--previous-notify"]
 
 [tui    ]
 spinner = { name = "brailleDotsClassic" }
 notifications = true
-status_line = ["model-with-reasoning", "current-dir", "context-remaining", "five-hour-limit"]
+status_line = ["model-with-reasoning", "current-dir", "context-remaining", "fast-mode"]
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
 
 [notice]
 hide_gpt5_1_migration_prompt = true
 hide_rate_limit_model_nudge = true
 
 [notice.model_migrations]
-"gpt-5.2" = "gpt-5.3-codex"
+"gpt-5.2" = "gpt-5.4"
+"gpt-5.3-codex" = "gpt-5.4"
 
 [features]
 streamable_shell     = true
+remote_connections = true
+memories = true
+chronicle = true
+goals = true
+terminal_resize_reflow = true
+
+[projects."/Users/biboy/research/papers/spreadsheet-rl"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/babe/practicum"]
+trust_level = "trusted"
+
+[projects."/"]
+trust_level = "trusted"
+
+[projects."/Users/biboy"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/spreadsheet-crawler-codex"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/sheetarena-async-reward-api"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/Auto-Research-Refine"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/cua_as_verifier"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/wechat-decrypt"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/emails"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/Auto-claude-code-research-in-sleep"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/dotfiles"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/spreadsheet-rl"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/SheetArena"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/SheetArena/verl"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/SheetArena/async-reward-api"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/SheetArena/spreadsheet-crawler-builder"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/verl"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/shoes-monitor"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/flash-attention"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/courses/UIUC/LMZ/sp26-hw4-compaction"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/scroll-down"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/test"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/macos-ui-automation-mcp"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/WeChat-MCP"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Downloads/lyy_midterm"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/CLIProxyAPI"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/monitor"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-04-23/help-me-check-the-disk-usage"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-04-24/help-me-add-this-to-the"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/projects/crawlers"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/babe/practicum_report"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/babe/practicum/report"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/SheetArena/paper"]
+trust_level = "trusted"
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."build-ios-apps@openai-curated"]
+enabled = true
+
+[plugins."hugging-face@openai-curated"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[marketplaces.openai-bundled]
+last_updated = "2026-05-07T21:06:54Z"
+source_type = "local"
+source = "/Users/biboy/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-05-07T04:01:47Z"
+source_type = "local"
+source = "/Users/biboy/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[memories]
+no_memories_if_mcp_or_web_search = true
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
