@@ -6,11 +6,16 @@ show_raw_agent_reasoning = true
 exec_timeout_ms = 900000               # 15 minutes
 rmcp_client     = true
 web_search      = "live"
-service_tier = "fast"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
-notify = ["/Users/biboy/.codex/plugins/cache/openai-bundled/computer-use/1.0.758/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended", "--previous-notify"]
+
+notify = ["/Users/biboy/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
+service_tier = "fast"
+approvals_reviewer = "user"
+
+[agents]
+max_threads = 20
 
 [tui    ]
 spinner = { name = "brailleDotsClassic" }
@@ -23,6 +28,7 @@ status_line = ["model-with-reasoning", "current-dir", "context-remaining", "fast
 [notice]
 hide_gpt5_1_migration_prompt = true
 hide_rate_limit_model_nudge = true
+fast_default_opt_out = true
 
 [notice.model_migrations]
 "gpt-5.2" = "gpt-5.4"
@@ -35,6 +41,8 @@ memories = true
 chronicle = true
 goals = true
 terminal_resize_reflow = true
+hooks = true
+js_repl = false
 
 [projects."/Users/biboy/research/papers/spreadsheet-rl"]
 trust_level = "trusted"
@@ -141,6 +149,66 @@ trust_level = "trusted"
 [projects."/Users/biboy/research/SheetArena/paper"]
 trust_level = "trusted"
 
+[projects."/Users/biboy/courses/UIUC/LMZ/final_report"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/courses/UIUC/YLL/final"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-14/show-me-a-fast-fetch-output"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-14/verl-slime-rl-training-framework"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/slime"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/Spreadsheet-RL"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-19/help-me-find-the-place-on"]
+trust_level = "trusted"
+
+[projects."/private/var/folders/j_/zvjswl7n12q3nrrpmtq55vg80000gn/T/sheetarena_tool_select_lt8nfb19"]
+trust_level = "trusted"
+
+[projects."/private/var/folders/j_/zvjswl7n12q3nrrpmtq55vg80000gn/T/sheetarena_tool_select_l6i50_ch"]
+trust_level = "trusted"
+
+[projects."/private/var/folders/j_/zvjswl7n12q3nrrpmtq55vg80000gn/T/sheetarena_tool_select_6yl97jrr"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/SheetArena/plots"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-22/clone-https-spreadsheet-rl-github-io"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-23/ssh-to-deltaai-and-help-me"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-28/goal-wifi-1-before-networkquality-dns"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-28/goal-wifi-1-before-networkquality-dns-2"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/research/codex"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/courses/UIUC/CS519"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-29/look-back-over-my-recent-work"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-29/look-back-over-my-recent-work-2"]
+trust_level = "trusted"
+
+[projects."/Users/biboy/Documents/Codex/2026-05-29/would-it-be-safe-for-me"]
+trust_level = "trusted"
+
 [plugins."github@openai-curated"]
 enabled = true
 
@@ -162,16 +230,16 @@ enabled = true
 [plugins."presentations@openai-primary-runtime"]
 enabled = true
 
-[plugins."browser-use@openai-bundled"]
+[plugins."browser@openai-bundled"]
 enabled = true
 
 [marketplaces.openai-bundled]
-last_updated = "2026-05-07T21:06:54Z"
+last_updated = "2026-05-30T01:29:08Z"
 source_type = "local"
 source = "/Users/biboy/.codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
-last_updated = "2026-05-07T04:01:47Z"
+last_updated = "2026-05-29T03:58:59Z"
 source_type = "local"
 source = "/Users/biboy/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
@@ -181,3 +249,60 @@ no_memories_if_mcp_or_web_search = true
 [mcp_servers.playwright]
 command = "npx"
 args = ["@playwright/mcp@latest"]
+
+[mcp_servers.node_repl]
+args = []
+command = "/Applications/Codex.app/Contents/Resources/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = ""
+NODE_REPL_NODE_PATH = "/Applications/Codex.app/Contents/Resources/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/biboy/.codex"
+CODEX_HOME = "/Users/biboy/.codex"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "0b0d41e7a14a4903d2f95b0b3f427ed796b12c8edca2fa392a03df43997075ae"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+SKY_CUA_SERVICE_PATH = "/Users/biboy/.codex/plugins/cache/openai-bundled/computer-use/1.0.799/Codex Computer Use.app"
+CODEX_CLI_PATH = "/Applications/Codex.app/Contents/Resources/codex"
+
+[hooks.state]
+
+[hooks.state."/Users/biboy/.codex/hooks.json:permission_request:0:0"]
+enabled = false
+trusted_hash = "sha256:6a34cba190445388020800d6e694a8a61ff4734e94c564976f22e885c71f4ba9"
+
+[hooks.state."/Users/biboy/.codex/hooks.json:pre_tool_use:0:0"]
+enabled = false
+trusted_hash = "sha256:18576933129a317a96fa0fc8de336c18f778d17bb11ad296714b7e6ba9210503"
+
+[hooks.state."/Users/biboy/.codex/hooks.json:session_start:0:0"]
+enabled = false
+trusted_hash = "sha256:13d1ac3a063e35fa6337a769c64179df59806e8bed81159a773cb9e8629ec38a"
+
+[hooks.state."/Users/biboy/.codex/hooks.json:stop:0:0"]
+enabled = false
+trusted_hash = "sha256:9730e678710781f3c6a9ff165f451001ecc6d95b18b4bc8ed42f6db92f284bee"
+
+[hooks.state."/Users/biboy/.codex/hooks.json:user_prompt_submit:0:0"]
+enabled = false
+trusted_hash = "sha256:9561dc2cf7b9484d89eeb02fb3dacb0b9996cae4544fad9416bd3a121ca59cd1"
+
+[desktop]
+sansFontSize = 15
+codeFontSize = 13
+followUpQueueMode = "steer"
+preventSleepWhileRunning = true
+keepRemoteControlAwakeWhilePluggedIn = true
+git-branch-prefix = ""
+show-context-window-usage = true
+
+[desktop.open-in-target-preferences]
+global = "terminal"
+
+[desktop.open-in-target-preferences.perPath]
+"/Users/biboy/babe/practicum_report" = "terminal"
+"/Users/biboy/projects/crawlers" = "terminal"

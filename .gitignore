@@ -1,5 +1,6 @@
 **/lazy-lock.json
 
+.config/alma/
 .config/cagent/
 .config/clash.meta/
 .config/configstore/
