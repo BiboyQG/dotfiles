@@ -10,7 +10,8 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | ------------------- | ------------------------ | ------------------------------------------------ |
 | Homebrew            | `brew`                   | Package manager for macOS                        |
 | GNU Stow            | `brew`                   | Symlink manager for dotfiles                     |
-| Kitty               | `brew --cask`            | GPU-based terminal emulator                      |
+| Kitty               | official installer       | GPU-based terminal emulator                      |
+| cmux                | `brew --cask`            | Native macOS terminal for AI coding agents       |
 | Zsh                 | macOS                    | Shell and interactive environment                |
 | Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
 | Tmux                | `brew`                   | Terminal multiplexer                             |
@@ -22,7 +23,6 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | SbarLua             | `git`                    | Lua API for Sketchybar                           |
 | Yabai               | `brew`                   | Tiling window manager for macOS                  |
 | Skhd                | `brew`                   | Hotkey daemon for macOS                          |
-| Hammerspoon         | `brew --cask`            | macOS automation tool (Lua)                      |
 | Yazi                | `brew`                   | Terminal file manager                            |
 | Lazygit             | `brew`                   | Terminal UI for git operations                   |
 | Eza                 | `brew`                   | Modern `ls` replacement                          |
@@ -45,7 +45,6 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
 | Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
-| Ollama              | `brew`                   | Local LLM runner                                 |
 | OpenCommit          | `npm -g`                 | LLM-assisted commit messages (`oco`)             |
 | Uv                  | `brew`                   | Python package/venv manager                      |
 
@@ -59,12 +58,6 @@ Then, run the following command to disable SIP:
 
 ```bash
 csrutil disable
-```
-
-Then, intall nvm if needed.
-
-```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 ```
 
 Then, pull the repo and enter the folder
@@ -83,24 +76,12 @@ This will:
 
 - Symlink the dotfiles into place (via `stow --adopt`)
 - Install dependencies via Homebrew
+- Install kitty with the official installer
+- Install nvm, Node LTS, and npm-based tools
+- Configure yabai sudoers when sudo is available
+- Restart yabai, skhd, and sketchybar
 
 ### Tips
-
-#### yabai
-
-You need to manually add the following line into `sudo visudo /etc/sudoers`:
-
-```
-Defaults	env_keep += "TERMINFO"
-```
-
-#### Start services
-
-```bash
-brew services start sketchybar
-skhd --restart-service
-sudo yabai --load-sa
-```
 
 #### tmux
 
@@ -122,12 +103,6 @@ Shell helpers:
 
 `Ctrl+s` is bound in tmux, so XON/XOFF is disabled in interactive shells to avoid terminal “freezing”.
 
-#### Ollama LaunchAgent Setup
-
-To ensure a good experience in WeChat auto reply, we made Ollama serve start automatically at boot and restart on crashes.
-
-To stop the service: `launchctl unload ~/Library/LaunchAgents/com.ollama.serve.plist`
-
 You are all set!
 
 ### Aliases
@@ -145,18 +120,3 @@ To make our life easier, some useful aliases are defined in `.zshrc`:
 | tn    | tmux new -s      | Create a new tmux session                    |
 | ta    | ta <label\|idx>  | Attach to a tmux session                     |
 | cat   | bat              | Cat with wings                               |
-
-### Hammerspoon
-
-Thanks to [Hammerspoon](https://www.hammerspoon.org/), I can easily create shortcuts for many functionality that improves our productivity.
-
-#### Video Tutorial
-
-[Bilibili](https://www.bilibili.com/video/BV1cHhPzCE11)
-
-#### Shortcuts Description
-
-| Shortcuts | Description                       |
-| --------- | --------------------------------- |
-| CMD + p   | Toggle ClashX.Meta Proxy          |
-| CMD + g   | Toggle WeChat messages auto reply |

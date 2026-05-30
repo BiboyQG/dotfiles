@@ -65,7 +65,6 @@ yabai -m signal --add event=window_focused app="^Microsoft Teams$" title="$teams
 
 # Disable specific apps from being managed
 yabai -m rule --add app="^(Raycast|TencentMeeting)$" manage=off
-yabai -m rule --add title="(Hammerspoon Console)" manage=off
 yabai -m rule --add app="^(.*zoom\.us.*)$" title="^(Zoom)$" manage=off
 yabai -m rule --add app="^zoom\.us$" title="$zoom_share_title" manage=off mouse_follows_focus=off
 yabai -m rule --add app="^Microsoft Teams$" title="$teams_share_title" manage=off mouse_follows_focus=off
