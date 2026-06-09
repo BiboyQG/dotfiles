@@ -164,12 +164,23 @@ brew_install_cask() {
   fi
 }
 
+brew_trust_tap() {
+  local tap="$1"
+
+  if brew trust --help >/dev/null 2>&1; then
+    brew trust --tap "$tap"
+  fi
+}
+
 install_brew_packages() {
   log "Installing Homebrew packages"
 
   brew tap felixkratz/formulae
   brew tap koekeishiya/formulae
   brew tap manaflow-ai/cmux
+  brew_trust_tap felixkratz/formulae
+  brew_trust_tap koekeishiya/formulae
+  brew_trust_tap manaflow-ai/cmux
 
   local -a formulae=(
     stow
