@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  printf 'usage: abs <file-or-path>\n' >&2
+  exit 64
+fi
+
+target="$1"
+
+if [[ ! -e "$target" ]]; then
+  printf 'abs: path does not exist: %s\n' "$target" >&2
+  exit 1
+fi
+
+abs_path="$(realpath -- "$target")"
+printf '%s' "$abs_path" | pbcopy
+printf '%s\n' "$abs_path"
