@@ -178,9 +178,11 @@ install_brew_packages() {
   brew tap felixkratz/formulae
   brew tap koekeishiya/formulae
   brew tap manaflow-ai/cmux
+  brew tap nikitabobko/tap
   brew_trust_tap felixkratz/formulae
   brew_trust_tap koekeishiya/formulae
   brew_trust_tap manaflow-ai/cmux
+  brew_trust_tap nikitabobko/tap
 
   local -a formulae=(
     stow
@@ -212,7 +214,6 @@ install_brew_packages() {
     sketchybar
     skhd
     tmux
-    yabai
   )
 
   local -a casks=(
@@ -225,6 +226,7 @@ install_brew_packages() {
     font-sf-mono
     font-sf-pro
     cmux
+    nikitabobko/tap/aerospace
   )
 
   local package
@@ -250,7 +252,7 @@ remove_dotfiles_symlink() {
 }
 
 cleanup_legacy_items() {
-  log "Removing legacy Ollama and Hammerspoon setup artifacts"
+  log "Removing legacy Ollama, Hammerspoon, and yabai setup artifacts"
 
   if launchctl print "gui/$(id -u)/com.ollama.serve" >/dev/null 2>&1; then
     launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.ollama.serve.plist" >/dev/null 2>&1 \
@@ -258,16 +260,36 @@ cleanup_legacy_items() {
       || true
   fi
 
+  if launchctl print "gui/$(id -u)/com.asmvik.yabai" >/dev/null 2>&1; then
+    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.asmvik.yabai.plist" >/dev/null 2>&1 \
+      || launchctl remove com.asmvik.yabai >/dev/null 2>&1 \
+      || true
+  fi
+
+  if launchctl print "gui/$(id -u)/com.koekeishiya.yabai" >/dev/null 2>&1; then
+    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.koekeishiya.yabai.plist" >/dev/null 2>&1 \
+      || launchctl remove com.koekeishiya.yabai >/dev/null 2>&1 \
+      || true
+  fi
+
   rm -f "$HOME/Library/LaunchAgents/com.ollama.serve.plist"
+  rm -f "$HOME/Library/LaunchAgents/com.asmvik.yabai.plist"
+  rm -f "$HOME/Library/LaunchAgents/com.koekeishiya.yabai.plist"
   remove_dotfiles_symlink "$HOME/com.ollama.serve.plist"
+  remove_dotfiles_symlink "$HOME/.yabairc"
   remove_dotfiles_symlink "$HOME/.hammerspoon"
   remove_dotfiles_symlink "$HOME/setup.sh"
+  sudo_run rm -f /private/etc/sudoers.d/yabai
 
   osascript -e 'tell application "Hammerspoon" to quit' >/dev/null 2>&1 || true
   killall Hammerspoon >/dev/null 2>&1 || true
 
   if brew list --formula ollama >/dev/null 2>&1; then
     HOMEBREW_NO_INSTALL_CLEANUP=1 brew uninstall ollama
+  fi
+
+  if brew list --formula yabai >/dev/null 2>&1; then
+    HOMEBREW_NO_INSTALL_CLEANUP=1 brew uninstall yabai
   fi
 
   if brew list --cask hammerspoon >/dev/null 2>&1; then
@@ -397,40 +419,6 @@ install_tmux_plugins() {
   /bin/bash "$tpm_dir/scripts/install_plugins.sh"
 }
 
-configure_yabai() {
-  log "Configuring yabai"
-
-  local yabai_path
-  yabai_path="$(command -v yabai)"
-
-  sudo_run nvram boot-args=-arm64e_preview_abi
-
-  if sudo -n "$yabai_path" --load-sa >/dev/null 2>&1; then
-    info "yabai scripting addition sudo rule already works"
-    return 0
-  fi
-
-  if (( ! CAN_SUDO )); then
-    skip "Cannot update /private/etc/sudoers.d/yabai without a sudo credential."
-    return 0
-  fi
-
-  local yabai_hash
-  local sudoers_tmp
-  yabai_hash="$(shasum -a 256 "$yabai_path" | awk '{print $1}')"
-  sudoers_tmp="$(mktemp)"
-
-  {
-    printf 'Defaults env_keep += "TERMINFO"\n'
-    printf '%s ALL=(root) NOPASSWD: sha256:%s %s --load-sa\n' "$(id -un)" "$yabai_hash" "$yabai_path"
-  } >"$sudoers_tmp"
-
-  sudo visudo -cf "$sudoers_tmp"
-  sudo install -m 0440 -o root -g wheel "$sudoers_tmp" /private/etc/sudoers.d/yabai
-  rm -f "$sudoers_tmp"
-  sudo "$yabai_path" --load-sa
-}
-
 accept_xcode_license() {
   log "Accepting Xcode license"
 
@@ -440,28 +428,20 @@ accept_xcode_license() {
 }
 
 restart_services() {
-  log "Restarting yabai, skhd, and sketchybar"
+  log "Restarting AeroSpace, skhd, and sketchybar"
 
   if have sketchybar; then
     brew services restart sketchybar || brew services start sketchybar
   fi
 
-  if have skhd; then
-    skhd --restart-service || skhd --start-service
+  if have aerospace; then
+    open -g -a AeroSpace || skip "Could not open AeroSpace."
+    sleep 1
+    aerospace reload-config --no-gui || skip "Could not reload AeroSpace config."
   fi
 
-  if have yabai; then
-    yabai --restart-service || yabai --start-service
-
-    local yabai_path
-    yabai_path="$(command -v yabai)"
-    if sudo -n "$yabai_path" --load-sa >/dev/null 2>&1; then
-      info "Loaded yabai scripting addition"
-    elif (( CAN_SUDO )); then
-      sudo "$yabai_path" --load-sa
-    else
-      skip "Could not load yabai scripting addition without sudo."
-    fi
+  if have skhd; then
+    skhd --restart-service || skhd --start-service
   fi
 }
 
@@ -491,7 +471,6 @@ main() {
   install_sketchybar_assets
   install_tmux_plugins
   accept_xcode_license
-  configure_yabai
   restart_services
   print_summary
 }

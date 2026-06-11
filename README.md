@@ -21,7 +21,7 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | SwitchAudioSource   | `brew`                   | Switch macOS audio devices (`SwitchAudioSource`) |
 | NowPlaying CLI      | `brew`                   | Now Playing metadata (for Sketchybar)            |
 | SbarLua             | `git`                    | Lua API for Sketchybar                           |
-| Yabai               | `brew`                   | Tiling window manager for macOS                  |
+| AeroSpace           | `brew --cask`            | Tiling window manager for macOS                  |
 | Skhd                | `brew`                   | Hotkey daemon for macOS                          |
 | Yazi                | `brew`                   | Terminal file manager                            |
 | Lazygit             | `brew`                   | Terminal UI for git operations                   |
@@ -48,17 +48,7 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | OpenCommit          | `npm -g`                 | LLM-assisted commit messages (`oco`)             |
 | Uv                  | `brew`                   | Python package/venv manager                      |
 
-> [!IMPORTANT]
->
-> Please disable SIP before running the setup script.
-
-Before everything, shut down your Mac and hold the power button for a while to boot into recovery mode.
-
-Then, run the following command to disable SIP:
-
-```bash
-csrutil disable
-```
+AeroSpace is used for window management, so SIP can stay enabled.
 
 Then, pull the repo and enter the folder
 
@@ -78,8 +68,8 @@ This will:
 - Install dependencies via Homebrew
 - Install kitty with the official installer
 - Install nvm, Node LTS, and npm-based tools
-- Configure yabai sudoers when sudo is available
-- Restart yabai, skhd, and sketchybar
+- Remove legacy yabai setup artifacts
+- Restart AeroSpace, skhd, and sketchybar
 
 ### Tips
 
