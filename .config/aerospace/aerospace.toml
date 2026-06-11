@@ -16,6 +16,18 @@ exec-on-workspace-change = ['/bin/bash', '-c', '/opt/homebrew/bin/sketchybar --t
 automatically-unhide-macos-hidden-apps = false
 persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
+[workspace-to-monitor-force-assignment]
+    1 = ['LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    2 = ['LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    3 = ['LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    4 = ['LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    5 = ['LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    6 = ['LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    7 = 'DELL S2725QC'
+    8 = 'DELL S2725QC'
+    9 = 'DELL S2725QC'
+    10 = 'DELL S2725QC'
+
 [key-mapping]
     preset = 'qwerty'
 

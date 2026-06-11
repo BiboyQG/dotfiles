@@ -6,6 +6,18 @@ local app_icons = require("helpers.app_icons")
 local spaces = {}
 local space_brackets = {}
 local workspace_names = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }
+local workspace_displays = {
+  ["1"] = 1,
+  ["2"] = 1,
+  ["3"] = 1,
+  ["4"] = 1,
+  ["5"] = 1,
+  ["6"] = 1,
+  ["7"] = 2,
+  ["8"] = 2,
+  ["9"] = 2,
+  ["10"] = 2,
+}
 local update_id = 0
 
 sbar.add("event", "aerospace_workspace_change")
@@ -71,6 +83,7 @@ end
 for _, workspace in ipairs(workspace_names) do
   local space = sbar.add("item", "space." .. workspace, {
     position = "left",
+    display = workspace_displays[workspace],
     icon = {
       font = { family = settings.font.numbers },
       string = workspace,
@@ -100,6 +113,7 @@ for _, workspace in ipairs(workspace_names) do
   spaces[workspace] = space
 
   local space_bracket = sbar.add("bracket", { space.name }, {
+    display = workspace_displays[workspace],
     background = {
       color = colors.transparent,
       border_color = colors.bg2,
@@ -112,6 +126,7 @@ for _, workspace in ipairs(workspace_names) do
 
   sbar.add("item", "space.padding." .. workspace, {
     position = "left",
+    display = workspace_displays[workspace],
     width = settings.group_paddings,
   })
 
