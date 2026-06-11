@@ -40,10 +40,10 @@ shift + alt - n : /opt/homebrew/bin/aerospace move-node-to-workspace --focus-fol
                   /opt/homebrew/bin/sketchybar --trigger aerospace_workspace_change
 
 # Resize windows
-lctrl + alt - h : /opt/homebrew/bin/aerospace resize width +50
-lctrl + alt - j : /opt/homebrew/bin/aerospace resize height +50
-lctrl + alt - k : /opt/homebrew/bin/aerospace resize height -50
-lctrl + alt - l : /opt/homebrew/bin/aerospace resize width +50
+lctrl + alt - h : "${HOME}"/.config/aerospace/scripts/resize-edge left
+lctrl + alt - j : "${HOME}"/.config/aerospace/scripts/resize-edge down
+lctrl + alt - k : "${HOME}"/.config/aerospace/scripts/resize-edge up
+lctrl + alt - l : "${HOME}"/.config/aerospace/scripts/resize-edge right
 
 # Equalize size of windows
 lctrl + alt - e : /opt/homebrew/bin/aerospace balance-sizes

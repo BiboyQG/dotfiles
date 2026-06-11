@@ -1,0 +1,31 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+AEROSPACE="${AEROSPACE:-/opt/homebrew/bin/aerospace}"
+direction="${1:-}"
+amount="${2:-50}"
+
+case "$direction" in
+  left | right)
+    dimension="width"
+    ;;
+  up | down)
+    dimension="height"
+    ;;
+  *)
+    printf "usage: resize-edge <left|down|up|right> [amount]\n" >&2
+    exit 2
+    ;;
+esac
+
+window_id="$("$AEROSPACE" list-windows --focused --format '%{window-id}' 2>/dev/null || true)"
+[[ -n "$window_id" ]] || exit 0
+
+if "$AEROSPACE" focus --boundaries workspace --boundaries-action fail "$direction" >/dev/null 2>&1; then
+  delta="+$amount"
+else
+  delta="-$amount"
+fi
+
+"$AEROSPACE" focus --window-id "$window_id" >/dev/null 2>&1 || true
+"$AEROSPACE" resize --window-id "$window_id" "$dimension" "$delta"
