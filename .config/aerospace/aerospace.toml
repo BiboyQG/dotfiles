@@ -24,7 +24,14 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
     inner.vertical = 0
     outer.left = 0
     outer.bottom = 0
-    outer.top = 8
+    outer.top = [
+        { monitor."LG ULTRAGEAR+" = 40 },
+        { monitor."DELL S2725QC" = 40 },
+        { monitor."Built-in Liquid Retina XDR Display" = 8 },
+        { monitor."Built-in Retina Display" = 8 },
+        { monitor."Color LCD" = 8 },
+        0,
+    ]
     outer.right = 0
 
 [[on-window-detected]]
