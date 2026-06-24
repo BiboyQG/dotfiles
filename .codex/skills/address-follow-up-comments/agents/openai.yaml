@@ -1,0 +1,4 @@
+interface:
+  display_name: "Address Follow-up Comments"
+  short_description: "Iterate on PR review feedback loops"
+  default_prompt: "Use $address-follow-up-comments to handle follow-up PR review comments until no actionable issues remain."
