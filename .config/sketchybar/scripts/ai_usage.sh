@@ -65,9 +65,9 @@ generate_bar() {
 
 emit_unavailable() {
   local provider="$1"
-  local status="${2:-unavailable}"
+  local provider_status="${2:-unavailable}"
 
-  print -r -- "${provider}_status=${status}"
+  print -r -- "${provider}_status=${provider_status}"
   print -r -- "${provider}_name=${provider}"
   print -r -- "${provider}_plan="
   print -r -- "${provider}_session=--"
