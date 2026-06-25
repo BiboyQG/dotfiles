@@ -36,16 +36,21 @@ Use this workflow for iterative PR review follow-up. Bias toward live PR state a
 
 6. Trigger follow-up reviewers only when requested.
    - Post exactly the trigger comments the user asks for, such as `@codex review` and `/gemini review`.
+   - When multiple reviewers are requested, post each trigger as its own PR conversation comment, not as a combined message.
    - Do not reply to review threads, submit reviews, or mark threads resolved unless the user explicitly asks for those GitHub write actions.
 
 7. Poll without noisy updates.
-   - After posting triggers, record the trigger time and head commit.
-   - Poll with `scripts/fetch_pr_review_context.py` until new bot comments/reviews arrive.
+   - Immediately after posting triggers, record the trigger time and head commit.
+   - Poll with `scripts/fetch_pr_review_context.py` until every requested reviewer has a new response for that recorded head.
+   - Treat `chatgpt-codex-connector` conversation comments or reviews as Codex responses, and `gemini-code-assist` reviews as Gemini responses.
+   - If a poll fails due to a transient GitHub/API/network error, retry rather than treating the round as complete.
    - During long polling, avoid interval status messages unless the user asks for status.
 
 8. Iterate to a stop condition.
-   - For each new review round, repeat context gathering, classification, implementation, verification, PR-body update, and reviewer triggers when needed.
-   - Stop when the latest responses from all requested reviewers for the current head commit contain no further in-scope, correct, implementable suggestions.
+   - For each new review round, repeat context gathering and classify only current-head feedback plus unresolved non-outdated threads that are still applicable to the current code.
+   - Treat old unresolved threads as stale when the exact issue is already fixed or the latest reviewer response for the current head says there are no comments to address.
+   - If any in-scope, correct, implementable suggestion is found, implement it, verify it, commit and push it to the PR branch, update the PR body with a concise follow-up section, then re-trigger the same requested reviewers and poll again.
+   - Stop only when all requested reviewers have responded to the latest head commit and there are no remaining in-scope, correct, implementable suggestions.
 
 ## Script
 
@@ -57,6 +62,7 @@ uv run python3 ~/.codex/skills/address-follow-up-comments/scripts/fetch_pr_revie
 ```
 
 The script shells out to `gh api graphql`, so it requires an authenticated GitHub CLI.
+If the current repository's Python project dependencies make plain `uv run` fail, use `uv run --no-project python3 ...` with the same script arguments.
 
 ## Final Response
 
