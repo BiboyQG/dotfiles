@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sub-agent Review Loop"
+  short_description: "Run scoped sub-agent review loops"
+  default_prompt: "Use $sub-agent-review-loop to review code changes with fresh sub-agent pairs until the stop condition is met."
