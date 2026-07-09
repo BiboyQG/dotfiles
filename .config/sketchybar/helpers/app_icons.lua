@@ -268,6 +268,7 @@ return {
 	["Telegram"] = ":telegram:",
 	["Terminal"] = ":terminal:",
 	["终端"] = ":terminal:",
+	["TextEdit"] = ":text:",
 	["Typora"] = ":text:",
 	["Microsoft To Do"] = ":things:",
 	["Things"] = ":things:",
