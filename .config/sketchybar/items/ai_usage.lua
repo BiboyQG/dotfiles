@@ -197,5 +197,5 @@ for _, item in ipairs({
   item:subscribe("mouse.exited.global", hide_popup)
 end
 
-codex.logo:set({ update_freq = 60 })
+codex.logo:set({ update_freq = 300 })
 codex.logo:subscribe({ "forced", "routine", "system_woke" }, update_usage)
