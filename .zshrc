@@ -65,7 +65,7 @@ eval "$(fzf --zsh)"
 
 eval "$(direnv hook zsh)"
 
-alias ll="eza -alh --icons=automatic"
+alias ll="eza -alh --icons=auto"
 alias ssh="kitten ssh"
 alias s="fastfetch"
 alias l="lazygit"
