@@ -92,6 +92,8 @@ emit_provider() {
 
   parsed="$(
     jq -r --arg provider "$provider" '
+      if type == "array" then .[0] // empty else . end
+      |
       def progress($label):
         [ .lines[]? | select(.type == "progress" and .label == $label) ][0];
       def remaining_pct($line):
