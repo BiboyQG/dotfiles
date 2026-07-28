@@ -4,6 +4,7 @@ set -u
 API_BASE="http://127.0.0.1:6736/v1/usage"
 BAR_DIR="${TMPDIR:-/tmp}/sketchybar-ai-usage"
 BAR_WIDTH=52
+BAR_VERSION=2
 TRACK_COLOR="#414550"
 
 mkdir -p "$BAR_DIR"
@@ -36,24 +37,29 @@ generate_bar() {
 
   session_width="$(bar_fill_width "$session")"
   weekly_width="$(bar_fill_width "$weekly")"
-  output="${BAR_DIR}/${provider}-${session}-${weekly}.png"
+  output="${BAR_DIR}/v${BAR_VERSION}-${provider}-${session}-${weekly}.png"
 
   if [[ -f "$output" ]]; then
     print -r -- "$output"
     return
   fi
 
-  local -a draw=(
-    -fill "$TRACK_COLOR" -draw "roundrectangle 0,2 51,4 1,1"
-    -fill "$TRACK_COLOR" -draw "roundrectangle 0,9 51,11 1,1"
-  )
+  local -a draw
 
-  if (( session_width > 0 )); then
-    draw+=(-fill "$color" -draw "roundrectangle 0,2 $((session_width - 1)),4 1,1")
-  fi
-
-  if (( weekly_width > 0 )); then
-    draw+=(-fill "$color" -draw "roundrectangle 0,9 $((weekly_width - 1)),11 1,1")
+  if [[ "$session" != "--" && "$weekly" != "--" ]]; then
+    draw=(
+      -fill "$TRACK_COLOR" -draw "roundrectangle 0,2 51,4 1,1"
+      -fill "$TRACK_COLOR" -draw "roundrectangle 0,9 51,11 1,1"
+    )
+    (( session_width > 0 )) && draw+=(-fill "$color" -draw "roundrectangle 0,2 $((session_width - 1)),4 1,1")
+    (( weekly_width > 0 )) && draw+=(-fill "$color" -draw "roundrectangle 0,9 $((weekly_width - 1)),11 1,1")
+  else
+    draw=(-fill "$TRACK_COLOR" -draw "roundrectangle 0,5 51,8 1,1")
+    if (( session_width > 0 )); then
+      draw+=(-fill "$color" -draw "roundrectangle 0,5 $((session_width - 1)),8 1,1")
+    elif (( weekly_width > 0 )); then
+      draw+=(-fill "$color" -draw "roundrectangle 0,5 $((weekly_width - 1)),8 1,1")
+    fi
   fi
 
   if command -v magick >/dev/null 2>&1; then
