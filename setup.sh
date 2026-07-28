@@ -435,9 +435,21 @@ restart_services() {
   fi
 
   if have aerospace; then
-    open -g -a AeroSpace || skip "Could not open AeroSpace."
-    sleep 1
-    aerospace reload-config --no-gui || skip "Could not reload AeroSpace config."
+    if pgrep -x AeroSpace >/dev/null; then
+      osascript -e 'quit app "AeroSpace"' || skip "Could not stop AeroSpace."
+      for _ in {1..20}; do
+        pgrep -x AeroSpace >/dev/null || break
+        sleep 0.1
+      done
+    fi
+
+    if pgrep -x AeroSpace >/dev/null; then
+      skip "AeroSpace did not stop; restart it manually."
+    else
+      open -g -a AeroSpace || skip "Could not open AeroSpace."
+      sleep 1
+      aerospace reload-config --no-gui || skip "Could not reload AeroSpace config."
+    fi
   fi
 
   if have skhd; then

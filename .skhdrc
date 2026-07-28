@@ -51,13 +51,12 @@ lctrl + alt - e : /opt/homebrew/bin/aerospace balance-sizes
 # Enable / Disable AeroSpace
 lctrl + alt - g : /opt/homebrew/bin/aerospace enable toggle
 
-# Layout
-alt - r : /opt/homebrew/bin/aerospace layout horizontal vertical
+# Reset layout
 shift + alt - r : /opt/homebrew/bin/aerospace flatten-workspace-tree
 
 # Set root orientation
-shift + alt - x : /opt/homebrew/bin/aerospace layout horizontal
-shift + alt - y : /opt/homebrew/bin/aerospace layout vertical
+shift + alt - x : /opt/homebrew/bin/aerospace layout --root horizontal
+shift + alt - y : /opt/homebrew/bin/aerospace layout --root vertical
 
 # Set insertion point for focused container
 shift + lctrl + alt - h : /opt/homebrew/bin/aerospace join-with left
