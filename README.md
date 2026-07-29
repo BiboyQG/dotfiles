@@ -2,6 +2,10 @@
 
 This repo contains the dotfiles for my Apple Silicon Mac. Intel Macs are not supported.
 
+Files deployed into the home directory live under the dedicated `home/` Stow package. Repository tooling such as `setup.sh`, `check.sh`, `Brewfile`, and VS Code link sources stays at the repository root.
+
+Powerlevel10k, Neovim, and Yazi state that affects reproducibility is tracked in `home/.p10k.zsh`, `home/.config/nvim/lazy-lock.json`, and `home/.config/yazi/package.toml`. Machine-specific login-shell additions belong in the untracked `~/.zprofile.local`, which is sourced after the managed `home/.zprofile`.
+
 ## Tools
 
 Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-Homebrew dependencies.
@@ -76,6 +80,7 @@ zsh setup.sh --skip-system-defaults
 This will:
 
 - Check for Stow conflicts, then symlink the dotfiles without adopting existing files
+- Preserve an existing untracked `.zprofile` as `.zprofile.local` before linking the managed login profile
 - Install or upgrade the Homebrew bundle and validate trusted taps
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
 - Install the latest kitty release with the official installer
@@ -83,7 +88,7 @@ This will:
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
 - Link VS Code settings to its real macOS user-config directory
 - Keep machine-local Codex config and generated Zed prompt data outside the repo
-- Build SketchyBar helpers, then restart OpenUsage, AeroSpace, skhd, and SketchyBar
+- Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage, AeroSpace, skhd, and SketchyBar
 
 Run the repository checks without installing or upgrading anything:
 
@@ -91,7 +96,7 @@ Run the repository checks without installing or upgrading anything:
 zsh check.sh
 ```
 
-The checker validates shell, Lua, Python, TOML, JSON/JSONC, the Brewfile, the LaunchAgent, generated-file boundaries, SketchyBar helper builds, and a clean Stow simulation.
+The checker validates shell, Lua, Python, TOML, JSON/JSONC, the Brew bundle, the LaunchAgent, AI usage fixtures, strict C builds/static analysis, isolated tmux parsing, tracked `home/` package boundaries, and a clean Stow simulation. Its Brew cleanup audit only reports undeclared dependencies; it never passes `--force` or removes them.
 
 ### Tips
 
@@ -119,7 +124,7 @@ You are all set!
 
 ### Aliases
 
-To make our life easier, some useful aliases are defined in `.zshrc`:
+To make our life easier, some useful aliases are defined in `home/.zshrc`:
 
 | Alias | Command          | Description                                  |
 | ----- | ---------------- | -------------------------------------------- |

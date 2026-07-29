@@ -2,6 +2,7 @@
 set -euo pipefail
 
 DOTFILES_DIR="${0:A:h}"
+source "$DOTFILES_DIR/lib/brew_bundle.zsh"
 SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
@@ -104,20 +105,6 @@ ensure_latest_git_checkout() {
     git -C "$destination" checkout --quiet --track -b "$branch" "$default_ref"
   fi
   git -C "$destination" merge --ff-only "$default_ref"
-}
-
-append_line_once() {
-  local file="$1"
-  local line="$2"
-  local header="${3:-}"
-
-  mkdir -p "${file:h}"
-  touch "$file"
-
-  if ! grep -Fxq "$line" "$file"; then
-    [[ -n "$header" ]] && printf "\n%s\n" "$header" >>"$file"
-    printf "%s\n" "$line" >>"$file"
-  fi
 }
 
 ensure_sudo() {
@@ -236,8 +223,6 @@ install_homebrew() {
   fi
 
   eval "$("$brew_bin" shellenv)"
-  append_line_once "$HOME/.zprofile" "eval \"\$($brew_bin shellenv)\"" "# Configure shell for Homebrew"
-  append_line_once "$HOME/.zprofile" 'export PATH="$HOME/bin:$PATH"' "# Add ~/bin to PATH"
 }
 
 brew_trust_tap() {
@@ -262,32 +247,31 @@ install_brew_packages() {
     brew_trust_tap "$tap"
   done
 
-  local bundle_cask_skip="${HOMEBREW_BUNDLE_CASK_SKIP:-}"
-  local pair cask app
-  local -a unmanaged_cask_apps=(
-    'arc:/Applications/Arc.app'
-    'visual-studio-code:/Applications/Visual Studio Code.app'
-  )
-  for pair in "${unmanaged_cask_apps[@]}"; do
-    cask="${pair%%:*}"
-    app="${pair#*:}"
-    if [[ -d "$app" ]] && ! brew list --cask "$cask" >/dev/null 2>&1; then
-      bundle_cask_skip+="${bundle_cask_skip:+ }$cask"
-      info "Keeping existing unmanaged app: ${app:t}"
-    fi
-  done
-
+  local bundle_cask_skip
+  bundle_cask_skip="$(brew_bundle_cask_skip)"
   HOMEBREW_BUNDLE_CASK_SKIP="$bundle_cask_skip" brew bundle install --file="$DOTFILES_DIR/Brewfile"
 }
 
 link_dotfiles() {
   log "Linking dotfiles with Stow"
 
+  if [[ -f "$HOME/.zprofile" && ! -L "$HOME/.zprofile" ]]; then
+    if cmp -s "$DOTFILES_DIR/home/.zprofile" "$HOME/.zprofile"; then
+      rm -- "$HOME/.zprofile"
+    elif [[ -e "$HOME/.zprofile.local" ]]; then
+      printf "Refusing to replace both .zprofile and .zprofile.local. Merge them first.\n" >&2
+      exit 1
+    else
+      mv "$HOME/.zprofile" "$HOME/.zprofile.local"
+      info "Preserved the existing .zprofile as .zprofile.local"
+    fi
+  fi
+
   local container link_target
   for container in .config .config/zed .config/yazi .codex Library/LaunchAgents; do
     if [[ -L "$HOME/$container" ]]; then
       link_target="$(realpath "$HOME/$container")"
-      if [[ "$link_target" != "$DOTFILES_DIR/$container" ]]; then
+      if [[ "$link_target" != "$DOTFILES_DIR/home/$container" ]]; then
         printf "Refusing to stow into folded symlink: %s\n" "$HOME/$container" >&2
         printf "Replace it with a real directory before rerunning setup.\n" >&2
         exit 1
@@ -297,12 +281,12 @@ link_dotfiles() {
     mkdir -p "$HOME/$container"
   done
 
-  if ! stow --simulate --target="$HOME" .; then
+  if ! stow --dir="$DOTFILES_DIR" --simulate --target="$HOME" home; then
     printf "Stow found conflicting files. Back them up or remove them, then rerun setup.\n" >&2
     exit 1
   fi
 
-  stow --target="$HOME" .
+  stow --dir="$DOTFILES_DIR" --target="$HOME" home
 }
 
 link_vscode_config() {
@@ -401,15 +385,34 @@ install_kitty() {
   ln -sf /Applications/kitty.app/Contents/MacOS/kitten "$HOME/.local/bin/kitten"
 }
 
+install_sketchybar_helpers() {
+  local helper_bin_dir="${DOTFILES_SKETCHYBAR_HELPER_DIR:-$HOME/.local/libexec/sketchybar}"
+  local build_dir
+  build_dir="$(mktemp -d)"
+
+  if ! make -C "$DOTFILES_DIR/home/.config/sketchybar/helpers/event_providers" BINDIR="$build_dir"; then
+    rm -r -- "$build_dir"
+    printf "Could not build required SketchyBar event providers.\n" >&2
+    return 1
+  fi
+
+  mkdir -p "$helper_bin_dir"
+  /usr/bin/install -m 755 "$build_dir/cpu_load" "$helper_bin_dir/cpu_load"
+  /usr/bin/install -m 755 "$build_dir/network_load" "$helper_bin_dir/network_load"
+
+  if make -C "$DOTFILES_DIR/home/.config/sketchybar/helpers/menus" BINDIR="$build_dir"; then
+    /usr/bin/install -m 755 "$build_dir/menus" "$helper_bin_dir/menus"
+  else
+    rm -f -- "$helper_bin_dir/menus"
+    skip "Could not build the optional private-framework SketchyBar menu helper."
+  fi
+  rm -r -- "$build_dir"
+}
+
 install_sketchybar_assets() {
   log "Installing Sketchybar assets"
 
-  if ! make -C "$DOTFILES_DIR/.config/sketchybar/helpers/event_providers"; then
-    skip "Could not build SketchyBar event providers."
-  fi
-  if ! make -C "$DOTFILES_DIR/.config/sketchybar/helpers/menus"; then
-    skip "Could not build the private-framework SketchyBar menu helper."
-  fi
+  install_sketchybar_helpers
 
   local sbarlua_dir="$HOME/.local/share/sketchybar_lua"
   local sbarlua_stamp="$sbarlua_dir/.dotfiles-ref"
@@ -449,7 +452,7 @@ install_tmux_plugins() {
     fi
     repository="$(git -C "$plugin_dir" remote get-url origin)"
     ensure_latest_git_checkout "$repository" "$plugin_dir"
-  done <"$DOTFILES_DIR/.config/tmux/plugins.txt"
+  done <"$DOTFILES_DIR/home/.config/tmux/plugins.txt"
 }
 
 accept_xcode_license() {

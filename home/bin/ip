@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+curl_bin="${IP_CURL_BIN:-curl}"
+dig_bin="${IP_DIG_BIN:-dig}"
+primary_endpoint="https://api.ipify.org"
+fallback_endpoints=(
+  "https://ipv4.icanhazip.com"
+  "https://ipinfo.io/ip"
+  "https://ifconfig.co/ip"
+  "https://checkip.amazonaws.com"
+)
+curl_opts=( -4 -fsS --max-time 2 --retry 0 )
+
+validate_ipv4() {
+  local ip="$1"
+  local a b c d octet
+  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  IFS=. read -r a b c d <<<"$ip" || return 1
+  for octet in "$a" "$b" "$c" "$d"; do
+    [[ "$octet" -ge 0 && "$octet" -le 255 ]] || return 1
+  done
+}
+
+query_endpoint() {
+  local url="$1"
+  local output ip
+  output="$("$curl_bin" "${curl_opts[@]}" "$url" 2>/dev/null | tr -d ' \t\n\r')" || return 1
+  ip="$(printf '%s' "$output" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n1 || true)"
+  [[ -n "$ip" ]] && validate_ipv4 "$ip" || return 1
+  printf '%s\n' "$ip"
+}
+
+if ip="$(query_endpoint "$primary_endpoint")"; then
+  printf '%s\n' "$ip"
+  exit 0
+fi
+
+run_dir="$(mktemp -d "${TMPDIR:-/tmp}/public-ip.XXXXXX")"
+pids=()
+
+cleanup() {
+  local pid
+  for pid in "${pids[@]:-}"; do
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+  rm -r -- "$run_dir"
+}
+trap cleanup EXIT
+
+for index in "${!fallback_endpoints[@]}"; do
+  query_endpoint "${fallback_endpoints[$index]}" >"$run_dir/$index" &
+  pids[$index]=$!
+done
+
+for pid in "${pids[@]}"; do
+  wait "$pid" || true
+done
+
+for index in "${!fallback_endpoints[@]}"; do
+  if [[ -s "$run_dir/$index" ]]; then
+    ip="$(<"$run_dir/$index")"
+    if validate_ipv4 "$ip"; then
+      printf '%s\n' "$ip"
+      exit 0
+    fi
+  fi
+done
+
+if command -v "$dig_bin" >/dev/null 2>&1; then
+  ip="$("$dig_bin" +short -4 +time=1 +tries=1 \
+    myip.opendns.com @resolver1.opendns.com | head -n1 || true)"
+  if [[ -n "$ip" ]] && validate_ipv4 "$ip"; then
+    printf '%s\n' "$ip"
+    exit 0
+  fi
+fi
+
+printf 'unable to determine public IPv4\n' >&2
+exit 1

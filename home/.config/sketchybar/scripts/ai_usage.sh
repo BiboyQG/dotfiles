@@ -1,0 +1,173 @@
+#!/usr/bin/env zsh
+set -u
+
+API_BASE="${OPENUSAGE_API_BASE:-http://127.0.0.1:6736/v1/usage}"
+FIXTURE_DIR="${OPENUSAGE_FIXTURE_DIR:-}"
+BAR_DIR="${AI_USAGE_BAR_DIR:-${TMPDIR:-/tmp}/sketchybar-ai-usage}"
+BAR_WIDTH=52
+BAR_VERSION=2
+TRACK_COLOR="#414550"
+
+mkdir -p "$BAR_DIR"
+find "$BAR_DIR" -type f -name 'v*.png' -mtime +7 -delete 2>/dev/null || true
+
+bar_fill_width() {
+  local value="$1"
+
+  if [[ "$value" == "--" ]]; then
+    print 0
+    return
+  fi
+
+  local percent="${value%%.*}"
+  if ! [[ "$percent" =~ '^[0-9]+$' ]]; then
+    print 0
+    return
+  fi
+
+  (( percent < 0 )) && percent=0
+  (( percent > 100 )) && percent=100
+  print $(((percent * BAR_WIDTH + 50) / 100))
+}
+
+generate_bar() {
+  local provider="$1"
+  local color="$2"
+  local session="$3"
+  local weekly="$4"
+  local session_width weekly_width output
+
+  session_width="$(bar_fill_width "$session")"
+  weekly_width="$(bar_fill_width "$weekly")"
+  output="${BAR_DIR}/v${BAR_VERSION}-${provider}-${session}-${weekly}.png"
+
+  if [[ -f "$output" ]]; then
+    print -r -- "$output"
+    return
+  fi
+
+  local -a draw
+
+  if [[ "$session" != "--" && "$weekly" != "--" ]]; then
+    draw=(
+      -fill "$TRACK_COLOR" -draw "roundrectangle 0,2 51,4 1,1"
+      -fill "$TRACK_COLOR" -draw "roundrectangle 0,9 51,11 1,1"
+    )
+    (( session_width > 0 )) && draw+=(-fill "$color" -draw "roundrectangle 0,2 $((session_width - 1)),4 1,1")
+    (( weekly_width > 0 )) && draw+=(-fill "$color" -draw "roundrectangle 0,9 $((weekly_width - 1)),11 1,1")
+  else
+    draw=(-fill "$TRACK_COLOR" -draw "roundrectangle 0,5 51,8 1,1")
+    if (( session_width > 0 )); then
+      draw+=(-fill "$color" -draw "roundrectangle 0,5 $((session_width - 1)),8 1,1")
+    elif (( weekly_width > 0 )); then
+      draw+=(-fill "$color" -draw "roundrectangle 0,5 $((weekly_width - 1)),8 1,1")
+    fi
+  fi
+
+  if command -v magick >/dev/null 2>&1; then
+    local temporary_output="${output%.png}.${$}.${RANDOM}.png"
+    if magick -size "${BAR_WIDTH}x14" xc:none "${draw[@]}" "$temporary_output" >/dev/null 2>&1; then
+      mv -f "$temporary_output" "$output"
+    else
+      rm -f "$temporary_output"
+    fi
+  fi
+
+  print -r -- "$output"
+}
+
+emit_unavailable() {
+  local provider="$1"
+  local provider_status="${2:-unavailable}"
+
+  print -r -- "${provider}_status=${provider_status}"
+  print -r -- "${provider}_name=${provider}"
+  print -r -- "${provider}_plan="
+  print -r -- "${provider}_session=--"
+  print -r -- "${provider}_weekly=--"
+  print -r -- "${provider}_bar=$(generate_bar "$provider" "#7f8490" "--" "--")"
+  print -r -- "${provider}_fetched_at="
+}
+
+emit_provider() {
+  local provider="$1"
+  local body parsed
+
+  if [[ -n "$FIXTURE_DIR" ]]; then
+    if [[ ! -f "$FIXTURE_DIR/${provider}.json" ]]; then
+      emit_unavailable "$provider"
+      return
+    fi
+    body="$(<"$FIXTURE_DIR/${provider}.json")"
+  else
+    if ! body="$(curl -fsS --max-time 3 "${API_BASE}/${provider}" 2>/dev/null)"; then
+      emit_unavailable "$provider"
+      return
+    fi
+  fi
+
+  if [[ -z "$body" ]]; then
+    emit_unavailable "$provider" "empty"
+    return
+  fi
+
+  parsed="$(
+    jq -r --arg provider "$provider" '
+      if type == "array" then .[0] // empty else . end
+      |
+      def progress($label):
+        [ .lines[]? | select(.type == "progress" and .label == $label) ][0];
+      def remaining_pct($line):
+        if $line == null or ($line.limit // 0) <= 0 then "--"
+        else
+          (((($line.limit | tonumber) - ($line.used | tonumber)) / ($line.limit | tonumber) * 100)
+            | if . < 0 then 0 elif . > 100 then 100 else . end
+            | round
+            | tostring)
+        end;
+
+      [
+        ($provider + "_status=ok"),
+        ($provider + "_name=" + (.displayName // $provider)),
+        ($provider + "_plan=" + (.plan // "")),
+        ($provider + "_session=" + remaining_pct(progress("Session"))),
+        ($provider + "_weekly=" + remaining_pct(progress("Weekly"))),
+        ($provider + "_fetched_at=" + (.fetchedAt // ""))
+      ][]
+    ' <<<"$body" 2>/dev/null
+  )"
+
+  if [[ -z "$parsed" ]]; then
+    emit_unavailable "$provider" "parse_error"
+    return
+  fi
+
+  print -r -- "$parsed"
+
+  local session weekly color
+  session="$(awk -F= -v key="${provider}_session" '$1 == key { print $2; exit }' <<<"$parsed")"
+  weekly="$(awk -F= -v key="${provider}_weekly" '$1 == key { print $2; exit }' <<<"$parsed")"
+  color="#7f8490"
+  [[ "$provider" == "codex" ]] && color="#74AA9C"
+  [[ "$provider" == "claude" ]] && color="#DE7356"
+  print -r -- "${provider}_bar=$(generate_bar "$provider" "$color" "$session" "$weekly")"
+}
+
+if [[ -n "$FIXTURE_DIR" ]]; then
+  emit_provider codex
+  emit_provider claude
+  exit 0
+fi
+
+RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sketchybar-ai-usage-run.XXXXXX")"
+trap 'rm -rf "$RUN_DIR"' EXIT
+
+emit_provider codex >"$RUN_DIR/codex" &
+codex_pid=$!
+emit_provider claude >"$RUN_DIR/claude" &
+claude_pid=$!
+
+wait "$codex_pid" || emit_unavailable codex >"$RUN_DIR/codex"
+wait "$claude_pid" || emit_unavailable claude >"$RUN_DIR/claude"
+
+cat "$RUN_DIR/codex" "$RUN_DIR/claude"

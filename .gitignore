@@ -9,7 +9,6 @@
 .config/rstudio/
 .config/stripe/
 .config/zed/prompts/
-.config/yazi/package.toml
 .config/yazi/flavors/
 
 .claude/**
