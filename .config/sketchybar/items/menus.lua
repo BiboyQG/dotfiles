@@ -42,13 +42,13 @@ local menu_padding = sbar.add("item", "menu.padding", {
   width = 5
 })
 
-local function update_menus(env)
+local function update_menus()
   sbar.exec("$CONFIG_DIR/helpers/menus/bin/menus -l", function(menus)
     sbar.set('/menu\\..*/', { drawing = false })
     menu_padding:set({ drawing = true })
-    id = 1
+    local id = 1
     for menu in string.gmatch(menus, '[^\r\n]+') do
-      if id < max_items then
+      if id <= max_items then
         menu_items[id]:set( { label = menu, drawing = true } )
       else break end
       id = id + 1

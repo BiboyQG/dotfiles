@@ -2,17 +2,9 @@
 set -euo pipefail
 
 current_session_id="${1:-}"
-current_session_name="${2:-}"
-
-# Single tmux call to get all needed info
-IFS=$'\t' read -r detect_session_id detect_session_name term_width status_bg < <(
-  tmux display-message -p '#{session_id}	#{session_name}	#{client_width}	#{status-bg}' 2>/dev/null || echo ""
-)
-
-[[ -z "$current_session_id" ]] && current_session_id="$detect_session_id"
-[[ -z "$current_session_name" ]] && current_session_name="$detect_session_name"
+term_width="${2:-100}"
+status_bg="${3:-black}"
 [[ -z "$status_bg" || "$status_bg" == "default" ]] && status_bg=black
-term_width="${term_width:-100}"
 
 inactive_bg="#373b41"
 inactive_fg="#c5c8c6"
@@ -58,7 +50,6 @@ fi
 rendered=""
 prev_bg=""
 current_session_id_norm=$(normalize_session_id "$current_session_id")
-current_session_trimmed=$(trim_label "$current_session_name")
 while IFS= read -r entry; do
   [[ -z "$entry" ]] && continue
   session_id="${entry%%::*}"
@@ -70,7 +61,7 @@ while IFS= read -r entry; do
   segment_fg="$inactive_fg"
   trimmed_name=$(trim_label "$name")
   is_current=0
-  if [[ "$session_id" == "$current_session_id" || "$session_id_norm" == "$current_session_id_norm" || "$trimmed_name" == "$current_session_trimmed" ]]; then
+  if [[ "$session_id" == "$current_session_id" || "$session_id_norm" == "$current_session_id_norm" ]]; then
     is_current=1
     segment_bg="$active_bg"
     segment_fg="$active_fg"

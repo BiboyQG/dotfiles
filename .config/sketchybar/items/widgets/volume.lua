@@ -111,8 +111,7 @@ local function volume_toggle_details(env)
     sbar.exec("SwitchAudioSource -t output -c", function(result)
       current_audio_device = result:sub(1, -2)
       sbar.exec("SwitchAudioSource -a -t output", function(available)
-        current = current_audio_device
-        local color = colors.grey
+        local current = current_audio_device
         local counter = 0
 
         for device in string.gmatch(available, '[^\r\n]+') do
@@ -149,4 +148,3 @@ volume_icon:subscribe("mouse.scrolled", volume_scroll)
 volume_percent:subscribe("mouse.clicked", volume_toggle_details)
 volume_percent:subscribe("mouse.exited.global", volume_collapse_details)
 volume_percent:subscribe("mouse.scrolled", volume_scroll)
-

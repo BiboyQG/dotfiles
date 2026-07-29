@@ -9,6 +9,8 @@
 .config/rstudio/
 .config/stripe/
 .config/zed/prompts/
+.config/yazi/package.toml
+.config/yazi/flavors/
 
 .claude/**
 !.claude/plugins/
@@ -19,5 +21,6 @@
 .codex/config.toml
 .codex/.tmp/
 .codex/__pycache__/
+.codex/skills/
 
 __pycache__/

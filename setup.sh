@@ -2,14 +2,10 @@
 set -euo pipefail
 
 DOTFILES_DIR="${0:A:h}"
-NVM_VERSION="${NVM_VERSION:-v0.40.4}"
-NODE_VERSION="${NODE_VERSION:-v24.16.0}"
-ZINIT_REF="${ZINIT_REF:-773852f5888bb534452495edae41dc7516383b4a}"
-SBARLUA_REF="${SBARLUA_REF:-dba9cc421b868c918d5c23c408544a28aadf2f2f}"
-TPM_REF="${TPM_REF:-99469c4a9b1ccf77fade25842dc7bafbc8ce9946}"
 SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
+APPLY_SYSTEM_DEFAULTS=1
 
 log() {
   printf "\n==> %s\n" "$*"
@@ -32,45 +28,82 @@ have() {
   command -v "$1" >/dev/null 2>&1
 }
 
-find_homebrew() {
-  local candidate
+usage() {
+  printf "usage: zsh setup.sh [--skip-system-defaults]\n"
+}
 
+parse_args() {
+  while (( $# )); do
+    case "$1" in
+      --skip-system-defaults)
+        APPLY_SYSTEM_DEFAULTS=0
+        ;;
+      -h | --help)
+        usage
+        exit 0
+        ;;
+      *)
+        printf "Unknown option: %s\n" "$1" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+    shift
+  done
+}
+
+find_homebrew() {
   if have brew; then
     command -v brew
     return 0
   fi
 
-  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-    if [[ -x "$candidate" ]]; then
-      printf "%s\n" "$candidate"
-      return 0
-    fi
-  done
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    printf "/opt/homebrew/bin/brew\n"
+    return 0
+  fi
 
   return 1
 }
 
-ensure_git_checkout() {
+ensure_latest_git_checkout() {
   local repository="$1"
-  local ref="$2"
-  local destination="$3"
+  local destination="$2"
 
   if [[ ! -d "$destination/.git" ]]; then
     mkdir -p "${destination:h}"
-    git clone --filter=blob:none "$repository" "$destination"
+    git clone --filter=blob:none --depth=1 "$repository" "$destination"
+    return 0
   fi
 
   if [[ -n "$(git -C "$destination" status --porcelain)" ]]; then
-    printf "Refusing to replace modified Git checkout: %s\n" "$destination" >&2
+    printf "Refusing to update modified Git checkout: %s\n" "$destination" >&2
     exit 1
   fi
 
-  if ! git -C "$destination" cat-file -e "${ref}^{commit}" 2>/dev/null; then
-    git -C "$destination" fetch --depth=1 origin "$ref"
+  git -C "$destination" fetch --prune origin
+
+  local default_ref branch
+  default_ref="$(git -C "$destination" symbolic-ref --quiet --short refs/remotes/origin/HEAD || true)"
+  if [[ -z "$default_ref" ]]; then
+    for default_ref in origin/main origin/master; do
+      git -C "$destination" show-ref --verify --quiet "refs/remotes/$default_ref" && break
+      default_ref=""
+    done
   fi
 
-  git -C "$destination" checkout --quiet --detach "$ref"
-  [[ "$(git -C "$destination" rev-parse HEAD)" == "$ref" ]]
+  if [[ -z "$default_ref" ]]; then
+    printf "Could not resolve the default branch for %s\n" "$repository" >&2
+    exit 1
+  fi
+
+  branch="${default_ref#origin/}"
+  if git -C "$destination" show-ref --verify --quiet "refs/heads/$branch"; then
+    git -C "$destination" checkout --quiet "$branch"
+  else
+    git -C "$destination" checkout --quiet --track -b "$branch" "$default_ref"
+  fi
+  git -C "$destination" merge --ff-only "$default_ref"
 }
 
 append_line_once() {
@@ -130,9 +163,14 @@ require_command_line_tools() {
   fi
 }
 
-require_macos() {
+require_supported_platform() {
   if [[ "$(uname -s)" != "Darwin" ]]; then
     printf "This setup script only supports macOS.\n" >&2
+    exit 1
+  fi
+
+  if [[ "$(uname -m)" != "arm64" ]]; then
+    printf "This setup script only supports Apple Silicon Macs.\n" >&2
     exit 1
   fi
 }
@@ -173,11 +211,12 @@ setup_system_preferences() {
   defaults write com.apple.finder WarnOnEmptyTrash -bool false
   defaults write com.apple.dock autohide -bool true
 
-  sudo_run rm -f /private/var/vm/sleepimage
-  sudo_run touch /private/var/vm/sleepimage
-  sudo_run chflags uchg /private/var/vm/sleepimage
-  sudo_run nvram StartupMute=%01
-  sudo_run nvram SystemAudioVolume=' '
+  if ! sudo_run nvram StartupMute=%01; then
+    skip "Could not set the startup mute NVRAM value on this Mac."
+  fi
+  if ! sudo_run nvram SystemAudioVolume=' '; then
+    skip "Could not set the system audio NVRAM value on this Mac."
+  fi
 }
 
 install_homebrew() {
@@ -224,18 +263,37 @@ install_brew_packages() {
     brew_trust_tap "$tap"
   done
 
-  brew bundle install --no-upgrade --file="$DOTFILES_DIR/Brewfile"
+  local bundle_cask_skip="${HOMEBREW_BUNDLE_CASK_SKIP:-}"
+  local pair cask app
+  local -a unmanaged_cask_apps=(
+    'arc:/Applications/Arc.app'
+    'visual-studio-code:/Applications/Visual Studio Code.app'
+  )
+  for pair in "${unmanaged_cask_apps[@]}"; do
+    cask="${pair%%:*}"
+    app="${pair#*:}"
+    if [[ -d "$app" ]] && ! brew list --cask "$cask" >/dev/null 2>&1; then
+      bundle_cask_skip+="${bundle_cask_skip:+ }$cask"
+      info "Keeping existing unmanaged app: ${app:t}"
+    fi
+  done
+
+  HOMEBREW_BUNDLE_CASK_SKIP="$bundle_cask_skip" brew bundle install --file="$DOTFILES_DIR/Brewfile"
 }
 
 link_dotfiles() {
   log "Linking dotfiles with Stow"
 
-  local container
-  for container in .config .config/zed .codex Library/LaunchAgents; do
+  local container link_target
+  for container in .config .config/zed .config/yazi .codex Library/LaunchAgents; do
     if [[ -L "$HOME/$container" ]]; then
-      printf "Refusing to stow into folded symlink: %s\n" "$HOME/$container" >&2
-      printf "Replace it with a real directory before rerunning setup.\n" >&2
-      exit 1
+      link_target="$(realpath "$HOME/$container")"
+      if [[ "$link_target" != "$DOTFILES_DIR/$container" ]]; then
+        printf "Refusing to stow into folded symlink: %s\n" "$HOME/$container" >&2
+        printf "Replace it with a real directory before rerunning setup.\n" >&2
+        exit 1
+      fi
+      rm "$HOME/$container"
     fi
     mkdir -p "$HOME/$container"
   done
@@ -278,22 +336,17 @@ install_nvm_node() {
   log "Installing nvm and Node"
 
   export NVM_DIR="$HOME/.nvm"
-
-  if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
-    PROFILE=/dev/null /bin/bash -c "set -euo pipefail; curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash"
-  else
-    info "nvm already installed"
-  fi
+  ensure_latest_git_checkout https://github.com/nvm-sh/nvm.git "$NVM_DIR"
 
   set +u
   . "$NVM_DIR/nvm.sh"
 
   local installed_node_version
-  nvm install "$NODE_VERSION"
-  installed_node_version="$(nvm version "$NODE_VERSION")"
+  nvm install node
+  installed_node_version="$(nvm version node)"
 
   if [[ "$installed_node_version" == "N/A" ]]; then
-    printf "Failed to resolve installed Node version for %s\n" "$NODE_VERSION" >&2
+    printf "Failed to resolve the latest installed Node version.\n" >&2
     exit 1
   fi
 
@@ -303,23 +356,47 @@ install_nvm_node() {
   set -u
 }
 
+install_codex_cli() {
+  log "Installing latest Codex CLI"
+  npm install --global @openai/codex@latest
+}
+
 install_zinit() {
-  log "Installing pinned zinit"
+  log "Installing latest zinit"
 
   local zinit_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
-  ensure_git_checkout https://github.com/zdharma-continuum/zinit.git "$ZINIT_REF" "$zinit_dir"
+  ensure_latest_git_checkout https://github.com/zdharma-continuum/zinit.git "$zinit_dir"
+}
+
+install_zsh_plugins() {
+  log "Installing latest zsh plugins"
+  local zinit_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
+  ZINIT_DIR="$zinit_dir" zsh -c 'source "$ZINIT_DIR/zinit.zsh"; zinit update --all'
+}
+
+install_neovim_plugins() {
+  log "Installing latest Neovim plugins"
+  NVIM_LOG_FILE=/dev/null nvim --headless "+Lazy! sync" +qa
+}
+
+install_yazi_flavor() {
+  log "Installing latest Yazi flavor"
+
+  local flavor="yazi-rs/flavors:catppuccin-mocha"
+  local package_file="$HOME/.config/yazi/package.toml"
+
+  if [[ -f "$package_file" ]] && grep -Fq "use = \"$flavor\"" "$package_file"; then
+    ya pkg upgrade "$flavor"
+  else
+    ya pkg add "$flavor"
+  fi
 }
 
 install_kitty() {
-  log "Installing kitty with the official installer"
+  log "Installing latest kitty with the official installer"
 
   mkdir -p "$HOME/.local/bin"
-
-  if [[ ! -d /Applications/kitty.app ]]; then
-    curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n
-  else
-    info "kitty already installed"
-  fi
+  curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n
 
   ln -sf /Applications/kitty.app/Contents/MacOS/kitty "$HOME/.local/bin/kitty"
   ln -sf /Applications/kitty.app/Contents/MacOS/kitten "$HOME/.local/bin/kitten"
@@ -331,67 +408,75 @@ install_cmux_cli() {
   local cmux_bin="/Applications/cmux.app/Contents/Resources/bin/cmux"
 
   if [[ ! -x "$cmux_bin" ]]; then
+    info "Repairing missing cmux application artifact"
+    brew reinstall --cask cmux
+  fi
+
+  if [[ ! -x "$cmux_bin" ]]; then
     skip "cmux app binary not found at $cmux_bin"
     return 0
   fi
 
   mkdir -p "$HOME/.local/bin"
   ln -sf "$cmux_bin" "$HOME/.local/bin/cmux"
-
-  if (( CAN_SUDO )); then
-    sudo mkdir -p /usr/local/bin
-    sudo ln -sf "$cmux_bin" /usr/local/bin/cmux
-  else
-    info "Linked cmux CLI in $HOME/.local/bin"
-  fi
 }
 
 install_sketchybar_assets() {
   log "Installing Sketchybar assets"
 
-  make -C "$DOTFILES_DIR/.config/sketchybar/helpers"
+  if ! make -C "$DOTFILES_DIR/.config/sketchybar/helpers/event_providers"; then
+    skip "Could not build SketchyBar event providers."
+  fi
+  if ! make -C "$DOTFILES_DIR/.config/sketchybar/helpers/menus"; then
+    skip "Could not build the private-framework SketchyBar menu helper."
+  fi
 
   local sbarlua_dir="$HOME/.local/share/sketchybar_lua"
   local sbarlua_stamp="$sbarlua_dir/.dotfiles-ref"
+  local tmp_dir latest_commit
+  tmp_dir="$(mktemp -d)"
+  ensure_latest_git_checkout https://github.com/FelixKratz/SbarLua.git "$tmp_dir"
+  latest_commit="$(git -C "$tmp_dir" rev-parse HEAD)"
+
   if [[ -f "$sbarlua_dir/sketchybar.so" && -r "$sbarlua_stamp" \
-    && "$(<"$sbarlua_stamp")" == "$SBARLUA_REF" ]]; then
+    && "$(<"$sbarlua_stamp")" == "$latest_commit" ]]; then
     info "SbarLua already installed"
+    rm -rf "$tmp_dir"
     return 0
   fi
 
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  ensure_git_checkout https://github.com/FelixKratz/SbarLua.git "$SBARLUA_REF" "$tmp_dir"
   make -C "$tmp_dir" install
   mkdir -p "$sbarlua_dir"
-  printf "%s\n" "$SBARLUA_REF" >"$sbarlua_stamp"
+  printf "%s\n" "$latest_commit" >"$sbarlua_stamp"
   rm -rf "$tmp_dir"
 }
 
 install_tmux_plugins() {
-  log "Installing tmux plugins"
+  log "Installing latest tmux plugins"
 
   local tpm_dir="$HOME/.tmux/plugins/tpm"
-  ensure_git_checkout https://github.com/tmux-plugins/tpm "$TPM_REF" "$tpm_dir"
+  ensure_latest_git_checkout https://github.com/tmux-plugins/tpm "$tpm_dir"
 
   /bin/bash "$tpm_dir/scripts/install_plugins.sh"
 
-  local plugin ref plugin_dir
-  while read -r plugin ref; do
-    [[ -n "$plugin" && -n "$ref" ]] || continue
+  local plugin plugin_dir repository
+  while read -r plugin; do
+    [[ -n "$plugin" ]] || continue
     plugin_dir="$HOME/.tmux/plugins/$plugin"
     if [[ ! -d "$plugin_dir/.git" ]]; then
       printf "TPM did not install expected plugin: %s\n" "$plugin" >&2
       exit 1
     fi
-    ensure_git_checkout "$(git -C "$plugin_dir" remote get-url origin)" "$ref" "$plugin_dir"
-  done <"$DOTFILES_DIR/.config/tmux/plugins.lock"
+    repository="$(git -C "$plugin_dir" remote get-url origin)"
+    ensure_latest_git_checkout "$repository" "$plugin_dir"
+  done <"$DOTFILES_DIR/.config/tmux/plugins.txt"
 }
 
 accept_xcode_license() {
   log "Accepting Xcode license"
 
-  if have xcodebuild; then
+  if have xcodebuild && ! xcodebuild -license check >/dev/null 2>&1; then
+    (( CAN_SUDO )) || ensure_sudo
     sudo_run xcodebuild -license accept
   fi
 }
@@ -455,21 +540,32 @@ print_summary() {
 }
 
 main() {
-  require_macos
-  ensure_sudo
+  parse_args "$@"
+  require_supported_platform
   require_command_line_tools
+  if (( APPLY_SYSTEM_DEFAULTS )); then
+    ensure_sudo
+  fi
   accept_xcode_license
-  setup_system_preferences
+  if (( APPLY_SYSTEM_DEFAULTS )); then
+    setup_system_preferences
+  else
+    info "Skipping macOS defaults"
+  fi
   install_homebrew
   install_brew_packages
   link_dotfiles
   link_vscode_config
   install_nvm_node
+  install_codex_cli
   install_zinit
+  install_zsh_plugins
   install_kitty
   install_cmux_cli
   install_sketchybar_assets
   install_tmux_plugins
+  install_yazi_flavor
+  install_neovim_plugins
   restart_services
   print_summary
 }

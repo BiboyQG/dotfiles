@@ -1,10 +1,10 @@
 # My dotfiles
 
-This repo contains the dotfiles for my MacOS system.
+This repo contains the dotfiles for my Apple Silicon Mac. Intel Macs are not supported.
 
 ## Tools
 
-Most tools are declared in `Brewfile`; `setup.sh` also installs the pinned non-Homebrew dependencies.
+Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-Homebrew dependencies.
 
 | Tool                | Install                  | Description                                      |
 | ------------------- | ------------------------ | ------------------------------------------------ |
@@ -37,6 +37,7 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the pinned non-H
 | FFmpeg              | `brew`                   | Media toolkit                                    |
 | ImageMagick         | `brew`                   | Image processing tools                           |
 | Poppler             | `brew`                   | PDF utilities (`pdfinfo`, `pdftotext`, ...)      |
+| Python              | `brew`                   | Runtime for tmux helpers and editor tooling       |
 | Bat                 | `brew`                   | `cat` replacement with syntax highlighting       |
 | Gh                  | `brew`                   | GitHub CLI                                       |
 | Fastfetch           | `brew`                   | System info summary                              |
@@ -47,6 +48,11 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the pinned non-H
 | Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
 | Uv                  | `brew`                   | Python package/venv manager                      |
+| VS Code             | `brew --cask`            | GUI editor with extensions declared in Brewfile  |
+| Arc                 | `brew --cask`            | Browser used by the AeroSpace shortcut           |
+| PDF Expert          | `brew --cask`            | PDF opener used by Yazi                          |
+| Claude Code         | `brew --cask`            | Anthropic coding CLI                             |
+| Codex CLI           | `npm`                    | OpenAI coding CLI                                |
 
 AeroSpace is used for window management, so SIP can stay enabled.
 
@@ -62,15 +68,31 @@ Next, we run the setup script
 zsh setup.sh
 ```
 
+To install the tools and links without changing macOS defaults or NVRAM values:
+
+```bash
+zsh setup.sh --skip-system-defaults
+```
+
 This will:
 
 - Check for Stow conflicts, then symlink the dotfiles without adopting existing files
-- Install the pinned Homebrew bundle and validate trusted taps
-- Install kitty with the official installer
-- Install pinned nvm, Node, zinit, SbarLua, and tmux plugins
+- Install or upgrade the Homebrew bundle and validate trusted taps
+- Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
+- Install the latest kitty release with the official installer
+- Install or update nvm, Node, Codex CLI, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
+- Install declared VS Code extensions and pre-install zsh and Neovim plugins
 - Link VS Code settings to its real macOS user-config directory
 - Keep machine-local Codex config and generated Zed prompt data outside the repo
 - Build SketchyBar helpers, then restart OpenUsage, AeroSpace, skhd, and SketchyBar
+
+Run the repository checks without installing or upgrading anything:
+
+```bash
+zsh check.sh
+```
+
+The checker validates shell, Lua, Python, TOML, JSON/JSONC, the Brewfile, the LaunchAgent, generated-file boundaries, SketchyBar helper builds, and a clean Stow simulation.
 
 ### Tips
 

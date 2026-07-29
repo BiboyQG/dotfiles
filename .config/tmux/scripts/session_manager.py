@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
 from typing import List, Dict, Optional, Tuple
+
+
+LOCK_NAME = "dotfiles-session-manager"
 
 
 def run_tmux(args: List[str], check: bool = True, capture: bool = False) -> str:
@@ -61,10 +66,29 @@ def sanitize_label(label: str) -> str:
 
 
 def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
+    planned_names = []
     for position, session in enumerate(ordered_sessions, start=1):
         label = sanitize_label(str(session["label"]))
-        new_name = f"{position}-{label}"
+        planned_names.append((session, f"{position}-{label}"))
+
+    if all(session["name"] == new_name for session, new_name in planned_names):
+        return
+
+    prefix = f"__dotfiles_{os.getpid()}_"
+    for session, _ in planned_names:
+        session_id = str(session["id"]).lstrip("$")
+        run_tmux(["rename-session", "-t", session["id"], f"{prefix}{session_id}"])
+    for session, new_name in planned_names:
         run_tmux(["rename-session", "-t", session["id"], new_name])
+
+
+@contextmanager
+def mutation_lock():
+    run_tmux(["wait-for", "-L", LOCK_NAME])
+    try:
+        yield
+    finally:
+        run_tmux(["wait-for", "-U", LOCK_NAME], check=False)
 
 
 def current_session_id() -> str:
@@ -73,6 +97,7 @@ def current_session_id() -> str:
 
 def current_window_id() -> str:
     return run_tmux(["display-message", "-p", "#{window_id}"], capture=True)
+
 
 def parse_optional_client(args: List[str]) -> Tuple[Optional[str], List[str]]:
     client: Optional[str] = None
@@ -113,24 +138,6 @@ def command_rename(label: str) -> None:
         if session["id"] == current_id:
             session["label"] = label
             break
-    else:
-        return
-    apply_order(sessions)
-    # run_tmux(["display-message", f"Renamed tmux session to {label}"] , check=False)
-
-
-def command_move(direction: str) -> None:
-    direction = direction.lower()
-    sessions = list_sessions()
-    current_id = current_session_id()
-    indices = {session["id"]: idx for idx, session in enumerate(sessions)}
-    if current_id not in indices:
-        return
-    pos = indices[current_id]
-    if direction == "left" and pos > 0:
-        sessions[pos - 1], sessions[pos] = sessions[pos], sessions[pos - 1]
-    elif direction == "right" and pos < len(sessions) - 1:
-        sessions[pos], sessions[pos + 1] = sessions[pos + 1], sessions[pos]
     else:
         return
     apply_order(sessions)
@@ -180,13 +187,14 @@ def main(argv: List[str]) -> None:
         client, _ = parse_optional_client(argv[3:])
         command_switch(argv[2], client)
     elif command == "rename" and len(argv) >= 3:
-        command_rename(argv[2])
-    elif command == "move" and len(argv) >= 3:
-        command_move(argv[2])
+        with mutation_lock():
+            command_rename(argv[2])
     elif command == "ensure":
-        command_ensure()
+        with mutation_lock():
+            command_ensure()
     elif command == "created":
-        command_created()
+        with mutation_lock():
+            command_created()
     elif command == "move-window-to" and len(argv) >= 3:
         client, _ = parse_optional_client(argv[3:])
         command_move_window_to_session(argv[2], client)

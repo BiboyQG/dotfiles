@@ -53,7 +53,7 @@
         "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus"
     },
     {
-        "key": "shift-s",
+        "key": "shift+s",
         "command": "runCommands",
         "when": "filesExplorerFocus && foldersViewVisible && !explorerResourceIsRoot && !explorerResourceReadonly && !inputFocus",
         "args": {
