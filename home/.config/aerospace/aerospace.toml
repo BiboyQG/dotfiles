@@ -84,12 +84,12 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
     alt-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
 
 [workspace-to-monitor-force-assignment]
-    1 = ['DELL S2725QC', 'LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
-    2 = ['DELL S2725QC', 'LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
-    3 = ['DELL S2725QC', 'LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
-    4 = ['DELL S2725QC', 'LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
-    5 = ['DELL S2725QC', 'LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
-    6 = ['DELL S2725QC', 'LG ULTRAGEAR+', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    1 = ['LG ULTRAGEAR\+', 'DELL S2725QC', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    2 = ['LG ULTRAGEAR\+', 'DELL S2725QC', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    3 = ['LG ULTRAGEAR\+', 'DELL S2725QC', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    4 = ['LG ULTRAGEAR\+', 'DELL S2725QC', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    5 = ['LG ULTRAGEAR\+', 'DELL S2725QC', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
+    6 = ['LG ULTRAGEAR\+', 'DELL S2725QC', 'Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
     7 = ['Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
     8 = ['Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
     9 = ['Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
@@ -101,7 +101,7 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
     outer.left = 0
     outer.bottom = 0
     outer.top = [
-        { monitor."LG ULTRAGEAR+" = 40 },
+        { monitor."LG ULTRAGEAR\\+" = 40 },
         { monitor."DELL S2725QC" = 40 },
         { monitor."Built-in Liquid Retina XDR Display" = 8 },
         { monitor."Built-in Retina Display" = 8 },
