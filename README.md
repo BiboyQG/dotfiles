@@ -4,7 +4,7 @@ This repo contains the dotfiles for my MacOS system.
 
 ## Tools
 
-Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
+Most tools are declared in `Brewfile`; `setup.sh` also installs the pinned non-Homebrew dependencies.
 
 | Tool                | Install                  | Description                                      |
 | ------------------- | ------------------------ | ------------------------------------------------ |
@@ -22,7 +22,8 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | NowPlaying CLI      | `brew`                   | Now Playing metadata (for Sketchybar)            |
 | SbarLua             | `git`                    | Lua API for Sketchybar                           |
 | AeroSpace           | `brew --cask`            | Tiling window manager for macOS                  |
-| Skhd                | `brew`                   | Hotkey daemon for macOS                          |
+| Skhd                | `brew`                   | Fallback for the AeroSpace enable/disable hotkey |
+| OpenUsage           | `brew --cask`            | Local AI usage API and menu bar app              |
 | Yazi                | `brew`                   | Terminal file manager                            |
 | Lazygit             | `brew`                   | Terminal UI for git operations                   |
 | Eza                 | `brew`                   | Modern `ls` replacement                          |
@@ -45,7 +46,6 @@ Most tools are installed by `setup.sh` via Homebrew (and a few via `npm`/`git`).
 | Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
 | Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
-| OpenCommit          | `npm -g`                 | LLM-assisted commit messages (`oco`)             |
 | Uv                  | `brew`                   | Python package/venv manager                      |
 
 AeroSpace is used for window management, so SIP can stay enabled.
@@ -64,12 +64,13 @@ zsh setup.sh
 
 This will:
 
-- Symlink the dotfiles into place (via `stow --adopt`)
-- Install dependencies via Homebrew
+- Check for Stow conflicts, then symlink the dotfiles without adopting existing files
+- Install the pinned Homebrew bundle and validate trusted taps
 - Install kitty with the official installer
-- Install nvm, Node LTS, and npm-based tools
-- Remove legacy yabai setup artifacts
-- Restart AeroSpace, skhd, and sketchybar
+- Install pinned nvm, Node, zinit, SbarLua, and tmux plugins
+- Link VS Code settings to its real macOS user-config directory
+- Keep machine-local Codex config and generated Zed prompt data outside the repo
+- Build SketchyBar helpers, then restart OpenUsage, AeroSpace, skhd, and SketchyBar
 
 ### Tips
 

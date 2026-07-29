@@ -1,0 +1,8 @@
+[
+  {
+    "context": "Editor && vim_mode == insert",
+    "bindings": {
+      "k j": "vim::NormalBefore",
+    },
+  },
+]

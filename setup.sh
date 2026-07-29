@@ -3,7 +3,11 @@ set -euo pipefail
 
 DOTFILES_DIR="${0:A:h}"
 NVM_VERSION="${NVM_VERSION:-v0.40.4}"
-NODE_VERSION="${NODE_VERSION:-lts/*}"
+NODE_VERSION="${NODE_VERSION:-v24.16.0}"
+ZINIT_REF="${ZINIT_REF:-773852f5888bb534452495edae41dc7516383b4a}"
+SBARLUA_REF="${SBARLUA_REF:-dba9cc421b868c918d5c23c408544a28aadf2f2f}"
+TPM_REF="${TPM_REF:-99469c4a9b1ccf77fade25842dc7bafbc8ce9946}"
+SKETCHYBAR_FONT_SHA256="${SKETCHYBAR_FONT_SHA256:-e49ee3281aca67634c2e7c0261d898226149664e9842b7fe61af8c4726d1f1de}"
 SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
@@ -27,6 +31,47 @@ skip() {
 
 have() {
   command -v "$1" >/dev/null 2>&1
+}
+
+find_homebrew() {
+  local candidate
+
+  if have brew; then
+    command -v brew
+    return 0
+  fi
+
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$candidate" ]]; then
+      printf "%s\n" "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+ensure_git_checkout() {
+  local repository="$1"
+  local ref="$2"
+  local destination="$3"
+
+  if [[ ! -d "$destination/.git" ]]; then
+    mkdir -p "${destination:h}"
+    git clone --filter=blob:none "$repository" "$destination"
+  fi
+
+  if [[ -n "$(git -C "$destination" status --porcelain)" ]]; then
+    printf "Refusing to replace modified Git checkout: %s\n" "$destination" >&2
+    exit 1
+  fi
+
+  if ! git -C "$destination" cat-file -e "${ref}^{commit}" 2>/dev/null; then
+    git -C "$destination" fetch --depth=1 origin "$ref"
+  fi
+
+  git -C "$destination" checkout --quiet --detach "$ref"
+  [[ "$(git -C "$destination" rev-parse HEAD)" == "$ref" ]]
 }
 
 append_line_once() {
@@ -86,6 +131,13 @@ require_command_line_tools() {
   fi
 }
 
+require_macos() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    printf "This setup script only supports macOS.\n" >&2
+    exit 1
+  fi
+}
+
 setup_system_preferences() {
   log "Applying macOS defaults"
 
@@ -132,36 +184,22 @@ setup_system_preferences() {
 install_homebrew() {
   log "Checking Homebrew"
 
-  if ! have brew; then
+  local brew_bin
+  brew_bin="$(find_homebrew || true)"
+
+  if [[ -z "$brew_bin" ]]; then
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    brew_bin="$(find_homebrew || true)"
   fi
 
-  eval "$("$(command -v brew)" shellenv)"
+  if [[ -z "$brew_bin" ]]; then
+    printf "Homebrew installation completed but the brew executable was not found.\n" >&2
+    exit 1
+  fi
 
-  local brew_bin
-  brew_bin="$(command -v brew)"
+  eval "$("$brew_bin" shellenv)"
   append_line_once "$HOME/.zprofile" "eval \"\$($brew_bin shellenv)\"" "# Configure shell for Homebrew"
   append_line_once "$HOME/.zprofile" 'export PATH="$HOME/bin:$PATH"' "# Add ~/bin to PATH"
-}
-
-brew_install_formula() {
-  local package="$1"
-
-  if brew list --formula "$package" >/dev/null 2>&1; then
-    info "$package already installed"
-  else
-    brew install "$package"
-  fi
-}
-
-brew_install_cask() {
-  local package="$1"
-
-  if brew list --cask "$package" >/dev/null 2>&1; then
-    info "$package already installed"
-  else
-    brew install --cask "$package"
-  fi
 }
 
 brew_trust_tap() {
@@ -175,145 +213,72 @@ brew_trust_tap() {
 install_brew_packages() {
   log "Installing Homebrew packages"
 
-  brew tap felixkratz/formulae
-  brew tap koekeishiya/formulae
-  brew tap manaflow-ai/cmux
-  brew tap nikitabobko/tap
-  brew_trust_tap felixkratz/formulae
-  brew_trust_tap koekeishiya/formulae
-  brew_trust_tap manaflow-ai/cmux
-  brew_trust_tap nikitabobko/tap
-
-  local -a formulae=(
-    stow
-    lazygit
-    zoxide
-    eza
-    yazi
-    ffmpeg
-    sevenzip
-    jq
-    poppler
-    fd
-    ripgrep
-    fzf
-    imagemagick
-    direnv
-    fastfetch
-    cloc
-    dust
-    macmon
-    gh
-    neovim
-    bat
-    uv
-    terminal-notifier
-    lua
-    switchaudio-osx
-    nowplaying-cli
-    sketchybar
-    skhd
-    tmux
+  local -a taps=(
+    felixkratz/formulae
+    koekeishiya/formulae
+    manaflow-ai/cmux
+    nikitabobko/tap
   )
-
-  local -a casks=(
-    mos
-    pearcleaner
-    font-jetbrains-mono-nerd-font
-    font-maple-mono-nf-cn
-    font-symbols-only-nerd-font
-    sf-symbols
-    font-sf-mono
-    font-sf-pro
-    cmux
-    nikitabobko/tap/aerospace
-  )
-
-  local package
-  for package in "${formulae[@]}"; do
-    brew_install_formula "$package"
+  local tap
+  for tap in "${taps[@]}"; do
+    brew tap "$tap"
+    brew_trust_tap "$tap"
   done
 
-  for package in "${casks[@]}"; do
-    brew_install_cask "$package"
-  done
-}
-
-remove_dotfiles_symlink() {
-  local target_path="$1"
-  local link_target
-
-  [[ -L "$target_path" ]] || return 0
-  link_target="$(stat -f "%Y" "$target_path" 2>/dev/null || true)"
-
-  if [[ "${link_target#dotfiles/}" != "$link_target" || "${link_target#$DOTFILES_DIR/}" != "$link_target" ]]; then
-    rm -f "$target_path"
-  fi
-}
-
-cleanup_legacy_items() {
-  log "Removing legacy Ollama, Hammerspoon, and yabai setup artifacts"
-
-  if launchctl print "gui/$(id -u)/com.ollama.serve" >/dev/null 2>&1; then
-    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.ollama.serve.plist" >/dev/null 2>&1 \
-      || launchctl unload "$HOME/Library/LaunchAgents/com.ollama.serve.plist" >/dev/null 2>&1 \
-      || true
-  fi
-
-  if launchctl print "gui/$(id -u)/com.asmvik.yabai" >/dev/null 2>&1; then
-    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.asmvik.yabai.plist" >/dev/null 2>&1 \
-      || launchctl remove com.asmvik.yabai >/dev/null 2>&1 \
-      || true
-  fi
-
-  if launchctl print "gui/$(id -u)/com.koekeishiya.yabai" >/dev/null 2>&1; then
-    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.koekeishiya.yabai.plist" >/dev/null 2>&1 \
-      || launchctl remove com.koekeishiya.yabai >/dev/null 2>&1 \
-      || true
-  fi
-
-  rm -f "$HOME/Library/LaunchAgents/com.ollama.serve.plist"
-  rm -f "$HOME/Library/LaunchAgents/com.asmvik.yabai.plist"
-  rm -f "$HOME/Library/LaunchAgents/com.koekeishiya.yabai.plist"
-  remove_dotfiles_symlink "$HOME/com.ollama.serve.plist"
-  remove_dotfiles_symlink "$HOME/.yabairc"
-  remove_dotfiles_symlink "$HOME/.hammerspoon"
-  remove_dotfiles_symlink "$HOME/setup.sh"
-  sudo_run rm -f /private/etc/sudoers.d/yabai
-
-  osascript -e 'tell application "Hammerspoon" to quit' >/dev/null 2>&1 || true
-  killall Hammerspoon >/dev/null 2>&1 || true
-
-  if brew list --formula ollama >/dev/null 2>&1; then
-    HOMEBREW_NO_INSTALL_CLEANUP=1 brew uninstall ollama
-  fi
-
-  if brew list --formula yabai >/dev/null 2>&1; then
-    HOMEBREW_NO_INSTALL_CLEANUP=1 brew uninstall yabai
-  fi
-
-  if brew list --cask hammerspoon >/dev/null 2>&1; then
-    HOMEBREW_NO_INSTALL_CLEANUP=1 brew uninstall --cask hammerspoon
-  fi
+  brew bundle install --no-upgrade --file="$DOTFILES_DIR/Brewfile"
 }
 
 link_dotfiles() {
   log "Linking dotfiles with Stow"
 
-  stow --adopt --target="$HOME" --ignore='^README\.md$' --ignore='^setup\.sh$' .
+  local container
+  for container in .config .config/zed .codex Library/LaunchAgents; do
+    if [[ -L "$HOME/$container" ]]; then
+      printf "Refusing to stow into folded symlink: %s\n" "$HOME/$container" >&2
+      printf "Replace it with a real directory before rerunning setup.\n" >&2
+      exit 1
+    fi
+    mkdir -p "$HOME/$container"
+  done
+
+  if ! stow --simulate --target="$HOME" .; then
+    printf "Stow found conflicting files. Back them up or remove them, then rerun setup.\n" >&2
+    exit 1
+  fi
+
+  stow --target="$HOME" .
+}
+
+link_vscode_config() {
+  log "Linking VS Code user configuration"
+
+  local vscode_user_dir="$HOME/Library/Application Support/Code/User"
+  mkdir -p "$vscode_user_dir"
+
+  local source target
+  for source in "$DOTFILES_DIR/.vscode/vscode-settings.json" "$DOTFILES_DIR/.vscode/keybindings.json"; do
+    if [[ "${source:t}" == "vscode-settings.json" ]]; then
+      target="$vscode_user_dir/settings.json"
+    else
+      target="$vscode_user_dir/keybindings.json"
+    fi
+
+    if [[ -L "$target" && "$(realpath "$target")" == "$source" ]]; then
+      continue
+    fi
+    if [[ -e "$target" && ! -L "$target" ]] && ! cmp -s "$source" "$target"; then
+      printf "Refusing to replace different VS Code config: %s\n" "$target" >&2
+      exit 1
+    fi
+    rm -f "$target"
+    ln -s "$source" "$target"
+  done
 }
 
 install_nvm_node() {
   log "Installing nvm and Node"
 
   export NVM_DIR="$HOME/.nvm"
-
-  local brew_prefix
-  brew_prefix="$(brew --prefix 2>/dev/null || true)"
-  if [[ -n "$brew_prefix" && -x "$brew_prefix/bin/npm" ]] \
-    && "$brew_prefix/bin/npm" list -g opencommit --depth=0 >/dev/null 2>&1; then
-    "$brew_prefix/bin/npm" uninstall -g opencommit
-  fi
 
   if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
     PROFILE=/dev/null /bin/bash -c "set -euo pipefail; curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh | bash"
@@ -325,13 +290,8 @@ install_nvm_node() {
   . "$NVM_DIR/nvm.sh"
 
   local installed_node_version
-  if [[ "$NODE_VERSION" == "lts/*" ]]; then
-    nvm install --lts
-    installed_node_version="$(nvm version 'lts/*')"
-  else
-    nvm install "$NODE_VERSION"
-    installed_node_version="$(nvm version "$NODE_VERSION")"
-  fi
+  nvm install "$NODE_VERSION"
+  installed_node_version="$(nvm version "$NODE_VERSION")"
 
   if [[ "$installed_node_version" == "N/A" ]]; then
     printf "Failed to resolve installed Node version for %s\n" "$NODE_VERSION" >&2
@@ -341,12 +301,14 @@ install_nvm_node() {
   nvm alias default "$installed_node_version"
   nvm use "$installed_node_version"
 
-  local node_bin
-  local npm_bin
-  node_bin="$(nvm which "$installed_node_version")"
-  npm_bin="${node_bin:h}/npm"
-  "$npm_bin" install -g opencommit@latest
   set -u
+}
+
+install_zinit() {
+  log "Installing pinned zinit"
+
+  local zinit_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
+  ensure_git_checkout https://github.com/zdharma-continuum/zinit.git "$ZINIT_REF" "$zinit_dir"
 }
 
 install_kitty() {
@@ -391,20 +353,33 @@ install_sketchybar_assets() {
   mkdir -p "$HOME/Library/Fonts"
 
   local app_font="$HOME/Library/Fonts/sketchybar-app-font.ttf"
-  if [[ ! -f "$app_font" ]]; then
+  local current_font_sha=""
+  [[ -f "$app_font" ]] && current_font_sha="$(shasum -a 256 "$app_font" | awk '{ print $1 }')"
+  if [[ "$current_font_sha" != "$SKETCHYBAR_FONT_SHA256" ]]; then
+    local downloaded_font
+    downloaded_font="$(mktemp "${TMPDIR:-/tmp}/sketchybar-app-font.XXXXXX")"
     curl -fsSL https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v2.0.28/sketchybar-app-font.ttf \
-      -o "$app_font"
+      -o "$downloaded_font"
+    [[ "$(shasum -a 256 "$downloaded_font" | awk '{ print $1 }')" == "$SKETCHYBAR_FONT_SHA256" ]]
+    mv "$downloaded_font" "$app_font"
   fi
 
-  if [[ -f "$HOME/.local/share/sketchybar_lua/sketchybar.so" ]]; then
+  make -C "$DOTFILES_DIR/.config/sketchybar/helpers"
+
+  local sbarlua_dir="$HOME/.local/share/sketchybar_lua"
+  local sbarlua_stamp="$sbarlua_dir/.dotfiles-ref"
+  if [[ -f "$sbarlua_dir/sketchybar.so" && -r "$sbarlua_stamp" \
+    && "$(<"$sbarlua_stamp")" == "$SBARLUA_REF" ]]; then
     info "SbarLua already installed"
     return 0
   fi
 
   local tmp_dir
   tmp_dir="$(mktemp -d)"
-  git clone --depth=1 https://github.com/FelixKratz/SbarLua.git "$tmp_dir"
+  ensure_git_checkout https://github.com/FelixKratz/SbarLua.git "$SBARLUA_REF" "$tmp_dir"
   make -C "$tmp_dir" install
+  mkdir -p "$sbarlua_dir"
+  printf "%s\n" "$SBARLUA_REF" >"$sbarlua_stamp"
   rm -rf "$tmp_dir"
 }
 
@@ -412,11 +387,20 @@ install_tmux_plugins() {
   log "Installing tmux plugins"
 
   local tpm_dir="$HOME/.tmux/plugins/tpm"
-  if [[ ! -d "$tpm_dir/.git" ]]; then
-    git clone --depth=1 https://github.com/tmux-plugins/tpm "$tpm_dir"
-  fi
+  ensure_git_checkout https://github.com/tmux-plugins/tpm "$TPM_REF" "$tpm_dir"
 
   /bin/bash "$tpm_dir/scripts/install_plugins.sh"
+
+  local plugin ref plugin_dir
+  while read -r plugin ref; do
+    [[ -n "$plugin" && -n "$ref" ]] || continue
+    plugin_dir="$HOME/.tmux/plugins/$plugin"
+    if [[ ! -d "$plugin_dir/.git" ]]; then
+      printf "TPM did not install expected plugin: %s\n" "$plugin" >&2
+      exit 1
+    fi
+    ensure_git_checkout "$(git -C "$plugin_dir" remote get-url origin)" "$ref" "$plugin_dir"
+  done <"$DOTFILES_DIR/.config/tmux/plugins.lock"
 }
 
 accept_xcode_license() {
@@ -428,7 +412,23 @@ accept_xcode_license() {
 }
 
 restart_services() {
-  log "Restarting AeroSpace, skhd, and sketchybar"
+  log "Restarting OpenUsage, AeroSpace, skhd, and sketchybar"
+
+  if [[ -d /Applications/OpenUsage.app ]]; then
+    if open -gja OpenUsage; then
+      local openusage_ready=0
+      for _ in {1..20}; do
+        if curl -fsS --max-time 1 http://127.0.0.1:6736/v1/usage/codex >/dev/null 2>&1; then
+          openusage_ready=1
+          break
+        fi
+        sleep 0.25
+      done
+      (( openusage_ready )) || skip "OpenUsage started but its local API is not reachable."
+    else
+      skip "Could not open OpenUsage."
+    fi
+  fi
 
   if have sketchybar; then
     brew services restart sketchybar || brew services start sketchybar
@@ -470,21 +470,25 @@ print_summary() {
 }
 
 main() {
+  require_macos
   ensure_sudo
   require_command_line_tools
+  accept_xcode_license
   setup_system_preferences
   install_homebrew
   install_brew_packages
-  cleanup_legacy_items
   link_dotfiles
+  link_vscode_config
   install_nvm_node
+  install_zinit
   install_kitty
   install_cmux_cli
   install_sketchybar_assets
   install_tmux_plugins
-  accept_xcode_license
   restart_services
   print_summary
 }
 
-main "$@"
+if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
+  main "$@"
+fi

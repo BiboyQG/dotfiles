@@ -7,26 +7,37 @@ fi
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
-if [ ! -d "$ZINIT_HOME" ]; then
-	mkdir -p "$(dirname $ZINIT_HOME)"
-	git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+if [[ -r "$ZINIT_HOME/zinit.zsh" ]]; then
+	source "$ZINIT_HOME/zinit.zsh"
+
+	zinit ice depth=1
+	zinit light romkatv/powerlevel10k
+	zinit light zsh-users/zsh-syntax-highlighting
+	zinit light zsh-users/zsh-completions
+	zinit light zsh-users/zsh-autosuggestions
+	zinit light Aloxaf/fzf-tab
+	zinit snippet OMZP::git
+else
+	print -u2 "zinit is not installed; rerun the dotfiles setup script"
 fi
 
-source "${ZINIT_HOME}/zinit.zsh"
+if [[ -d "$HOME/.docker/completions" ]]; then
+	fpath=("$HOME/.docker/completions" $fpath)
+fi
 
-zinit ice depth=1; zinit light romkatv/powerlevel10k
-
-zinit light zsh-users/zsh-syntax-highlighting
-zinit light zsh-users/zsh-completions
-zinit light zsh-users/zsh-autosuggestions
-zinit light Aloxaf/fzf-tab
-
-zinit snippet OMZP::git
-zinit snippet OMZP::kubectl
-zinit snippet OMZP::kubectx
-zinit snippet OMZP::command-not-found
-
-autoload -U compinit && compinit
+autoload -Uz compinit
+zmodload zsh/datetime
+zmodload zsh/stat
+zcompdump="${ZDOTDIR:-$HOME}/.zcompdump"
+zcompdump_mtime=0
+[[ -f "$zcompdump" ]] && zcompdump_mtime="$(zstat +mtime -- "$zcompdump" 2>/dev/null)"
+if (( EPOCHSECONDS - zcompdump_mtime > 86400 )); then
+	compinit
+	touch "$zcompdump" 2>/dev/null || true
+else
+	compinit -C
+fi
+unset zcompdump zcompdump_mtime
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -57,15 +68,13 @@ setopt hist_find_no_dups
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' menu no
-zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color $realpath'
+zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --color=always --icons=always $realpath'
 
-eval "$(zoxide init --cmd cd zsh)"
+(( $+commands[zoxide] )) && eval "$(zoxide init --cmd cd zsh)"
+(( $+commands[fzf] )) && eval "$(fzf --zsh)"
+(( $+commands[direnv] )) && eval "$(direnv hook zsh)"
 
-eval "$(fzf --zsh)"
-
-eval "$(direnv hook zsh)"
-
-alias ll="eza -alh --icons=auto"
+alias ll="eza -alh --icons=auto --color=always"
 alias ssh="kitten ssh"
 alias s="fastfetch"
 alias l="lazygit"
@@ -124,12 +133,6 @@ alias -s html=open  # macOS: open in default browser
 # \C-b moves cursor back one position
 bindkey -s '^xgc' 'git commit -m ""\C-b'
 
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/biboy/.docker/completions $fpath)
-autoload -Uz compinit
-compinit
-# End of Docker CLI completions
-
 # Yazi setup
 function y() {
 	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
@@ -141,13 +144,28 @@ function y() {
 
 # Environment variables
 export EDITOR="nvim" # For Yazi default editor
+export PATH="$HOME/.local/bin:$PATH"
 
 # Node Version Manager
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-nvm use --silent default >/dev/null 2>&1 || true
-export PATH="$HOME/.local/bin:$PATH"
+if [[ -r "$NVM_DIR/alias/default" ]]; then
+	nvm_default_version="$(<"$NVM_DIR/alias/default")"
+	if [[ -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
+		export PATH="$NVM_DIR/versions/node/$nvm_default_version/bin:$PATH"
+	fi
+	unset nvm_default_version
+fi
+
+_load_nvm() {
+	unfunction nvm
+	[[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
+	[[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+}
+
+nvm() {
+	_load_nvm
+	nvm "$@"
+}
 
 # Cargo (Rust package manager)
-source "$HOME/.cargo/env"
+[[ -r "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"

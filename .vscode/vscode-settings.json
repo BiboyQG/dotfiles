@@ -151,5 +151,21 @@
     "window.customTitleBarVisibility": "never",
     "editor.largeFileOptimizations": false,
     "editor.unicodeHighlight.ambiguousCharacters": false,
-    "terminal.integrated.enableMultiLinePasteWarning": "never"
+    "terminal.integrated.enableMultiLinePasteWarning": "never",
+    "gitlens.ai.model": "vscode",
+    "gitlens.ai.vscode.model": "copilot:gpt-4.1",
+    "gitlens.views.scm.grouped.views": {
+        "commits": true,
+        "branches": true,
+        "remotes": true,
+        "stashes": true,
+        "tags": true,
+        "worktrees": true,
+        "contributors": true,
+        "fileHistory": true,
+        "repositories": true,
+        "searchAndCompare": false,
+        "launchpad": false
+    },
+    "editor.hover.showLongLineWarning": false
 }

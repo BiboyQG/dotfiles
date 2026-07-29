@@ -1,13 +1,14 @@
 #!/usr/bin/env zsh
 set -u
 
-API_BASE="http://127.0.0.1:6736/v1/usage"
+API_BASE="${OPENUSAGE_API_BASE:-http://127.0.0.1:6736/v1/usage}"
 BAR_DIR="${TMPDIR:-/tmp}/sketchybar-ai-usage"
 BAR_WIDTH=52
 BAR_VERSION=2
 TRACK_COLOR="#414550"
 
 mkdir -p "$BAR_DIR"
+find "$BAR_DIR" -type f -name 'v*.png' -mtime +7 -delete 2>/dev/null || true
 
 bar_fill_width() {
   local value="$1"
@@ -63,7 +64,12 @@ generate_bar() {
   fi
 
   if command -v magick >/dev/null 2>&1; then
-    magick -size "${BAR_WIDTH}x14" xc:none "${draw[@]}" "$output" >/dev/null 2>&1
+    local temporary_output="${output%.png}.${$}.${RANDOM}.png"
+    if magick -size "${BAR_WIDTH}x14" xc:none "${draw[@]}" "$temporary_output" >/dev/null 2>&1; then
+      mv -f "$temporary_output" "$output"
+    else
+      rm -f "$temporary_output"
+    fi
   fi
 
   print -r -- "$output"
@@ -138,5 +144,15 @@ emit_provider() {
   print -r -- "${provider}_bar=$(generate_bar "$provider" "$color" "$session" "$weekly")"
 }
 
-emit_provider codex
-emit_provider claude
+RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sketchybar-ai-usage-run.XXXXXX")"
+trap 'rm -rf "$RUN_DIR"' EXIT
+
+emit_provider codex >"$RUN_DIR/codex" &
+codex_pid=$!
+emit_provider claude >"$RUN_DIR/claude" &
+claude_pid=$!
+
+wait "$codex_pid" || emit_unavailable codex >"$RUN_DIR/codex"
+wait "$claude_pid" || emit_unavailable claude >"$RUN_DIR/claude"
+
+cat "$RUN_DIR/codex" "$RUN_DIR/claude"

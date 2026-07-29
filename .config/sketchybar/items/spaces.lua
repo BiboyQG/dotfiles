@@ -141,7 +141,6 @@ end
 local space_window_observer = sbar.add("item", {
   drawing = false,
   updates = true,
-  update_freq = 2,
 })
 
 local spaces_indicator = sbar.add("item", {
@@ -168,7 +167,6 @@ local spaces_indicator = sbar.add("item", {
 
 space_window_observer:subscribe({
   "forced",
-  "routine",
   "front_app_switched",
   "aerospace_workspace_change",
   "space_windows_change",

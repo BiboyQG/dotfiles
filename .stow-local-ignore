@@ -1,0 +1,16 @@
+\.git
+\.gitignore
+\.gitmodules
+\.DS_Store
+^/README.*
+^/LICENSE.*
+^/COPYING
+^/Brewfile$
+^/setup\.sh$
+^/\.config/gh($|/)
+^/\.config/mole($|/)
+^/\.config/zed/prompts($|/)
+^/\.codex/config\.toml$
+^/\.codex/__pycache__($|/)
+^/\.codex/notify\.py$
+^/\.vscode($|/)

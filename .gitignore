@@ -1,4 +1,4 @@
-**/lazy-lock.json
+**/.DS_Store
 
 .config/alma/
 .config/cagent/
@@ -6,9 +6,9 @@
 .config/configstore/
 .config/gh/
 .config/mole/
-.config/nvim/lazyvim.json
 .config/rstudio/
 .config/stripe/
+.config/zed/prompts/
 
 .claude/**
 !.claude/plugins/
@@ -16,9 +16,8 @@
 !.claude/settings.json
 !.claude/statusline.sh
 
-.codex/**
-!.codex/AGENTS.md
-!.codex/config.toml
-!.codex/notify.py
+.codex/config.toml
+.codex/.tmp/
+.codex/__pycache__/
 
 __pycache__/

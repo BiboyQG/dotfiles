@@ -17,8 +17,3 @@ keymap.set("n", "dw", 'vb"_d')
 
 -- Select all
 keymap.set("n", "<C-a>", "gg<S-v>G")
-
-keymap.set("n", "<C-j>", ":TmuxNavigateDown<CR>", { silent = true })
-keymap.set("n", "<C-k>", ":TmuxNavigateUp<CR>", { silent = true })
-keymap.set("n", "<C-h>", ":TmuxNavigateLeft<CR>", { silent = true })
-keymap.set("n", "<C-l>", ":TmuxNavigateRight<CR>", { silent = true })
