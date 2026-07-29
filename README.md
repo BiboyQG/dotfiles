@@ -11,7 +11,6 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-H
 | Homebrew            | `brew`                   | Package manager for macOS                        |
 | GNU Stow            | `brew`                   | Symlink manager for dotfiles                     |
 | Kitty               | official installer       | GPU-based terminal emulator                      |
-| cmux                | `brew --cask`            | Native macOS terminal for AI coding agents       |
 | Zsh                 | macOS                    | Shell and interactive environment                |
 | Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
 | Tmux                | `brew`                   | Terminal multiplexer                             |

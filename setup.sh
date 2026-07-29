@@ -254,7 +254,6 @@ install_brew_packages() {
   local -a taps=(
     felixkratz/formulae
     koekeishiya/formulae
-    manaflow-ai/cmux
     nikitabobko/tap
   )
   local tap
@@ -402,25 +401,6 @@ install_kitty() {
   ln -sf /Applications/kitty.app/Contents/MacOS/kitten "$HOME/.local/bin/kitten"
 }
 
-install_cmux_cli() {
-  log "Configuring cmux CLI"
-
-  local cmux_bin="/Applications/cmux.app/Contents/Resources/bin/cmux"
-
-  if [[ ! -x "$cmux_bin" ]]; then
-    info "Repairing missing cmux application artifact"
-    brew reinstall --cask cmux
-  fi
-
-  if [[ ! -x "$cmux_bin" ]]; then
-    skip "cmux app binary not found at $cmux_bin"
-    return 0
-  fi
-
-  mkdir -p "$HOME/.local/bin"
-  ln -sf "$cmux_bin" "$HOME/.local/bin/cmux"
-}
-
 install_sketchybar_assets() {
   log "Installing Sketchybar assets"
 
@@ -561,7 +541,6 @@ main() {
   install_zinit
   install_zsh_plugins
   install_kitty
-  install_cmux_cli
   install_sketchybar_assets
   install_tmux_plugins
   install_yazi_flavor

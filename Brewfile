@@ -1,6 +1,5 @@
 tap "felixkratz/formulae"
 tap "koekeishiya/formulae"
-tap "manaflow-ai/cmux"
 tap "nikitabobko/tap"
 
 brew "stow"
@@ -44,7 +43,6 @@ cask "font-sketchybar-app-font", args: { force: true }
 cask "sf-symbols"
 cask "font-sf-mono"
 cask "font-sf-pro"
-cask "cmux"
 cask "nikitabobko/tap/aerospace"
 cask "openusage"
 cask "arc"
