@@ -7,7 +7,6 @@ NODE_VERSION="${NODE_VERSION:-v24.16.0}"
 ZINIT_REF="${ZINIT_REF:-773852f5888bb534452495edae41dc7516383b4a}"
 SBARLUA_REF="${SBARLUA_REF:-dba9cc421b868c918d5c23c408544a28aadf2f2f}"
 TPM_REF="${TPM_REF:-99469c4a9b1ccf77fade25842dc7bafbc8ce9946}"
-SKETCHYBAR_FONT_SHA256="${SKETCHYBAR_FONT_SHA256:-e49ee3281aca67634c2e7c0261d898226149664e9842b7fe61af8c4726d1f1de}"
 SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
@@ -349,20 +348,6 @@ install_cmux_cli() {
 
 install_sketchybar_assets() {
   log "Installing Sketchybar assets"
-
-  mkdir -p "$HOME/Library/Fonts"
-
-  local app_font="$HOME/Library/Fonts/sketchybar-app-font.ttf"
-  local current_font_sha=""
-  [[ -f "$app_font" ]] && current_font_sha="$(shasum -a 256 "$app_font" | awk '{ print $1 }')"
-  if [[ "$current_font_sha" != "$SKETCHYBAR_FONT_SHA256" ]]; then
-    local downloaded_font
-    downloaded_font="$(mktemp "${TMPDIR:-/tmp}/sketchybar-app-font.XXXXXX")"
-    curl -fsSL https://github.com/kvndrsslr/sketchybar-app-font/releases/download/v2.0.28/sketchybar-app-font.ttf \
-      -o "$downloaded_font"
-    [[ "$(shasum -a 256 "$downloaded_font" | awk '{ print $1 }')" == "$SKETCHYBAR_FONT_SHA256" ]]
-    mv "$downloaded_font" "$app_font"
-  fi
 
   make -C "$DOTFILES_DIR/.config/sketchybar/helpers"
 

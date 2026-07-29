@@ -38,6 +38,7 @@ cask "pearcleaner"
 cask "font-jetbrains-mono-nerd-font"
 cask "font-maple-mono-nf-cn"
 cask "font-symbols-only-nerd-font"
+cask "font-sketchybar-app-font", args: { force: true }
 cask "sf-symbols"
 cask "font-sf-mono"
 cask "font-sf-pro"
