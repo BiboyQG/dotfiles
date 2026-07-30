@@ -79,7 +79,8 @@ zsh setup.sh --skip-system-defaults
 
 This will:
 
-- Check for Stow conflicts, then symlink the dotfiles without adopting existing files
+- Check Stow, VS Code, tmux plugin, existing Brew tap, and any running AeroSpace configuration conflicts before changing system settings or installing anything; a stopped AeroSpace instance is validated immediately after launch
+- Symlink the dotfiles without adopting existing files
 - Preserve an existing untracked `.zprofile` as `.zprofile.local` before linking the managed login profile
 - Install or upgrade the Homebrew bundle and validate trusted taps
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
@@ -88,7 +89,7 @@ This will:
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
 - Link VS Code settings to its real macOS user-config directory
 - Keep machine-local Codex config and generated Zed prompt data outside the repo
-- Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage, AeroSpace, skhd, and SketchyBar
+- Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar and skhd with postflight checks
 
 Run the repository checks without installing or upgrading anything:
 
@@ -96,7 +97,15 @@ Run the repository checks without installing or upgrading anything:
 zsh check.sh
 ```
 
-The checker validates shell, Lua, Python, TOML, JSON/JSONC, the Brew bundle, the LaunchAgent, AI usage fixtures, strict C builds/static analysis, isolated tmux parsing, tracked `home/` package boundaries, and a clean Stow simulation. Its Brew cleanup audit only reports undeclared dependencies; it never passes `--force` or removes them.
+The default checker validates shell, Lua, Python, TOML, JSON/JSONC, setup preflight isolation, the LaunchAgent, deterministic IP/media/SketchyBar fixtures, strict C builds/static analysis, tracked `home/` package boundaries, and clean Stow simulations.
+
+Run read-only checks that depend on the current machine state:
+
+```bash
+zsh check.sh --live
+```
+
+Live mode additionally validates installed Kitty fonts, Neovim Tree-sitter parsers and queries, the active AeroSpace config, an isolated tmux server, and the Brew bundle. Its Brew cleanup audit only reports undeclared dependencies; it never passes `--force` or removes them.
 
 ### Tips
 

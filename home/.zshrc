@@ -9,6 +9,11 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+typeset -U fpath FPATH
+if [[ -d /opt/homebrew/share/zsh/site-functions ]]; then
+	fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+fi
+typeset +x FPATH
 
 if [[ -r "$ZINIT_HOME/zinit.zsh" ]]; then
 	source "$ZINIT_HOME/zinit.zsh"
@@ -31,21 +36,55 @@ fi
 autoload -Uz compinit
 zmodload zsh/datetime
 zmodload zsh/stat
-zcompdump="${ZDOTDIR:-$HOME}/.zcompdump"
+zcompdump="${ZDOTDIR:-$HOME}/.zcompdump-${ZSH_VERSION}"
+zcompdump_fpath="${zcompdump}.fpath"
+zcompdump_tmp="${zcompdump}.tmp.$$"
+# Rebuild after completion-path changes and periodically rerun compaudit.
+typeset -Ua zcompdirs
+typeset -a zcompstat
+zcompdirs=()
+zcompstat=()
+zcompinit_refresh=0
 zcompdump_mtime=0
+for zcompdir in "$fpath[@]"; do
+	[[ -d "$zcompdir" ]] && zcompdirs+=("$zcompdir")
+done
+zcomp_signature="${ZSH_VERSION}"$'\n'"${(F)zcompdirs}"
 [[ -f "$zcompdump" ]] && zcompdump_mtime="$(zstat +mtime -- "$zcompdump" 2>/dev/null)"
-if (( EPOCHSECONDS - zcompdump_mtime > 86400 )); then
-	compinit
-	touch "$zcompdump" 2>/dev/null || true
+if [[ ! -f "$zcompdump" ]] \
+	|| [[ ! -f "$zcompdump_fpath" ]] \
+	|| [[ "$(<"$zcompdump_fpath")" != "$zcomp_signature" ]] \
+	|| (( EPOCHSECONDS - zcompdump_mtime > 86400 )) \
+	|| ! zstat -A zcompstat +ctime -- "$zcompdump" "$zcompdirs[@]" 2>/dev/null; then
+	zcompinit_refresh=1
 else
-	compinit -C
+	zcompdump_ctime="${zcompstat[1]}"
+	for zcompctime in "${zcompstat[@]:1}"; do
+		if (( zcompctime > zcompdump_ctime )); then
+			zcompinit_refresh=1
+			break
+		fi
+	done
 fi
-unset zcompdump zcompdump_mtime
+if (( zcompinit_refresh )); then
+	rm -f -- "$zcompdump_tmp"
+	if compinit -d "$zcompdump_tmp" \
+		&& [[ -f "$zcompdump_tmp" ]] \
+		&& mv -f -- "$zcompdump_tmp" "$zcompdump"; then
+		print -r -- "$zcomp_signature" >| "$zcompdump_fpath" 2>/dev/null || true
+	else
+		rm -f -- "$zcompdump_tmp"
+	fi
+	_comp_dumpfile="$zcompdump"
+else
+	compinit -C -d "$zcompdump"
+fi
+unset zcomp_signature zcompctime zcompdir zcompdirs zcompdump zcompdump_ctime zcompdump_fpath zcompdump_mtime zcompdump_tmp zcompinit_refresh zcompstat
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-bindkey '$' autosuggest-accept
+bindkey -e
 bindkey '^p' history-search-backward
 bindkey '^n' history-search-forward
 autoload -Uz edit-command-line
@@ -86,7 +125,9 @@ alias tn="tmux new -s"
 unalias ta 2>/dev/null || true
 function ta {
 	local query="${1:-}"
-	shift || true
+	if (( $# )); then
+		shift
+	fi
 	if [[ -z "$query" ]]; then
 		tmux attach "$@"
 		return $?

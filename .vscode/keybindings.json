@@ -83,26 +83,42 @@
     // Navigation
     {
         "key": "ctrl+j",
-        "command": "workbench.action.terminal.focus"
+        "command": "workbench.action.terminal.focus",
+        "when": "!terminalFocus"
     },
     {
         "key": "ctrl+j",
-        "command": "workbench.action.focusActiveEditorGroup",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": {
+            "text": "\u000a"
+        },
         "when": "terminalFocus"
     },
     {
         "key": "ctrl+k",
-        "command": "workbench.action.terminal.focus"
+        "command": "workbench.action.terminal.focus",
+        "when": "!terminalFocus"
     },
     {
         "key": "ctrl+k",
-        "command": "workbench.action.focusActiveEditorGroup",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": {
+            "text": "\u000b"
+        },
         "when": "terminalFocus"
     },
     { // Move focus to the SideBar if not (!) there
         "key": "ctrl+h",
-        "when": "!sideBarFocus",
+        "when": "!sideBarFocus && !terminalFocus",
         "command": "workbench.action.focusSideBar"
+    },
+    {
+        "key": "ctrl+h",
+        "command": "workbench.action.terminal.sendSequence",
+        "args": {
+            "text": "\u0008"
+        },
+        "when": "terminalFocus"
     },
     { // Move focus to the Editor, if currently in the SideBar
         "key": "ctrl+l",
@@ -111,7 +127,7 @@
     },
     { // Move focus to the Editor, if currently in the SideBar
         "key": "ctrl+h",
-        "when": "sideBarFocus || explorerViewletFocus || filesExplorerFocus",
+        "when": "(sideBarFocus || explorerViewletFocus || filesExplorerFocus) && !terminalFocus",
         "command": "workbench.action.focusActiveEditorGroup"
     },
     {

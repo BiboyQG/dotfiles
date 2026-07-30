@@ -1,20 +1,16 @@
-#include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 
+#include "../frequency.h"
 #include "../sketchybar.h"
 #include "cpu.h"
 
 int main(int argc, char **argv) {
-  double update_freq = 0.0;
-  if (argc < 3 || sscanf(argv[2], "%lf", &update_freq) != 1
-      || update_freq <= 0.0
-      || update_freq > (double)UINT_MAX / 1000000.0) {
+  useconds_t sleep_us = 0;
+  if (argc != 3 || !parse_update_frequency(argv[2], &sleep_us)) {
     fprintf(stderr, "Usage: %s \"<event-name>\" \"<event_freq>\"\n", argv[0]);
     return 1;
   }
-  useconds_t sleep_us = (useconds_t)(update_freq * 1000000.0);
 
   alarm(0);
   struct cpu cpu;

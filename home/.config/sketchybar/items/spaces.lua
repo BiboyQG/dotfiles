@@ -5,85 +5,208 @@ local app_icons = require("helpers.app_icons")
 
 local spaces = {}
 local space_brackets = {}
+local space_paddings = {}
 local workspace_names = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }
-local workspace_displays = {
-  ["1"] = 1,
-  ["2"] = 1,
-  ["3"] = 1,
-  ["4"] = 1,
-  ["5"] = 1,
-  ["6"] = 1,
-  ["7"] = 2,
-  ["8"] = 2,
-  ["9"] = 2,
-  ["10"] = 2,
-}
-local update_id = 0
+local known_workspaces = {}
+local workspace_available = {}
+local focus_revision = 0
+local focused_workspace
+local spaces_mode_visible = true
+local full_refresh_running = false
+local full_refresh_pending = false
+
+for index, workspace in ipairs(workspace_names) do
+  known_workspaces[workspace] = true
+  workspace_available[workspace] = index <= 6
+end
 
 sbar.add("event", "aerospace_workspace_change")
+sbar.add("event", "aerospace_windows_change")
 
 local function app_icon(app)
   return app_icons[app] or app_icons["Default"]
 end
 
-local function update_spaces()
-  update_id = update_id + 1
-  local current_update_id = update_id
-
-  sbar.exec("/opt/homebrew/bin/aerospace list-workspaces --all --format '%{workspace}%{tab}%{workspace-is-focused}'", function(workspaces)
-    if current_update_id ~= update_id then return end
-
-    local focused = {}
-    for line in string.gmatch(workspaces, "[^\r\n]+") do
-      local workspace, is_focused = line:match("^([^\t]+)\t(.+)$")
-      if workspace then
-        focused[workspace] = is_focused == "true"
-      end
-    end
-
-    sbar.exec("/opt/homebrew/bin/aerospace list-windows --all --format '%{workspace}%{tab}%{app-name}'", function(windows)
-      if current_update_id ~= update_id then return end
-
-      local icons_by_workspace = {}
-      local seen_apps_by_workspace = {}
-
-      for _, workspace in ipairs(workspace_names) do
-        icons_by_workspace[workspace] = {}
-        seen_apps_by_workspace[workspace] = {}
-      end
-
-      for line in string.gmatch(windows, "[^\r\n]+") do
-        local workspace, app = line:match("^([^\t]+)\t(.+)$")
-        if workspace and spaces[workspace] and app and not seen_apps_by_workspace[workspace][app] then
-          seen_apps_by_workspace[workspace][app] = true
-          table.insert(icons_by_workspace[workspace], app_icon(app))
-        end
-      end
-
-      for _, workspace in ipairs(workspace_names) do
-        local selected = focused[workspace] == true
-        local icon_line = #icons_by_workspace[workspace] > 0 and table.concat(icons_by_workspace[workspace]) or " —"
-
-        spaces[workspace]:set({
-          icon = { highlight = selected },
-          label = {
-            string = icon_line,
-            highlight = selected,
-          },
-          background = { border_color = selected and colors.black or colors.bg2 },
-        })
-        space_brackets[workspace]:set({
-          background = { border_color = selected and colors.grey or colors.bg2 }
-        })
-      end
-    end)
-  end)
+local function set_selected(workspace, selected)
+  spaces[workspace]:set({
+    icon = { highlight = selected },
+    label = { highlight = selected },
+    background = { border_color = selected and colors.black or colors.bg2 },
+  })
+  space_brackets[workspace]:set({
+    background = { border_color = selected and colors.grey or colors.bg2 },
+  })
 end
 
-for _, workspace in ipairs(workspace_names) do
+local function apply_drawing()
+  for _, workspace in ipairs(workspace_names) do
+    local drawing = spaces_mode_visible and workspace_available[workspace]
+    spaces[workspace]:set({ drawing = drawing })
+    space_brackets[workspace]:set({ drawing = drawing })
+    space_paddings[workspace]:set({ drawing = drawing })
+  end
+end
+
+local function parse_workspaces(rows)
+  if type(rows) ~= "table" then return nil end
+
+  local displays = {}
+  local display_ids = {}
+  local found = 0
+  local focused
+
+  for _, row in ipairs(rows) do
+    local workspace = type(row) == "table" and tostring(row.workspace or "") or ""
+    local is_focused = type(row) == "table" and row["workspace-is-focused"] or false
+    local display = type(row) == "table" and tonumber(row["monitor-appkit-nsscreen-screens-id"]) or nil
+    if display and display >= 1 and display % 1 == 0 then
+      display_ids[display] = true
+    end
+    if known_workspaces[workspace] and display and display_ids[display] then
+      if not displays[workspace] then found = found + 1 end
+      displays[workspace] = display
+      if is_focused == true or is_focused == "true" then focused = workspace end
+    end
+  end
+
+  if found ~= #workspace_names or not focused then return nil end
+  local display_count = 0
+  for _ in pairs(display_ids) do display_count = display_count + 1 end
+  if display_count == 0 then return nil end
+  return displays, focused, display_count
+end
+
+local function parse_windows(rows)
+  if type(rows) ~= "table" then return nil end
+
+  local icons_by_workspace = {}
+  local seen_apps_by_workspace = {}
+
+  for _, workspace in ipairs(workspace_names) do
+    icons_by_workspace[workspace] = {}
+    seen_apps_by_workspace[workspace] = {}
+  end
+
+  for _, row in ipairs(rows) do
+    local workspace = type(row) == "table" and tostring(row.workspace or "") or ""
+    local app = type(row) == "table" and row["app-name"] or nil
+    if known_workspaces[workspace]
+      and type(app) == "string"
+      and app ~= ""
+      and not seen_apps_by_workspace[workspace][app]
+    then
+      seen_apps_by_workspace[workspace][app] = true
+      table.insert(icons_by_workspace[workspace], app_icon(app))
+    end
+  end
+
+  return icons_by_workspace
+end
+
+local function update_spaces()
+  if full_refresh_running then
+    full_refresh_pending = true
+    return
+  end
+
+  full_refresh_running = true
+  local current_focus_revision = focus_revision
+  local results = {}
+  local completed = 0
+
+  local function finish()
+    full_refresh_running = false
+    if full_refresh_pending then
+      full_refresh_pending = false
+      update_spaces()
+    end
+  end
+
+  local function receive(name, result, exit_code)
+    results[name] = {
+      output = result,
+      ok = exit_code == 0,
+    }
+    completed = completed + 1
+    if completed ~= 2 then return end
+    if not results.workspaces.ok or not results.windows.ok then
+      finish()
+      return
+    end
+
+    local workspace_displays, queried_focus, display_count = parse_workspaces(results.workspaces.output)
+    local icons_by_workspace = parse_windows(results.windows.output)
+    if not workspace_displays or not icons_by_workspace then
+      finish()
+      return
+    end
+
+    local selected_workspace = queried_focus
+    if focus_revision ~= current_focus_revision and known_workspaces[focused_workspace] then
+      selected_workspace = focused_workspace
+    end
+    focused_workspace = selected_workspace
+
+    for _, workspace in ipairs(workspace_names) do
+      local display = workspace_displays[workspace]
+      local available = display_count > 1 or tonumber(workspace) <= 6
+      local selected = workspace == selected_workspace
+      local icon_line = #icons_by_workspace[workspace] > 0 and table.concat(icons_by_workspace[workspace]) or " —"
+      workspace_available[workspace] = available
+
+      spaces[workspace]:set({
+        display = display,
+        drawing = spaces_mode_visible and available,
+        icon = { highlight = selected },
+        label = {
+          string = icon_line,
+          highlight = selected,
+        },
+        background = { border_color = selected and colors.black or colors.bg2 },
+      })
+      space_brackets[workspace]:set({
+        display = display,
+        drawing = spaces_mode_visible and available,
+        background = { border_color = selected and colors.grey or colors.bg2 },
+      })
+      space_paddings[workspace]:set({
+        display = display,
+        drawing = spaces_mode_visible and available,
+      })
+    end
+    finish()
+  end
+
+  sbar.exec(
+    "/opt/homebrew/bin/aerospace list-workspaces --all --format '%{workspace} %{workspace-is-focused} %{monitor-appkit-nsscreen-screens-id}' --json",
+    function(result, exit_code) receive("workspaces", result, exit_code) end
+  )
+  sbar.exec(
+    "/opt/homebrew/bin/aerospace list-windows --all --format '%{workspace} %{app-name}' --json",
+    function(result, exit_code) receive("windows", result, exit_code) end
+  )
+end
+
+local function update_workspace_focus(env)
+  local next_workspace = env.FOCUSED
+  if not known_workspaces[next_workspace] then return end
+
+  local previous_workspace = env.PREV
+  if not known_workspaces[previous_workspace] then previous_workspace = focused_workspace end
+
+  focus_revision = focus_revision + 1
+  focused_workspace = next_workspace
+  if previous_workspace and previous_workspace ~= next_workspace then
+    set_selected(previous_workspace, false)
+  end
+  set_selected(next_workspace, true)
+end
+
+for index, workspace in ipairs(workspace_names) do
   local space = sbar.add("item", "space." .. workspace, {
     position = "left",
-    display = workspace_displays[workspace],
+    display = 1,
+    drawing = index <= 6,
     icon = {
       font = { family = settings.font.numbers },
       string = workspace,
@@ -113,7 +236,8 @@ for _, workspace in ipairs(workspace_names) do
   spaces[workspace] = space
 
   local space_bracket = sbar.add("bracket", { space.name }, {
-    display = workspace_displays[workspace],
+    display = 1,
+    drawing = index <= 6,
     background = {
       color = colors.transparent,
       border_color = colors.bg2,
@@ -124,17 +248,22 @@ for _, workspace in ipairs(workspace_names) do
 
   space_brackets[workspace] = space_bracket
 
-  sbar.add("item", "space.padding." .. workspace, {
+  space_paddings[workspace] = sbar.add("item", "space.padding." .. workspace, {
     position = "left",
-    display = workspace_displays[workspace],
+    display = 1,
+    drawing = index <= 6,
     width = settings.group_paddings,
   })
 
   space:subscribe("mouse.clicked", function(env)
     local op = (env.BUTTON == "right") and "move-node-to-workspace --focus-follows-window" or "workspace"
-    sbar.exec("/opt/homebrew/bin/aerospace " .. op .. " " .. workspace, function()
-      sbar.trigger("aerospace_workspace_change")
-    end)
+    if env.BUTTON == "right" then
+      sbar.exec("/opt/homebrew/bin/aerospace " .. op .. " " .. workspace, function(_, exit_code)
+        if exit_code == 0 then sbar.trigger("aerospace_windows_change") end
+      end)
+    else
+      sbar.exec("/opt/homebrew/bin/aerospace " .. op .. " " .. workspace)
+    end
   end)
 end
 
@@ -166,19 +295,21 @@ local spaces_indicator = sbar.add("item", {
 })
 
 space_window_observer:subscribe({
+  "display_change",
   "forced",
-  "aerospace_workspace_change",
+  "aerospace_windows_change",
   "space_windows_change",
   "system_woke",
 }, update_spaces)
-
-update_spaces()
+space_window_observer:subscribe("aerospace_workspace_change", update_workspace_focus)
 
 spaces_indicator:subscribe("swap_menus_and_spaces", function(env)
   local currently_on = spaces_indicator:query().icon.value == icons.switch.on
+  spaces_mode_visible = not currently_on
   spaces_indicator:set({
     icon = currently_on and icons.switch.off or icons.switch.on
   })
+  apply_drawing()
 end)
 
 spaces_indicator:subscribe("mouse.entered", function(env)

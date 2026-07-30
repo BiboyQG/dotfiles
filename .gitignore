@@ -1,15 +1,5 @@
 **/.DS_Store
-
-.config/alma/
-.config/cagent/
-.config/clash.meta/
-.config/configstore/
-.config/gh/
-.config/mole/
-.config/rstudio/
-.config/stripe/
-.config/zed/prompts/
-.config/yazi/flavors/
+/nvim.log
 
 .claude/**
 !.claude/plugins/

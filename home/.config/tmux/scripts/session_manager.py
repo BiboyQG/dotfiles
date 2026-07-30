@@ -60,6 +60,15 @@ def list_sessions() -> List[Dict[str, object]]:
     return sessions
 
 
+def refresh_clients() -> None:
+    output = run_tmux(
+        ["list-clients", "-F", "#{client_name}"], check=False, capture=True
+    )
+    for client in output.splitlines():
+        if client:
+            run_tmux(["refresh-client", "-S", "-t", client], check=False)
+
+
 def sanitize_label(label: str) -> str:
     stripped = label.strip()
     return stripped or "session"
@@ -141,12 +150,14 @@ def command_rename(label: str) -> None:
     else:
         return
     apply_order(sessions)
+    refresh_clients()
 
 
 def command_ensure() -> None:
     sessions = list_sessions()
     if sessions:
         apply_order(sessions)
+    refresh_clients()
 
 
 def command_created() -> None:

@@ -1,4 +1,0 @@
-catppuccin-tmux
-vim-tmux-navigator
-tmux-resurrect
-tmux-continuum

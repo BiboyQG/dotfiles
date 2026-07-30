@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ifaddrs.h>
 #include <limits.h>
 #include <net/if.h>
 #include <net/if_mib.h>
@@ -19,6 +20,15 @@ enum unit {
   UNIT_GBPS
 };
 
+enum network_connection_status {
+  NETWORK_CONNECTION_UNKNOWN,
+  NETWORK_CONNECTION_OFF,
+  NETWORK_CONNECTION_ON
+};
+
+typedef int (*network_getifaddrs_fn)(struct ifaddrs **);
+typedef void (*network_freeifaddrs_fn)(struct ifaddrs *);
+
 struct network {
   int32_t row;
   struct ifmibdata data;
@@ -35,6 +45,58 @@ static inline bool ifdata(int32_t net_row, struct ifmibdata *data) {
   };
   size_t size = sizeof(*data);
   return sysctl(data_option, 6, data, &size, NULL, 0) == 0;
+}
+
+static inline enum network_connection_status
+network_connection_from_interfaces(const char *ifname,
+                                   const struct ifaddrs *interfaces) {
+  if (!ifname) return NETWORK_CONNECTION_UNKNOWN;
+
+  for (const struct ifaddrs *interface = interfaces;
+       interface;
+       interface = interface->ifa_next) {
+    if (interface->ifa_name && interface->ifa_addr
+        && strcmp(interface->ifa_name, ifname) == 0
+        && interface->ifa_addr->sa_family == AF_INET) {
+      return NETWORK_CONNECTION_ON;
+    }
+  }
+  return NETWORK_CONNECTION_OFF;
+}
+
+static inline enum network_connection_status
+network_connection_with(const char *ifname,
+                        network_getifaddrs_fn get_interfaces,
+                        network_freeifaddrs_fn free_interfaces) {
+  if (!ifname || !get_interfaces || !free_interfaces) {
+    return NETWORK_CONNECTION_UNKNOWN;
+  }
+
+  struct ifaddrs *interfaces = NULL;
+  if (get_interfaces(&interfaces) != 0) return NETWORK_CONNECTION_UNKNOWN;
+
+  enum network_connection_status status =
+      network_connection_from_interfaces(ifname, interfaces);
+  if (interfaces) free_interfaces(interfaces);
+  return status;
+}
+
+static inline enum network_connection_status
+network_connection(const char *ifname) {
+  return network_connection_with(ifname, getifaddrs, freeifaddrs);
+}
+
+static inline const char *network_connection_string(
+    enum network_connection_status status) {
+  switch (status) {
+    case NETWORK_CONNECTION_ON:
+      return "on";
+    case NETWORK_CONNECTION_OFF:
+      return "off";
+    case NETWORK_CONNECTION_UNKNOWN:
+      return "unknown";
+  }
+  return "unknown";
 }
 
 static inline bool network_init(struct network *net, const char *ifname) {

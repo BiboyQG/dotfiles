@@ -7,6 +7,11 @@ SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
 APPLY_SYSTEM_DEFAULTS=1
+NEEDS_XCODE_LICENSE=0
+STOW_IGNORE_PATTERNS=()
+STOW_IGNORE_PATTERNS_LOADED=0
+STOW_CONFIG_CWD="/var/empty"
+STOW_CONFIG_HOME="$STOW_CONFIG_CWD/dotfiles-stow-home"
 
 log() {
   printf "\n==> %s\n" "$*"
@@ -27,6 +32,24 @@ skip() {
 
 have() {
   command -v "$1" >/dev/null 2>&1
+}
+
+run_stow() {
+  if [[ ! -d "$STOW_CONFIG_CWD" \
+    || -e "$STOW_CONFIG_CWD/.stowrc" || -L "$STOW_CONFIG_CWD/.stowrc" \
+    || -e "$STOW_CONFIG_HOME/.stowrc" || -L "$STOW_CONFIG_HOME/.stowrc" ]]; then
+    printf "Stow isolation directory is unavailable or contains a resource file: %s\n" \
+      "$STOW_CONFIG_CWD" >&2
+    return 1
+  fi
+
+  (
+    unset STOW_DIR
+    export HOME="$STOW_CONFIG_HOME"
+    export XDG_CONFIG_HOME="$STOW_CONFIG_HOME/.config"
+    cd "$STOW_CONFIG_CWD"
+    stow "$@"
+  )
 }
 
 usage() {
@@ -162,6 +185,485 @@ require_supported_platform() {
   fi
 }
 
+preflight_xcode_license() {
+  NEEDS_XCODE_LICENSE=0
+  if have xcodebuild && ! xcodebuild -license check >/dev/null 2>&1; then
+    NEEDS_XCODE_LICENSE=1
+  fi
+}
+
+preflight_git_checkout() {
+  local checkout="$1"
+  local status_output
+
+  [[ -e "$checkout" || -L "$checkout" ]] || return 0
+  if [[ ! -d "$checkout/.git" ]]; then
+    printf "Expected an existing Git checkout: %s\n" "$checkout" >&2
+    return 1
+  fi
+  if ! status_output="$(
+    GIT_OPTIONAL_LOCKS=0 git -C "$checkout" status --porcelain 2>&1
+  )"; then
+    printf "Could not inspect Git checkout %s: %s\n" \
+      "$checkout" "$status_output" >&2
+    return 1
+  fi
+  if [[ -n "$status_output" ]]; then
+    printf "Refusing to update modified Git checkout: %s\n" "$checkout" >&2
+    return 1
+  fi
+}
+
+preflight_github_checkout() {
+  local repository="$1"
+  local checkout="$2"
+  local remote actual_repository
+
+  [[ -e "$checkout" || -L "$checkout" ]] || return 0
+  preflight_git_checkout "$checkout" || return 1
+  remote="$(git -C "$checkout" remote get-url origin 2>/dev/null || true)"
+  actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
+  if [[ "${(L)actual_repository}" != "${(L)repository}" ]]; then
+    printf "Unexpected origin for Git checkout %s at %s: %s\n" \
+      "$repository" "$checkout" "${remote:-missing}" >&2
+    return 1
+  fi
+}
+
+preflight_existing_git_checkouts() {
+  log "Checking existing dependency checkouts"
+  preflight_github_checkout "nvm-sh/nvm" "$HOME/.nvm" || return 1
+  preflight_github_checkout "zdharma-continuum/zinit" \
+    "${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git" || return 1
+}
+
+declared_brew_taps() {
+  local brew_bin="$1"
+  HOMEBREW_NO_AUTO_UPDATE=1 \
+    "$brew_bin" bundle list --tap --file="$DOTFILES_DIR/Brewfile"
+}
+
+preflight_brew_taps() {
+  local brew_bin
+  brew_bin="$(find_homebrew || true)"
+  [[ -n "$brew_bin" ]] || return 0
+
+  log "Checking existing Homebrew taps"
+  local output tap tap_dir remote actual_repository expected_repository
+  local -a taps
+  output="$(declared_brew_taps "$brew_bin")" || return 1
+  taps=("${(@f)output}")
+  for tap in "${taps[@]}"; do
+    [[ -n "$tap" ]] || continue
+    tap_dir="$("$brew_bin" --repository "$tap" 2>/dev/null || true)"
+    [[ -e "$tap_dir" || -L "$tap_dir" ]] || continue
+    preflight_git_checkout "$tap_dir" || return 1
+    remote="$(git -C "$tap_dir" remote get-url origin 2>/dev/null || true)"
+    actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
+    expected_repository="${tap%%/*}/homebrew-${tap#*/}"
+    if [[ "${(L)actual_repository}" != "${(L)expected_repository}" ]]; then
+      printf "Unexpected origin for Homebrew tap %s: %s\n" \
+        "$tap" "${remote:-missing}" >&2
+      return 1
+    fi
+  done
+}
+
+preflight_zprofile() {
+  if [[ -f "$HOME/.zprofile" && ! -L "$HOME/.zprofile" ]]; then
+    if ! cmp -s "$DOTFILES_DIR/home/.zprofile" "$HOME/.zprofile" \
+      && [[ -e "$HOME/.zprofile.local" || -L "$HOME/.zprofile.local" ]]; then
+      printf "Refusing to replace both .zprofile and .zprofile.local. Merge them first.\n" >&2
+      return 1
+    fi
+  fi
+}
+
+stow_target_directories() {
+  local manifest="$DOTFILES_DIR/stow-target-dirs.txt"
+  local line component
+  local -a components
+  local -A seen
+  local safe_component='^[A-Za-z0-9._ -]+$'
+
+  if [[ ! -r "$manifest" ]]; then
+    printf "Missing Stow target directory manifest: %s\n" "$manifest" >&2
+    return 1
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" && "$line" != \#* ]] || continue
+
+    components=("${(@s:/:)line}")
+    if [[ "$line" == /* || "$line" == */ || "$line" == *//* ]]; then
+      printf "Invalid Stow target directory: %s\n" "$line" >&2
+      return 1
+    fi
+    for component in "${components[@]}"; do
+      if [[ -z "$component" || "$component" == "." || "$component" == ".." \
+        || ! "$component" =~ $safe_component ]]; then
+        printf "Invalid Stow target directory: %s\n" "$line" >&2
+        return 1
+      fi
+    done
+    if [[ -n "${seen[$line]:-}" ]]; then
+      printf "Duplicate Stow target directory: %s\n" "$line" >&2
+      return 1
+    fi
+    seen[$line]=1
+    print -r -- "$line"
+  done <"$manifest"
+}
+
+load_stow_ignore_patterns() {
+  local manifest="$DOTFILES_DIR/home/.stow-local-ignore"
+  local line regex regex_status
+
+  (( STOW_IGNORE_PATTERNS_LOADED )) && return 0
+  if [[ ! -r "$manifest" ]]; then
+    printf "Missing Stow ignore manifest: %s\n" "$manifest" >&2
+    return 1
+  fi
+
+  STOW_IGNORE_PATTERNS=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" && "$line" != \#* ]] || continue
+    if [[ "$line" == */* ]]; then
+      regex="(^|/)(${line})(/|$)"
+    else
+      regex="^(${line})$"
+    fi
+    if [[ "" =~ $regex ]]; then
+      regex_status=0
+    else
+      regex_status=$?
+    fi
+    if (( regex_status > 1 )); then
+      printf "Invalid pattern in Stow ignore manifest: %s\n" "$line" >&2
+      return 1
+    fi
+    STOW_IGNORE_PATTERNS+=("$line")
+  done <"$manifest"
+  STOW_IGNORE_PATTERNS_LOADED=1
+}
+
+stow_path_is_ignored() {
+  local relative="$1"
+  local subject pattern regex
+
+  [[ "$relative" == ".stow-local-ignore" ]] && return 0
+  load_stow_ignore_patterns || return 2
+  for pattern in "${STOW_IGNORE_PATTERNS[@]}"; do
+    if [[ "$pattern" == */* ]]; then
+      subject="/$relative"
+      regex="(^|/)(${pattern})(/|$)"
+    else
+      subject="${relative:t}"
+      regex="^(${pattern})$"
+    fi
+    [[ "$subject" =~ $regex ]] && return 0
+  done
+  return 1
+}
+
+preflight_folded_container_payload() {
+  local source="$1"
+  local entry relative ignore_status
+
+  for entry in "$source"/**/*(DN); do
+    relative="${entry#$DOTFILES_DIR/home/}"
+    if stow_path_is_ignored "$relative"; then
+      printf "Ignored machine-local data would be stranded by Stow migration: %s\n" \
+        "$entry" >&2
+      return 1
+    else
+      ignore_status=$?
+      (( ignore_status == 1 )) || return 1
+    fi
+  done
+}
+
+preflight_stow_manifests() {
+  local output container source target resolved
+  local -a containers
+
+  output="$(stow_target_directories)" || return 1
+  if [[ -z "$output" ]]; then
+    printf "Stow target directory manifest is empty.\n" >&2
+    return 1
+  fi
+  load_stow_ignore_patterns || return 1
+  containers=("${(@f)output}")
+  for container in "${containers[@]}"; do
+    source="$DOTFILES_DIR/home/$container"
+    target="$HOME/$container"
+    if [[ ! -d "$source" || -L "$source" ]]; then
+      printf "Stow target directory is not a source directory: %s\n" "$container" >&2
+      return 1
+    fi
+    if [[ -L "$target" ]]; then
+      resolved="$(realpath "$target" 2>/dev/null || true)"
+      if [[ "$resolved" != "$source" ]]; then
+        printf "Stow target directory is an unmanaged link: %s\n" "$target" >&2
+        return 1
+      fi
+      preflight_folded_container_payload "$source" || return 1
+    elif [[ -e "$target" && ! -d "$target" ]]; then
+      printf "Stow target directory is not a directory: %s\n" "$target" >&2
+      return 1
+    fi
+  done
+}
+
+preflight_stow_directory() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local source target resolved relative ignore_status
+
+  for source in "$source_dir"/*(DN); do
+    relative="${source#$DOTFILES_DIR/home/}"
+    if stow_path_is_ignored "$relative"; then
+      continue
+    else
+      ignore_status=$?
+      (( ignore_status == 1 )) || return 1
+    fi
+    target="$target_dir/${source:t}"
+
+    if [[ "$source" == "$DOTFILES_DIR/home/.zprofile" \
+      && -f "$target" && ! -L "$target" ]]; then
+      continue
+    fi
+
+    if [[ -d "$source" ]]; then
+      if [[ -L "$target" ]]; then
+        resolved="$(realpath "$target" 2>/dev/null || true)"
+        if [[ "$resolved" != "$source" ]]; then
+          printf "Stow conflict: %s is not managed by this repository.\n" "$target" >&2
+          return 1
+        fi
+      elif [[ -e "$target" && ! -d "$target" ]]; then
+        printf "Stow conflict: %s is not a directory.\n" "$target" >&2
+        return 1
+      elif [[ -d "$target" ]]; then
+        preflight_stow_directory "$source" "$target" || return 1
+      fi
+    elif [[ -L "$target" ]]; then
+      resolved="$(realpath "$target" 2>/dev/null || true)"
+      if [[ "$resolved" != "$source" ]]; then
+        printf "Stow conflict: %s is not managed by this repository.\n" "$target" >&2
+        return 1
+      fi
+    elif [[ -e "$target" ]]; then
+      printf "Stow conflict: %s already exists.\n" "$target" >&2
+      return 1
+    fi
+  done
+}
+
+preflight_stow_simulation() {
+  have stow || return 0
+
+  local output container resolved pattern
+  local -a containers
+  local -a stow_args=(
+    --dir="$DOTFILES_DIR"
+    --simulate
+    --restow
+    --target="$HOME"
+    --ignore='^\.zprofile$'
+  )
+  output="$(stow_target_directories)" || return 1
+  containers=("${(@f)output}")
+  for container in "${containers[@]}"; do
+    if [[ -L "$HOME/$container" ]]; then
+      resolved="$(realpath "$HOME/$container" 2>/dev/null || true)"
+      if [[ "$resolved" == "$DOTFILES_DIR/home/$container" ]]; then
+        pattern="^${container//./\\.}(/|$)"
+        stow_args+=(--ignore="$pattern")
+      fi
+    fi
+  done
+
+  run_stow "${stow_args[@]}" home
+}
+
+preflight_dotfiles() {
+  log "Checking dotfile conflicts"
+  preflight_stow_manifests || return 1
+  preflight_zprofile || return 1
+  preflight_stow_directory "$DOTFILES_DIR/home" "$HOME" || return 1
+  preflight_stow_simulation || return 1
+}
+
+preflight_vscode_config() {
+  log "Checking VS Code configuration conflicts"
+
+  local vscode_user_dir="$HOME/Library/Application Support/Code/User"
+  local source target resolved
+  for source in "$DOTFILES_DIR/.vscode/vscode-settings.json" "$DOTFILES_DIR/.vscode/keybindings.json"; do
+    if [[ "${source:t}" == "vscode-settings.json" ]]; then
+      target="$vscode_user_dir/settings.json"
+    else
+      target="$vscode_user_dir/keybindings.json"
+    fi
+
+    if [[ -L "$target" ]]; then
+      resolved="$(realpath "$target" 2>/dev/null || true)"
+      if [[ "$resolved" != "$source" ]]; then
+        printf "Refusing to replace unmanaged VS Code config link: %s\n" "$target" >&2
+        return 1
+      fi
+    elif [[ -e "$target" ]] && ! cmp -s "$source" "$target"; then
+      printf "Refusing to replace different VS Code config: %s\n" "$target" >&2
+      return 1
+    fi
+  done
+}
+
+preflight_aerospace_config() {
+  have aerospace || return 0
+  if ! pgrep -x AeroSpace >/dev/null 2>&1; then
+    info "Deferring AeroSpace validation until its server is running"
+    return 0
+  fi
+  if ! aerospace list-workspaces --all --count >/dev/null 2>&1; then
+    printf "AeroSpace is running, but its CLI is not responding.\n" >&2
+    return 1
+  fi
+
+  local active_config
+  if ! active_config="$(aerospace config --config-path)" \
+    || [[ ! -r "$active_config" ]]; then
+    printf "Could not read the active AeroSpace configuration.\n" >&2
+    return 1
+  fi
+  if ! cmp -s "$DOTFILES_DIR/home/.config/aerospace/aerospace.toml" \
+    "$active_config"; then
+    printf "Active AeroSpace config differs from this repository: %s\n" \
+      "$active_config" >&2
+    return 1
+  fi
+  log "Checking AeroSpace configuration"
+  aerospace reload-config --dry-run --warnings-as-errors --no-gui
+}
+
+tmux_plugin_repositories() {
+  local manifest="$DOTFILES_DIR/home/.config/tmux/plugins.conf"
+  local line repository owner name
+
+  if [[ ! -r "$manifest" ]]; then
+    printf "Missing tmux plugin manifest: %s\n" "$manifest" >&2
+    return 1
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" && "$line" != \#* ]] || continue
+    repository="${line#*\'}"
+    repository="${repository%\'}"
+    owner="${repository%%/*}"
+    name="${repository#*/}"
+    if [[ "$line" != "set -g @plugin '$repository'" \
+      || "$repository" != */* || -z "$owner" || -z "$name" || "$name" == */* \
+      || "$repository" == *[!A-Za-z0-9._/-]* ]]; then
+      printf "Invalid tmux plugin manifest line: %s\n" "$line" >&2
+      return 1
+    fi
+    print -r -- "$repository"
+  done <"$manifest"
+}
+
+github_repository_from_remote() {
+  local remote="${1%.git}"
+  case "$remote" in
+    https://github.com/*)
+      print -r -- "${remote#https://github.com/}"
+      ;;
+    https://git::@github.com/*)
+      print -r -- "${remote#https://git::@github.com/}"
+      ;;
+    git@github.com:*)
+      print -r -- "${remote#git@github.com:}"
+      ;;
+    ssh://git@github.com/*)
+      print -r -- "${remote#ssh://git@github.com/}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+validate_tmux_plugin_checkout() {
+  local repository="$1"
+  local plugin_dir="$2"
+  local remote actual_repository
+
+  remote="$(git -C "$plugin_dir" remote get-url origin 2>/dev/null || true)"
+  actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
+  if [[ "$actual_repository" != "$repository" ]]; then
+    printf "Unexpected origin for tmux plugin %s: %s\n" "$repository" "${remote:-missing}" >&2
+    return 1
+  fi
+}
+
+preflight_tmux_plugins() {
+  log "Checking tmux plugin manifest"
+
+  local output repository plugin plugin_dir
+  local tpm_count=0
+  local -a repositories
+  local -A seen_plugins
+  output="$(tmux_plugin_repositories)" || return 1
+  repositories=("${(@f)output}")
+
+  for repository in "${repositories[@]}"; do
+    plugin="${repository##*/}"
+    if [[ -n "${seen_plugins[$plugin]:-}" ]]; then
+      printf "Duplicate tmux plugin directory in manifest: %s\n" "$plugin" >&2
+      return 1
+    fi
+    seen_plugins[$plugin]=1
+    [[ "$plugin" == "tpm" ]] && (( tpm_count += 1 ))
+
+    plugin_dir="$HOME/.tmux/plugins/$plugin"
+    if [[ ( -e "$plugin_dir" || -L "$plugin_dir" ) && ! -d "$plugin_dir/.git" ]]; then
+      printf "Refusing to replace non-Git tmux plugin directory: %s\n" "$plugin_dir" >&2
+      return 1
+    fi
+    if [[ -d "$plugin_dir/.git" ]]; then
+      validate_tmux_plugin_checkout "$repository" "$plugin_dir" || return 1
+      preflight_git_checkout "$plugin_dir" || return 1
+    fi
+  done
+
+  if (( tpm_count != 1 )); then
+    printf "The tmux plugin manifest must declare exactly one TPM repository.\n" >&2
+    return 1
+  fi
+}
+
+preflight_setup() {
+  require_supported_platform || return 1
+  require_command_line_tools || return 1
+  preflight_xcode_license
+  preflight_brew_taps || return 1
+  preflight_existing_git_checkouts || return 1
+  preflight_dotfiles || return 1
+  preflight_vscode_config || return 1
+  preflight_tmux_plugins || return 1
+  preflight_aerospace_config || return 1
+}
+
 setup_system_preferences() {
   log "Applying macOS defaults"
 
@@ -225,26 +727,63 @@ install_homebrew() {
   eval "$("$brew_bin" shellenv)"
 }
 
-brew_trust_tap() {
-  local tap="$1"
+declared_brew_trust_targets() {
+  local line dependency_type dependency
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    case "$line" in
+      brew\ \"* | cask\ \"*)
+        dependency_type="${line%% *}"
+        dependency="${line#*\"}"
+        dependency="${dependency%%\"*}"
+        [[ "$dependency" == */*/* ]] \
+          && print -r -- "$dependency_type"$'\t'"$dependency"
+        ;;
+    esac
+  done <"$DOTFILES_DIR/Brewfile"
+}
+
+brew_trust_dependency() {
+  local dependency_type="$1"
+  local dependency="$2"
 
   if brew trust --help >/dev/null 2>&1; then
-    brew trust --tap "$tap"
+    case "$dependency_type" in
+      brew)
+        brew trust --formula "$dependency"
+        ;;
+      cask)
+        brew trust --cask "$dependency"
+        ;;
+      *)
+        printf "Unsupported Brew trust target type: %s\n" "$dependency_type" >&2
+        return 1
+        ;;
+    esac
   fi
 }
 
 install_brew_packages() {
   log "Installing Homebrew packages"
 
-  local -a taps=(
-    felixkratz/formulae
-    koekeishiya/formulae
-    nikitabobko/tap
-  )
-  local tap
+  local tap_output tap
+  local -a taps
+  tap_output="$(declared_brew_taps "$(command -v brew)")"
+  taps=("${(@f)tap_output}")
   for tap in "${taps[@]}"; do
+    [[ -n "$tap" ]] || continue
     brew tap "$tap"
-    brew_trust_tap "$tap"
+  done
+
+  local trust_output trust_target dependency_type dependency
+  local -a trust_targets
+  trust_output="$(declared_brew_trust_targets)"
+  trust_targets=("${(@f)trust_output}")
+  for trust_target in "${trust_targets[@]}"; do
+    [[ -n "$trust_target" ]] || continue
+    IFS=$'\t' read -r dependency_type dependency <<<"$trust_target"
+    brew_trust_dependency "$dependency_type" "$dependency"
   done
 
   local bundle_cask_skip
@@ -255,42 +794,47 @@ install_brew_packages() {
 link_dotfiles() {
   log "Linking dotfiles with Stow"
 
+  if ! have stow; then
+    printf "GNU Stow is required before dotfiles can be linked.\n" >&2
+    return 1
+  fi
+  preflight_stow_manifests || return 1
+  preflight_zprofile || return 1
+  preflight_stow_directory "$DOTFILES_DIR/home" "$HOME" || return 1
+  preflight_stow_simulation || return 1
+
   if [[ -f "$HOME/.zprofile" && ! -L "$HOME/.zprofile" ]]; then
     if cmp -s "$DOTFILES_DIR/home/.zprofile" "$HOME/.zprofile"; then
       rm -- "$HOME/.zprofile"
-    elif [[ -e "$HOME/.zprofile.local" ]]; then
-      printf "Refusing to replace both .zprofile and .zprofile.local. Merge them first.\n" >&2
-      exit 1
     else
       mv "$HOME/.zprofile" "$HOME/.zprofile.local"
       info "Preserved the existing .zprofile as .zprofile.local"
     fi
   fi
 
-  local container link_target
-  for container in .config .config/zed .config/yazi .codex Library/LaunchAgents; do
+  local output container
+  local -a containers
+  output="$(stow_target_directories)" || return 1
+  containers=("${(@f)output}")
+  for container in "${containers[@]}"; do
     if [[ -L "$HOME/$container" ]]; then
-      link_target="$(realpath "$HOME/$container")"
-      if [[ "$link_target" != "$DOTFILES_DIR/home/$container" ]]; then
-        printf "Refusing to stow into folded symlink: %s\n" "$HOME/$container" >&2
-        printf "Replace it with a real directory before rerunning setup.\n" >&2
-        exit 1
-      fi
       rm "$HOME/$container"
     fi
     mkdir -p "$HOME/$container"
   done
 
-  if ! stow --dir="$DOTFILES_DIR" --simulate --target="$HOME" home; then
+  if ! run_stow --dir="$DOTFILES_DIR" --simulate --restow --target="$HOME" home; then
     printf "Stow found conflicting files. Back them up or remove them, then rerun setup.\n" >&2
     exit 1
   fi
 
-  stow --dir="$DOTFILES_DIR" --target="$HOME" home
+  run_stow --dir="$DOTFILES_DIR" --restow --target="$HOME" home
 }
 
 link_vscode_config() {
   log "Linking VS Code user configuration"
+
+  preflight_vscode_config >/dev/null || return 1
 
   local vscode_user_dir="$HOME/Library/Application Support/Code/User"
   mkdir -p "$vscode_user_dir"
@@ -386,7 +930,7 @@ install_kitty() {
 }
 
 install_sketchybar_helpers() {
-  local helper_bin_dir="${DOTFILES_SKETCHYBAR_HELPER_DIR:-$HOME/.local/libexec/sketchybar}"
+  local helper_bin_dir="$HOME/.local/libexec/sketchybar"
   local build_dir
   build_dir="$(mktemp -d)"
 
@@ -437,76 +981,217 @@ install_sketchybar_assets() {
 install_tmux_plugins() {
   log "Installing latest tmux plugins"
 
+  local output repository plugin plugin_dir tpm_repository=""
+  local -a repositories
+  output="$(tmux_plugin_repositories)"
+  repositories=("${(@f)output}")
+
+  for repository in "${repositories[@]}"; do
+    if [[ "${repository##*/}" == "tpm" ]]; then
+      tpm_repository="$repository"
+      break
+    fi
+  done
+
+  if [[ -z "$tpm_repository" ]]; then
+    printf "The tmux plugin manifest does not declare TPM.\n" >&2
+    return 1
+  fi
+
   local tpm_dir="$HOME/.tmux/plugins/tpm"
-  ensure_latest_git_checkout https://github.com/tmux-plugins/tpm "$tpm_dir"
+  if [[ -d "$tpm_dir/.git" ]]; then
+    validate_tmux_plugin_checkout "$tpm_repository" "$tpm_dir"
+  fi
+  ensure_latest_git_checkout "https://github.com/$tpm_repository.git" "$tpm_dir"
+  validate_tmux_plugin_checkout "$tpm_repository" "$tpm_dir"
 
   /bin/bash "$tpm_dir/scripts/install_plugins.sh"
 
-  local plugin plugin_dir repository
-  while read -r plugin; do
-    [[ -n "$plugin" ]] || continue
+  for repository in "${repositories[@]}"; do
+    plugin="${repository##*/}"
+    [[ "$plugin" == "tpm" ]] && continue
     plugin_dir="$HOME/.tmux/plugins/$plugin"
     if [[ ! -d "$plugin_dir/.git" ]]; then
       printf "TPM did not install expected plugin: %s\n" "$plugin" >&2
       exit 1
     fi
-    repository="$(git -C "$plugin_dir" remote get-url origin)"
-    ensure_latest_git_checkout "$repository" "$plugin_dir"
-  done <"$DOTFILES_DIR/home/.config/tmux/plugins.txt"
+    validate_tmux_plugin_checkout "$repository" "$plugin_dir"
+    ensure_latest_git_checkout "https://github.com/$repository.git" "$plugin_dir"
+  done
 }
 
 accept_xcode_license() {
   log "Accepting Xcode license"
 
-  if have xcodebuild && ! xcodebuild -license check >/dev/null 2>&1; then
+  if (( NEEDS_XCODE_LICENSE )); then
     (( CAN_SUDO )) || ensure_sudo
     sudo_run xcodebuild -license accept
   fi
 }
 
-restart_services() {
-  log "Restarting OpenUsage, AeroSpace, skhd, and sketchybar"
+wait_for_process_exit() {
+  local process="$1"
+  local attempts="${2:-40}"
+  local attempt
+  for (( attempt = 1; attempt <= attempts; attempt++ )); do
+    pgrep -x "$process" >/dev/null 2>&1 || return 0
+    sleep 0.25
+  done
+  return 1
+}
 
-  if [[ -d /Applications/OpenUsage.app ]]; then
-    if open -gja OpenUsage; then
-      local openusage_ready=0
-      for _ in {1..20}; do
-        if curl -fsS --max-time 1 http://127.0.0.1:6736/v1/usage/codex >/dev/null 2>&1; then
-          openusage_ready=1
-          break
-        fi
-        sleep 0.25
-      done
-      (( openusage_ready )) || skip "OpenUsage started but its local API is not reachable."
-    else
-      skip "Could not open OpenUsage."
+restart_openusage() {
+  if [[ ! -d /Applications/OpenUsage.app ]]; then
+    skip "OpenUsage is not installed."
+    return 1
+  fi
+
+  if pgrep -x OpenUsage >/dev/null 2>&1; then
+    if ! osascript -e 'quit app "OpenUsage"' >/dev/null; then
+      skip "Could not stop OpenUsage."
+      return 1
+    fi
+    if ! wait_for_process_exit OpenUsage 40; then
+      skip "OpenUsage did not stop; restart it manually."
+      return 1
     fi
   fi
 
-  if have sketchybar; then
-    brew services restart sketchybar || brew services start sketchybar
+  if ! open -gja OpenUsage; then
+    skip "Could not open OpenUsage."
+    return 1
   fi
 
-  if have aerospace; then
-    if pgrep -x AeroSpace >/dev/null; then
-      osascript -e 'quit app "AeroSpace"' || skip "Could not stop AeroSpace."
-      for _ in {1..20}; do
-        pgrep -x AeroSpace >/dev/null || break
-        sleep 0.1
-      done
+  local attempt
+  for attempt in {1..20}; do
+    if curl -fsS --connect-timeout 1 --max-time 1 \
+      http://127.0.0.1:6736/v1/usage/codex >/dev/null 2>&1; then
+      return 0
     fi
+    sleep 0.25
+  done
+  skip "OpenUsage local API is not reachable after launch."
+  return 1
+}
 
-    if pgrep -x AeroSpace >/dev/null; then
+aerospace_ready() {
+  pgrep -x AeroSpace >/dev/null 2>&1 \
+    && aerospace list-workspaces --all --count >/dev/null 2>&1
+}
+
+wait_for_aerospace() {
+  local attempt
+  for attempt in {1..40}; do
+    aerospace_ready && return 0
+    sleep 0.25
+  done
+  return 1
+}
+
+restart_aerospace() {
+  if ! have aerospace; then
+    skip "AeroSpace CLI is not installed."
+    return 1
+  fi
+
+  if pgrep -x AeroSpace >/dev/null 2>&1; then
+    if ! preflight_aerospace_config; then
+      skip "AeroSpace configuration did not pass strict validation."
+      return 1
+    fi
+    if ! osascript -e 'quit app "AeroSpace"'; then
+      skip "Could not stop AeroSpace."
+      return 1
+    fi
+    if ! wait_for_process_exit AeroSpace 40; then
       skip "AeroSpace did not stop; restart it manually."
-    else
-      open -g -a AeroSpace || skip "Could not open AeroSpace."
-      sleep 1
-      aerospace reload-config --no-gui || skip "Could not reload AeroSpace config."
+      return 1
     fi
   fi
 
-  if have skhd; then
-    skhd --restart-service || skhd --start-service
+  if ! open -g -a AeroSpace; then
+    skip "Could not open AeroSpace."
+    return 1
+  fi
+
+  if ! wait_for_aerospace; then
+    skip "AeroSpace started but its CLI is not ready."
+    return 1
+  fi
+  if ! preflight_aerospace_config; then
+    skip "AeroSpace configuration did not pass strict validation after launch."
+    return 1
+  fi
+  if ! aerospace reload-config --no-gui; then
+    skip "Could not reload AeroSpace config."
+    return 1
+  fi
+  if ! wait_for_aerospace; then
+    skip "AeroSpace config reloaded but its CLI is not ready."
+    return 1
+  fi
+  return 0
+}
+
+restart_sketchybar() {
+  if ! have sketchybar; then
+    skip "SketchyBar CLI is not installed."
+    return 1
+  fi
+
+  if ! brew services restart sketchybar && ! brew services start sketchybar; then
+    skip "Could not start SketchyBar."
+    return 1
+  fi
+
+  local attempt
+  for attempt in {1..40}; do
+    sketchybar --query bar >/dev/null 2>&1 && return 0
+    sleep 0.25
+  done
+  skip "SketchyBar service started but is not responding."
+  return 1
+}
+
+restart_skhd() {
+  if ! have skhd; then
+    skip "skhd CLI is not installed."
+    return 1
+  fi
+
+  if ! skhd --restart-service && ! skhd --start-service; then
+    skip "Could not start skhd."
+    return 1
+  fi
+
+  local attempt label
+  for attempt in {1..40}; do
+    for label in com.asmvik.skhd com.koekeishiya.skhd; do
+      launchctl print "gui/$(id -u)/$label" 2>/dev/null \
+        | grep -Eq '^[[:space:]]*state = running$' && return 0
+    done
+    sleep 0.25
+  done
+  skip "skhd restart returned successfully but its launchd job is not running."
+  return 1
+}
+
+restart_services() {
+  log "Restarting OpenUsage, AeroSpace, SketchyBar, and skhd"
+
+  local failed=0
+  restart_openusage || failed=1
+  if restart_aerospace; then
+    restart_sketchybar || failed=1
+  else
+    failed=1
+    skip "AeroSpace is not ready; SketchyBar was not restarted."
+  fi
+  restart_skhd || failed=1
+
+  if (( failed )); then
+    printf "One or more required services failed postflight checks.\n" >&2
+    return 1
   fi
 }
 
@@ -524,8 +1209,7 @@ print_summary() {
 
 main() {
   parse_args "$@"
-  require_supported_platform
-  require_command_line_tools
+  preflight_setup
   if (( APPLY_SYSTEM_DEFAULTS )); then
     ensure_sudo
   fi
@@ -548,7 +1232,7 @@ main() {
   install_tmux_plugins
   install_yazi_flavor
   install_neovim_plugins
-  restart_services
+  restart_services || return 1
   print_summary
 }
 
