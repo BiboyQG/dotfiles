@@ -14,6 +14,7 @@ local focused_workspace
 local spaces_mode_visible = true
 local full_refresh_running = false
 local full_refresh_pending = false
+local window_refresh_revision = 0
 
 for index, workspace in ipairs(workspace_names) do
   known_workspaces[workspace] = true
@@ -187,6 +188,19 @@ local function update_spaces()
   )
 end
 
+local function schedule_window_refresh()
+  window_refresh_revision = window_refresh_revision + 1
+  local revision = window_refresh_revision
+  sbar.delay(0.2, function()
+    if revision == window_refresh_revision then update_spaces() end
+  end)
+end
+
+local function update_space_windows()
+  update_spaces()
+  schedule_window_refresh()
+end
+
 local function update_workspace_focus(env)
   local next_workspace = env.FOCUSED
   if not known_workspaces[next_workspace] then return end
@@ -257,13 +271,7 @@ for index, workspace in ipairs(workspace_names) do
 
   space:subscribe("mouse.clicked", function(env)
     local op = (env.BUTTON == "right") and "move-node-to-workspace --focus-follows-window" or "workspace"
-    if env.BUTTON == "right" then
-      sbar.exec("/opt/homebrew/bin/aerospace " .. op .. " " .. workspace, function(_, exit_code)
-        if exit_code == 0 then sbar.trigger("aerospace_windows_change") end
-      end)
-    else
-      sbar.exec("/opt/homebrew/bin/aerospace " .. op .. " " .. workspace)
-    end
+    sbar.exec("/opt/homebrew/bin/aerospace " .. op .. " " .. workspace)
   end)
 end
 
@@ -298,9 +306,9 @@ space_window_observer:subscribe({
   "display_change",
   "forced",
   "aerospace_windows_change",
-  "space_windows_change",
   "system_woke",
 }, update_spaces)
+space_window_observer:subscribe("space_windows_change", update_space_windows)
 space_window_observer:subscribe("aerospace_workspace_change", update_workspace_focus)
 
 spaces_indicator:subscribe("swap_menus_and_spaces", function(env)

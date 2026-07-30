@@ -25,6 +25,7 @@ local function fake_sbar()
     triggers = {},
     set_targets = {},
     delays = {},
+    delay_seconds = {},
     generated = 0,
   }
 
@@ -107,7 +108,8 @@ local function fake_sbar()
     callback()
   end
 
-  function sbar.delay(_, callback)
+  function sbar.delay(seconds, callback)
+    table.insert(state.delay_seconds, seconds)
     table.insert(state.delays, callback)
   end
 
@@ -182,7 +184,7 @@ local function load_modules()
     }
   end
   package.preload["helpers.app_icons"] = function()
-    return { Safari = "S", Music = "M", Default = "D" }
+    return { Arc = "A", kitty = "K", Safari = "S", Music = "M", Default = "D" }
   end
   package.preload["helpers.shell"] = function()
     return { quote = function(value) return string.format("%q", value) end }
@@ -231,12 +233,70 @@ local function test_spaces()
   complete_full(state, workspace_rows(true, "3"), {
     { workspace = "1", ["app-name"] = "Safari" },
     { workspace = "1", ["app-name"] = "Safari" },
+    { workspace = "2", ["app-name"] = "Arc" },
   })
   expect(state.objects["space.1"].properties.label.string == "S", "duplicate apps were not collapsed")
+  expect(state.objects["space.2"].properties.label.string == "A", "initial Arc icon is missing")
   expect(state.objects["space.7"].properties.display == 1, "single-screen AppKit ID was not applied")
   expect(state.objects["space.7"].properties.drawing == false, "single-screen workspace 7 is visible")
   expect(state.brackets["space.7"].properties.drawing == false, "single-screen bracket 7 is visible")
   expect(state.objects["space.padding.7"].properties.drawing == false, "single-screen padding 7 is visible")
+
+  local before_create = #state.execs
+  state.emit("space_windows_change")
+  expect(#state.execs == before_create + 2, "window create event did not refresh immediately")
+  expect(state.delay_seconds[#state.delay_seconds] == 0.2, "window retry delay is not 0.2 seconds")
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+  })
+  expect(state.objects["space.2"].properties.label.string == "A", "early create query changed last-good state")
+  state.delays[#state.delays]()
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+    { workspace = "2", ["app-name"] = "kitty" },
+  })
+  expect(state.objects["space.2"].properties.label.string == "AK", "create retry missed Kitty")
+
+  local before_close = #state.execs
+  state.emit("space_windows_change")
+  expect(#state.execs == before_close + 2, "window close event did not refresh immediately")
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+    { workspace = "2", ["app-name"] = "kitty" },
+  })
+  expect(state.objects["space.2"].properties.label.string == "AK", "early close query changed last-good state")
+  state.delays[#state.delays]()
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+  })
+  expect(state.objects["space.2"].properties.label.string == "A", "close retry left a stale Kitty icon")
+
+  local before_retry_revision = #state.execs
+  state.emit("space_windows_change")
+  local stale_window_delay = state.delays[#state.delays]
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+  })
+  state.emit("space_windows_change")
+  local latest_window_delay = state.delays[#state.delays]
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+  })
+  expect(#state.execs == before_retry_revision + 4, "window events started an unexpected query count")
+  stale_window_delay()
+  expect(#state.execs == before_retry_revision + 4, "stale window retry started a refresh")
+  latest_window_delay()
+  expect(#state.execs == before_retry_revision + 6, "latest window retry did not start one refresh")
+  complete_full(state, workspace_rows(true, "3"), {
+    { workspace = "2", ["app-name"] = "Arc" },
+  })
+
+  local before_front_app = #state.execs
+  local before_front_app_delays = #state.delays
+  state.emit("front_app_switched")
+  expect(#state.execs == before_front_app + 1, "front-app event started a redundant spaces query")
+  expect(state.execs[#state.execs].command:find("menus") ~= nil, "front-app menu refresh is missing")
+  expect(#state.delays == before_front_app_delays, "front-app event scheduled a redundant retry")
 
   local before_focus = #state.execs
   state.emit("aerospace_workspace_change", { FOCUSED = "4", PREV = "3" })
@@ -283,8 +343,11 @@ local function test_spaces()
   state.emit_object("space.4", "mouse.clicked", { BUTTON = "left" })
   expect(#state.triggers == trigger_count, "left click emitted a duplicate trigger")
   state.emit_object("space.4", "mouse.clicked", { BUTTON = "right" })
-  state.execs[#state.execs].callback("", 0)
-  expect(state.triggers[#state.triggers] == "aerospace_windows_change", "right-click event contract failed")
+  expect(#state.triggers == trigger_count, "right click emitted a duplicate trigger")
+  expect(
+    state.execs[#state.execs].command == "/opt/homebrew/bin/aerospace move-node-to-workspace --focus-follows-window 4",
+    "right-click move command is incorrect"
+  )
 end
 
 local function test_media()
