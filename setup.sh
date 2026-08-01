@@ -878,6 +878,7 @@ install_nvm_node() {
   fi
 
   nvm alias default "$installed_node_version"
+  nvm deactivate --silent >/dev/null 2>&1 || true
   nvm use "$installed_node_version"
 
   set -u

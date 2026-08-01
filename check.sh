@@ -773,6 +773,57 @@ cmp -s "$setup_before" "$setup_after" || {
 }
 [[ ! -e "$SETUP_POISON_MARKER" ]]
 
+log "Checking setup NVM activation"
+NVM_FIXTURE_HOME="$SETUP_SNAPSHOT_DIR/nvm-home"
+NVM_FIXTURE_BIN="$NVM_FIXTURE_HOME/.nvm/versions/node/v1.2.3/bin"
+BREW_FIXTURE_BIN="$SETUP_SNAPSHOT_DIR/homebrew/bin"
+mkdir -p "$NVM_FIXTURE_HOME/.nvm" "$NVM_FIXTURE_BIN" "$BREW_FIXTURE_BIN"
+printf '#!/bin/sh\nexit 0\n' >"$NVM_FIXTURE_BIN/npm"
+printf '#!/bin/sh\nexit 0\n' >"$BREW_FIXTURE_BIN/npm"
+chmod +x "$NVM_FIXTURE_BIN/npm" "$BREW_FIXTURE_BIN/npm"
+cat >"$NVM_FIXTURE_HOME/.nvm/nvm.sh" <<'ZSH'
+nvm() {
+  local command="$1"
+  local entry
+  local -a updated_path
+
+  case "$command" in
+    install | alias)
+      return 0
+      ;;
+    version)
+      print -r -- v1.2.3
+      ;;
+    deactivate)
+      for entry in "${path[@]}"; do
+        [[ "$entry" == "$NVM_FIXTURE_BIN" ]] || updated_path+=("$entry")
+      done
+      path=("${updated_path[@]}")
+      ;;
+    use)
+      for entry in "${path[@]}"; do
+        [[ "$entry" == "$NVM_FIXTURE_BIN" ]] && return 0
+      done
+      path=("$NVM_FIXTURE_BIN" "${path[@]}")
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+ZSH
+env \
+  HOME="$NVM_FIXTURE_HOME" \
+  NVM_FIXTURE_BIN="$NVM_FIXTURE_BIN" \
+  PATH="$BREW_FIXTURE_BIN:$NVM_FIXTURE_BIN:/usr/bin:/bin" \
+  zsh -fc '
+    setopt FUNCTION_ARGZERO
+    source "$1"
+    ensure_latest_git_checkout() { :; }
+    install_nvm_node >/dev/null
+    [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
+  ' setup-nvm "$ROOT/setup.sh"
+
 log "Checking setup service failure propagation"
 SERVICE_FIXTURE_LOG="$SETUP_SNAPSHOT_DIR/services.log"
 env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
