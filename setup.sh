@@ -699,6 +699,7 @@ setup_system_preferences() {
   defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
   defaults write com.apple.finder WarnOnEmptyTrash -bool false
   defaults write com.apple.dock autohide -bool true
+  defaults write com.apple.dock "autohide-delay" -float "0"
 
   if ! sudo_run nvram StartupMute=%01; then
     skip "Could not set the startup mute NVRAM value on this Mac."
