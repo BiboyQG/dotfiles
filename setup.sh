@@ -710,9 +710,6 @@ setup_system_preferences() {
   if ! sudo_run nvram StartupMute=%01; then
     skip "Could not set the startup mute NVRAM value on this Mac."
   fi
-  if ! sudo_run nvram SystemAudioVolume=' '; then
-    skip "Could not set the system audio NVRAM value on this Mac."
-  fi
 }
 
 install_homebrew() {
