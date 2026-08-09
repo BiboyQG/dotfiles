@@ -187,7 +187,10 @@ require_supported_platform() {
 
 preflight_xcode_license() {
   NEEDS_XCODE_LICENSE=0
-  if have xcodebuild && ! xcodebuild -license check >/dev/null 2>&1; then
+  local developer_dir
+  developer_dir="$(xcode-select -p 2>/dev/null || true)"
+  if [[ "$developer_dir" != "/Library/Developer/CommandLineTools" ]] \
+    && have xcodebuild && ! xcodebuild -license check >/dev/null 2>&1; then
     NEEDS_XCODE_LICENSE=1
   fi
 }

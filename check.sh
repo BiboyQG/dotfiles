@@ -824,6 +824,36 @@ env \
     [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
   ' setup-nvm "$ROOT/setup.sh"
 
+log "Checking Xcode license preflight"
+env zsh -fc '
+  setopt FUNCTION_ARGZERO
+  source "$1"
+
+  XCODEBUILD_CALLS=0
+  XCODEBUILD_EXIT=1
+  xcode-select() { print -r -- "$DEVELOPER_DIR"; }
+  have() { [[ "$1" == xcodebuild ]]; }
+  xcodebuild() {
+    (( XCODEBUILD_CALLS++ ))
+    return "$XCODEBUILD_EXIT"
+  }
+
+  DEVELOPER_DIR=/Library/Developer/CommandLineTools
+  preflight_xcode_license
+  (( NEEDS_XCODE_LICENSE == 0 ))
+  (( XCODEBUILD_CALLS == 0 ))
+
+  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+  preflight_xcode_license
+  (( NEEDS_XCODE_LICENSE == 1 ))
+  (( XCODEBUILD_CALLS == 1 ))
+
+  XCODEBUILD_EXIT=0
+  preflight_xcode_license
+  (( NEEDS_XCODE_LICENSE == 0 ))
+  (( XCODEBUILD_CALLS == 2 ))
+' setup-xcode "$ROOT/setup.sh"
+
 log "Checking setup service failure propagation"
 SERVICE_FIXTURE_LOG="$SETUP_SNAPSHOT_DIR/services.log"
 env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
