@@ -873,6 +873,24 @@ env TRACKPAD_DEFAULTS_LOG="$TRACKPAD_DEFAULTS_LOG" zsh -fc '
     "$TRACKPAD_DEFAULTS_LOG"
 ' setup-trackpad "$ROOT/setup.sh"
 
+log "Checking startup sound defaults"
+STARTUP_SOUND_LOG="$CHECK_WORK_DIR/startup-sound.log"
+env STARTUP_SOUND_LOG="$STARTUP_SOUND_LOG" zsh -fc '
+  setopt FUNCTION_ARGZERO
+  source "$1"
+  log() { :; }
+  osascript() { :; }
+  defaults() { :; }
+  sudo_run() { print -r -- "$*" >>"$STARTUP_SOUND_LOG"; }
+
+  setup_system_preferences
+  grep -Fxq -- "nvram StartupMute=%01" "$STARTUP_SOUND_LOG"
+  if grep -Fq -- "SystemAudioVolume" "$STARTUP_SOUND_LOG"; then
+    printf "Setup still writes the legacy SystemAudioVolume NVRAM value.\n" >&2
+    exit 1
+  fi
+' setup-startup-sound "$ROOT/setup.sh"
+
 log "Checking setup service failure propagation"
 SERVICE_FIXTURE_LOG="$SETUP_SNAPSHOT_DIR/services.log"
 env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
