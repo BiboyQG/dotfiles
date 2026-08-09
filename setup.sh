@@ -673,6 +673,9 @@ setup_system_preferences() {
   osascript -e 'tell application "System Settings" to quit' >/dev/null 2>&1 || true
   osascript -e 'tell application "System Preferences" to quit' >/dev/null 2>&1 || true
 
+  defaults write com.apple.AppleMultitouchTrackpad Clicking -bool true
+  defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true
+  defaults -currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1
   defaults write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerDrag -bool true
   defaults write com.apple.LaunchServices LSQuarantine -bool false
   defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
