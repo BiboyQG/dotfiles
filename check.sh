@@ -854,6 +854,25 @@ env zsh -fc '
   (( XCODEBUILD_CALLS == 2 ))
 ' setup-xcode "$ROOT/setup.sh"
 
+log "Checking trackpad defaults"
+TRACKPAD_DEFAULTS_LOG="$CHECK_WORK_DIR/trackpad-defaults.log"
+env TRACKPAD_DEFAULTS_LOG="$TRACKPAD_DEFAULTS_LOG" zsh -fc '
+  setopt FUNCTION_ARGZERO
+  source "$1"
+  log() { :; }
+  osascript() { :; }
+  defaults() { print -r -- "$*" >>"$TRACKPAD_DEFAULTS_LOG"; }
+  sudo_run() { :; }
+
+  setup_system_preferences
+  grep -Fxq -- "write com.apple.AppleMultitouchTrackpad Clicking -bool true" \
+    "$TRACKPAD_DEFAULTS_LOG"
+  grep -Fxq -- "write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true" \
+    "$TRACKPAD_DEFAULTS_LOG"
+  grep -Fxq -- "-currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1" \
+    "$TRACKPAD_DEFAULTS_LOG"
+' setup-trackpad "$ROOT/setup.sh"
+
 log "Checking setup service failure propagation"
 SERVICE_FIXTURE_LOG="$SETUP_SNAPSHOT_DIR/services.log"
 env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
