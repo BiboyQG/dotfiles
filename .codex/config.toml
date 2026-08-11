@@ -1,0 +1,8 @@
+[features]
+default_mode_request_user_input = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
