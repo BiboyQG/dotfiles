@@ -117,7 +117,6 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --color=always --icons=always $
 (( $+commands[direnv] )) && eval "$(direnv hook zsh)"
 
 alias ll="eza -alh --icons=auto --color=always"
-alias ssh="kitten ssh"
 alias s="fastfetch"
 alias l="lazygit"
 alias m="macmon"
