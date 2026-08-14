@@ -203,6 +203,11 @@ local function workspace_rows(single_display, focused)
   return rows
 end
 
+local function test_app_icons()
+  local app_icons = dofile(sketchybar_root .. "/helpers/app_icons.lua")
+  expect(app_icons.Preview == ":preview:", "Preview does not use its dedicated icon")
+end
+
 local function complete_full(state, workspaces, windows, workspace_exit, windows_exit)
   local workspace_call = state.execs[#state.execs - 1]
   local window_call = state.execs[#state.execs]
@@ -451,6 +456,7 @@ local function test_wifi()
   expect(wifi.properties.icon.string == "DISCONNECTED", "unknown did not preserve last-good")
 end
 
+test_app_icons()
 test_spaces()
 test_media()
 test_wifi()
