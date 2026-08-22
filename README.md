@@ -14,6 +14,7 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-H
 | ------------------- | ------------------------ | ------------------------------------------------ |
 | Homebrew            | `brew`                   | Package manager for macOS                        |
 | GNU Stow            | `brew`                   | Symlink manager for dotfiles                     |
+| Git                 | `brew`                   | Version control (`git`)                          |
 | Kitty               | official installer       | GPU-based terminal emulator                      |
 | Zsh                 | macOS                    | Shell and interactive environment                |
 | Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
@@ -36,10 +37,15 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-H
 | Fzf                 | `brew`                   | Fuzzy finder                                     |
 | Fd                  | `brew`                   | Fast `find` alternative                          |
 | Jq                  | `brew`                   | JSON processor                                   |
+| Yq                  | `brew`                   | YAML/TOML processor                              |
+| Json5               | `brew`                   | JSON5 validator used by `check.sh`               |
 | 7zip                | `brew`                   | Archive tool (`7zz`)                             |
 | FFmpeg              | `brew`                   | Media toolkit                                    |
 | ImageMagick         | `brew`                   | Image processing tools                           |
 | Poppler             | `brew`                   | PDF utilities (`pdfinfo`, `pdftotext`, ...)      |
+| Resvg               | `brew`                   | SVG rasterizer (Yazi previews)                   |
+| Fontconfig          | `brew`                   | Font query tools used by `check.sh --live`       |
+| Tree-sitter CLI     | `brew`                   | Parser tooling used by `check.sh --live`         |
 | Python              | `brew`                   | Runtime for tmux helpers and editor tooling       |
 | Bat                 | `brew`                   | `cat` replacement with syntax highlighting       |
 | Gh                  | `brew`                   | GitHub CLI                                       |
@@ -50,6 +56,7 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-H
 | Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
 | Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
+| Fonts               | `brew --cask`            | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
 | Uv                  | `brew`                   | Python package/venv manager                      |
 | VS Code             | `brew --cask`            | GUI editor with extensions declared in Brewfile  |
 | Arc                 | `brew --cask`            | Browser used by the AeroSpace shortcut           |
