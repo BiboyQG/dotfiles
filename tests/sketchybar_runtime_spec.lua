@@ -433,6 +433,15 @@ local function test_wifi()
   _G.sbar = sbar
   dofile(sketchybar_root .. "/items/widgets/wifi.lua")
 
+  expect(#state.execs == 1, "wifi module did not resolve the Wi-Fi interface first")
+  expect(state.execs[1].command:find("listallhardwareports") ~= nil, "Wi-Fi interface lookup is missing")
+  state.execs[1].callback("en1\n", 0)
+  expect(#state.execs == 2, "interface lookup did not start the network provider")
+  expect(
+    state.execs[2].command:find("network_load en1 network_update", 1, true) ~= nil,
+    "network provider does not use the resolved interface"
+  )
+
   expect(state.subscriptions.wifi_change == nil, "deprecated wifi_change is subscribed")
   expect(state.subscriptions.system_woke == nil, "wake-time ipconfig path is still subscribed")
   local wifi = state.objects["widgets.wifi.padding"]
@@ -454,6 +463,13 @@ local function test_wifi()
     connected = "unknown",
   })
   expect(wifi.properties.icon.string == "DISCONNECTED", "unknown did not preserve last-good")
+
+  state.emit_object("widgets.wifi1", "mouse.clicked", {})
+  local popup_ip_lookup = false
+  for _, exec in ipairs(state.execs) do
+    if exec.command == "ipconfig getifaddr en1" then popup_ip_lookup = true end
+  end
+  expect(popup_ip_lookup, "popup IP lookup does not use the resolved interface")
 end
 
 test_app_icons()
