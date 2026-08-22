@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 curl_bin="${IP_CURL_BIN:-curl}"
 dig_bin="${IP_DIG_BIN:-dig}"
@@ -132,6 +132,8 @@ start_request() {
   set -m
   (
     trap - EXIT HUP INT TERM
+    # The request's own exit status is recorded below instead of aborting here.
+    set +e
     "$@" >"$body_file" 2>/dev/null
     child_status=$?
     printf '%s\n' "$child_status" >"$status_tmp" \
