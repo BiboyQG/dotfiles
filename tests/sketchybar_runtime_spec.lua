@@ -206,6 +206,8 @@ end
 local function test_app_icons()
   local app_icons = dofile(sketchybar_root .. "/helpers/app_icons.lua")
   expect(app_icons.Preview == ":preview:", "Preview does not use its dedicated icon")
+  expect(app_icons.Skim == ":pdf_old:", "Skim does not use an existing PDF glyph")
+  expect(app_icons.superProductivity == ":super_productivity:", "superProductivity glyph name is wrong")
 end
 
 local function complete_full(state, workspaces, windows, workspace_exit, windows_exit)
