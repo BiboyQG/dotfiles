@@ -84,6 +84,8 @@ while IFS= read -r entry; do
   if (( ${#label} > max_width )); then
     label="${label:0:max_width-1}…"
   fi
+  # tmux re-parses this job's output as a format string; a literal '#' is '##'.
+  label="${label//#/##}"
 
   if [[ -z "$prev_bg" ]]; then
     rendered+="#[fg=${segment_bg},bg=${status_bg}]${left_cap}"

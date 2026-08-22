@@ -74,6 +74,14 @@ def sanitize_label(label: str) -> str:
     return stripped or "session"
 
 
+def rename_session(session_id: object, name: str) -> None:
+    # The session may have been killed between listing and renaming.
+    try:
+        run_tmux(["rename-session", "-t", str(session_id), name])
+    except subprocess.CalledProcessError:
+        pass
+
+
 def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
     planned_names = []
     for position, session in enumerate(ordered_sessions, start=1):
@@ -86,9 +94,9 @@ def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
     prefix = f"__dotfiles_{os.getpid()}_"
     for session, _ in planned_names:
         session_id = str(session["id"]).lstrip("$")
-        run_tmux(["rename-session", "-t", session["id"], f"{prefix}{session_id}"])
+        rename_session(session["id"], f"{prefix}{session_id}")
     for session, new_name in planned_names:
-        run_tmux(["rename-session", "-t", session["id"], new_name])
+        rename_session(session["id"], new_name)
 
 
 @contextmanager
