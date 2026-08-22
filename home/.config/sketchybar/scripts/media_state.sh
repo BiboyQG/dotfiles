@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-set -u
+set -euo pipefail
 
 JQ=/opt/homebrew/bin/jq
 NOWPLAYING=/opt/homebrew/bin/nowplaying-cli

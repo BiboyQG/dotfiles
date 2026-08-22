@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-set -u
+set -euo pipefail
 
 API_BASE="${OPENUSAGE_API_BASE:-http://127.0.0.1:6736/v1/usage}"
 FIXTURE_DIR="${OPENUSAGE_FIXTURE_DIR:-}"
@@ -73,7 +73,11 @@ generate_bar() {
     fi
   fi
 
-  print -r -- "$output"
+  if [[ -f "$output" ]]; then
+    print -r -- "$output"
+  else
+    print -r -- ""
+  fi
 }
 
 emit_unavailable() {
@@ -135,7 +139,7 @@ emit_provider() {
         ($provider + "_fetched_at=" + (.fetchedAt // ""))
       ][]
     ' <<<"$body" 2>/dev/null
-  )"
+  )" || parsed=""
 
   if [[ -z "$parsed" ]]; then
     emit_unavailable "$provider" "parse_error"
