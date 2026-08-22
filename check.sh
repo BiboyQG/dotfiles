@@ -599,6 +599,7 @@ run_setup_preflight() {
       brew() { poison brew; }
       curl() { poison curl; }
       defaults() { poison defaults; }
+      killall() { poison killall; }
       launchctl() { poison launchctl; }
       mkdir() { poison mkdir; }
       mv() { poison mv; }
@@ -860,13 +861,17 @@ env TRACKPAD_DEFAULTS_LOG="$TRACKPAD_DEFAULTS_LOG" zsh -fc '
   setopt FUNCTION_ARGZERO
   source "$1"
   log() { :; }
+  info() { :; }
   osascript() { :; }
   defaults() { print -r -- "$*" >>"$TRACKPAD_DEFAULTS_LOG"; }
+  killall() { print -r -- "killall $*" >>"$TRACKPAD_DEFAULTS_LOG"; }
   sudo_run() { :; }
 
   setup_system_preferences
   grep -Fxq -- "write com.apple.AppleMultitouchTrackpad Clicking -bool true" \
     "$TRACKPAD_DEFAULTS_LOG"
+  grep -Fxq -- "killall Dock" "$TRACKPAD_DEFAULTS_LOG"
+  grep -Fxq -- "killall Finder" "$TRACKPAD_DEFAULTS_LOG"
   grep -Fxq -- "write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true" \
     "$TRACKPAD_DEFAULTS_LOG"
   grep -Fxq -- "-currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1" \
@@ -879,8 +884,10 @@ env STARTUP_SOUND_LOG="$STARTUP_SOUND_LOG" zsh -fc '
   setopt FUNCTION_ARGZERO
   source "$1"
   log() { :; }
+  info() { :; }
   osascript() { :; }
   defaults() { :; }
+  killall() { :; }
   sudo_run() { print -r -- "$*" >>"$STARTUP_SOUND_LOG"; }
 
   setup_system_preferences

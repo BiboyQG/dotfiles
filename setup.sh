@@ -707,6 +707,12 @@ setup_system_preferences() {
   defaults write com.apple.dock autohide -bool true
   defaults write com.apple.dock "autohide-delay" -float "0"
 
+  local consumer
+  for consumer in Dock Finder SystemUIServer; do
+    killall "$consumer" >/dev/null 2>&1 || true
+  done
+  info "Key repeat defaults take effect after the next login."
+
   if ! sudo_run nvram StartupMute=%01; then
     skip "Could not set the startup mute NVRAM value on this Mac."
   fi
