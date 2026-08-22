@@ -995,13 +995,16 @@ skhd"
     eval "$function_name() { :; }"
   done
   restart_services() { return 1; }
-  print_summary() { print -r -- summary >>"$SERVICE_FIXTURE_LOG"; }
+  print_summary() { print -r -- "summary ${1:-}" >>"$SERVICE_FIXTURE_LOG"; }
   : >"$SERVICE_FIXTURE_LOG"
   if main --skip-system-defaults >/dev/null 2>&1; then
     printf "Setup main accepted a failed required-service postflight.\n" >&2
     exit 1
   fi
-  [[ ! -s "$SERVICE_FIXTURE_LOG" ]]
+  grep -Fxq -- "summary 1" "$SERVICE_FIXTURE_LOG" || {
+    printf "Setup main skipped the summary after a failed postflight.\n" >&2
+    exit 1
+  }
 ' setup-services "$ROOT/setup.sh"
 
 log "Checking Lua syntax"

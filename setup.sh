@@ -725,7 +725,13 @@ install_homebrew() {
   brew_bin="$(find_homebrew || true)"
 
   if [[ -z "$brew_bin" ]]; then
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    local installer
+    if ! installer="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+      || [[ -z "$installer" ]]; then
+      printf "Could not download the Homebrew installer.\n" >&2
+      exit 1
+    fi
+    NONINTERACTIVE=1 /bin/bash -c "$installer"
     brew_bin="$(find_homebrew || true)"
   fi
 
@@ -1208,7 +1214,13 @@ restart_services() {
 }
 
 print_summary() {
-  log "Setup complete"
+  local status="${1:-0}"
+
+  if (( status )); then
+    warn "Setup finished with failed service postflight checks"
+  else
+    log "Setup complete"
+  fi
 
   if (( ${#SKIPPED[@]} )); then
     printf "Skipped steps:\n"
@@ -1244,8 +1256,10 @@ main() {
   install_tmux_plugins
   install_yazi_flavor
   install_neovim_plugins
-  restart_services || return 1
-  print_summary
+  local status=0
+  restart_services || status=1
+  print_summary "$status"
+  return "$status"
 }
 
 if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
