@@ -908,8 +908,9 @@ install_zinit() {
 
 install_zsh_plugins() {
   log "Installing latest zsh plugins"
-  local zinit_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
-  ZINIT_DIR="$zinit_dir" zsh -c 'source "$ZINIT_DIR/zinit.zsh"; zinit update --all'
+  # The plugin set is declared in the linked ~/.zshrc; sourcing it clones any
+  # missing plugin before the update pass.
+  zsh -c 'source "$HOME/.zshrc"; zinit update --all' </dev/null
 }
 
 install_neovim_plugins() {
