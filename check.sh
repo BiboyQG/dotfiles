@@ -1524,7 +1524,7 @@ PY
   }
   if ! treesitter_status="$(
     GIT_OPTIONAL_LOCKS=0 \
-      git -C "$treesitter_root" status --porcelain --untracked-files=all 2>&1
+      git -C "$treesitter_root" status --porcelain --untracked-files=no 2>&1
   )"; then
     printf "Could not inspect installed nvim-treesitter: %s\n" \
       "$treesitter_status" >&2
