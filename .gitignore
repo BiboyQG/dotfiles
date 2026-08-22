@@ -1,12 +1,6 @@
 **/.DS_Store
 /nvim.log
 
-.claude/**
-!.claude/plugins/
-!.claude/plugins/config.json
-!.claude/settings.json
-!.claude/statusline.sh
-
 .codex/config.toml
 .codex/.tmp/
 .codex/__pycache__/

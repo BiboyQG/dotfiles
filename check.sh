@@ -1338,10 +1338,8 @@ write_stow_plan \
 ignored_target="$CHECK_WORK_DIR/stow-ignored-home"
 ignored_plan="$CHECK_WORK_DIR/stow-ignored.plan"
 mkdir -p \
-  "$CANDIDATE_ROOT/home/.config/raycast/ai" \
   "$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi" \
   "$CANDIDATE_ROOT/home/.codex/skills/test"
-: >"$CANDIDATE_ROOT/home/.config/raycast/ai/generated.json"
 : >"$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi/flavor.toml"
 : >"$CANDIDATE_ROOT/home/.codex/config.toml"
 : >"$CANDIDATE_ROOT/home/.codex/skills/test/SKILL.md"

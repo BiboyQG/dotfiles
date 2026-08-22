@@ -18,7 +18,6 @@ _darcs
 ^/COPYING
 
 # Machine-local or generated directories that must never be deployed.
-^/\.config/raycast($|/)
 ^/\.config/yazi/flavors($|/)
 ^/\.codex/config\.toml$
 ^/\.codex/\.tmp($|/)

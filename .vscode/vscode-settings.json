@@ -27,7 +27,6 @@
     "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.smoothScrolling": true,
     "terminal.integrated.inheritEnv": false,
-    "terminal.integrated.defaultProfile.windows": "Git Bash",
     "workbench.settings.applyToAllProfiles": [
         "editor.fontSize"
     ],
