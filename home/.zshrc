@@ -18,12 +18,11 @@ typeset +x FPATH
 if [[ -r "$ZINIT_HOME/zinit.zsh" ]]; then
 	source "$ZINIT_HOME/zinit.zsh"
 
-	zinit ice depth=1
-	zinit light romkatv/powerlevel10k
-	zinit light zsh-users/zsh-syntax-highlighting
-	zinit light zsh-users/zsh-completions
-	zinit light zsh-users/zsh-autosuggestions
-	zinit light Aloxaf/fzf-tab
+	zinit ice depth=1; zinit light romkatv/powerlevel10k
+	zinit ice depth=1; zinit light zsh-users/zsh-syntax-highlighting
+	zinit ice depth=1; zinit light zsh-users/zsh-completions
+	zinit ice depth=1; zinit light zsh-users/zsh-autosuggestions
+	zinit ice depth=1; zinit light Aloxaf/fzf-tab
 	zinit snippet OMZP::git
 else
 	print -u2 "zinit is not installed; rerun the dotfiles setup script"
@@ -98,7 +97,6 @@ fi
 HISTSIZE=10000
 HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
-HISTDUP=erase
 setopt appendhistory
 setopt sharehistory
 setopt hist_ignore_space
