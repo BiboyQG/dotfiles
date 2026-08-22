@@ -1,6 +1,5 @@
 # Target directories that must stay real to prevent Stow directory folding.
 .config
-.config/zed
 .config/yazi
 .codex
 Library/LaunchAgents

@@ -20,8 +20,6 @@ _darcs
 # Machine-local or generated directories that must never be deployed.
 ^/\.config/raycast($|/)
 ^/\.config/yazi/flavors($|/)
-^/\.config/zed/prompts($|/)
-^/\.config/zed/themes($|/)
 ^/\.codex/config\.toml$
 ^/\.codex/\.tmp($|/)
 ^/\.codex/__pycache__($|/)

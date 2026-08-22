@@ -454,7 +454,6 @@ SETUP_SNAPSHOT_DIR="$CHECK_WORK_DIR/setup-snapshots"
 SETUP_POISON_MARKER="$SETUP_SNAPSHOT_DIR/poison"
 mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.config/kitty" \
-  "$SETUP_FIXTURE_SOURCE/home/.config/zed" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-ignored" \
@@ -1341,13 +1340,9 @@ ignored_plan="$CHECK_WORK_DIR/stow-ignored.plan"
 mkdir -p \
   "$CANDIDATE_ROOT/home/.config/raycast/ai" \
   "$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi" \
-  "$CANDIDATE_ROOT/home/.config/zed/prompts" \
-  "$CANDIDATE_ROOT/home/.config/zed/themes" \
   "$CANDIDATE_ROOT/home/.codex/skills/test"
 : >"$CANDIDATE_ROOT/home/.config/raycast/ai/generated.json"
 : >"$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi/flavor.toml"
-: >"$CANDIDATE_ROOT/home/.config/zed/prompts/generated.json"
-: >"$CANDIDATE_ROOT/home/.config/zed/themes/generated.json"
 : >"$CANDIDATE_ROOT/home/.codex/config.toml"
 : >"$CANDIDATE_ROOT/home/.codex/skills/test/SKILL.md"
 mkdir -p "$ignored_target"

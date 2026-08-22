@@ -88,7 +88,7 @@ This will:
 - Install or update nvm, Node, Codex CLI, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
 - Link VS Code settings to its real macOS user-config directory
-- Keep machine-local Codex config and generated Zed prompt data outside the repo
+- Keep machine-local Codex config outside the repo
 - Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar and skhd with postflight checks
 
 Run the repository checks without installing or upgrading anything:
