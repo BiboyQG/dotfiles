@@ -884,7 +884,11 @@ install_zsh_plugins() {
   log "Installing latest zsh plugins"
   # The plugin set is declared in the linked ~/.zshrc; sourcing it clones any
   # missing plugin before the update pass.
-  zsh -c 'source "$HOME/.zshrc"; zinit update --all; zinit cclear' </dev/null
+  # `zinit update --all` terminates the calling shell with status 1 even when
+  # every plugin updated cleanly, which previously skipped `zinit cclear` and
+  # aborted setup. Run it in a subshell and ignore its meaningless exit code;
+  # only `zinit cclear` is allowed to fail the step.
+  zsh -c 'source "$HOME/.zshrc"; ( zinit update --all ) || true; zinit cclear' </dev/null
 }
 
 install_neovim_plugins() {
@@ -1180,9 +1184,9 @@ restart_services() {
 }
 
 print_summary() {
-  local status="${1:-0}"
+  local exit_code="${1:-0}"
 
-  if (( status )); then
+  if (( exit_code )); then
     warn "Setup finished with failed service postflight checks"
   else
     log "Setup complete"
@@ -1221,10 +1225,10 @@ main() {
   install_tmux_plugins
   install_yazi_flavor
   install_neovim_plugins
-  local status=0
-  restart_services || status=1
-  print_summary "$status"
-  return "$status"
+  local exit_code=0
+  restart_services || exit_code=1
+  print_summary "$exit_code"
+  return "$exit_code"
 }
 
 if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
