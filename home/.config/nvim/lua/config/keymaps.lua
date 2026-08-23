@@ -9,11 +9,3 @@ keymap.set("n", "<leader>sv", "<C-w>v")
 keymap.set("n", "<leader>sx", ":close<cr>")
 
 keymap.set("n", "te", ":tabedit")
-keymap.set("n", "<tab>", ":tabnext<Return>")
-keymap.set("n", "<s-tab>", ":tabprev<Return>")
-
--- Delete a word backwards
-keymap.set("n", "dw", 'vb"_d')
-
--- Select all
-keymap.set("n", "<C-a>", "gg<S-v>G")
