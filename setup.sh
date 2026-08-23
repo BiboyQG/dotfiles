@@ -90,19 +90,41 @@ find_homebrew() {
   return 1
 }
 
+checkout_latest_release() {
+  local destination="$1"
+  local release
+
+  git -C "$destination" fetch --quiet --depth=1 origin 'refs/tags/*:refs/tags/*'
+  release="$(git -C "$destination" tag --list 'v[0-9]*' --sort=-version:refname | head -n 1)"
+  if [[ -z "$release" ]]; then
+    printf "Could not resolve a release tag in %s\n" "$destination" >&2
+    exit 1
+  fi
+  git -C "$destination" checkout --quiet "refs/tags/$release"
+}
+
+# Usage: ensure_latest_git_checkout <repository> <destination> [--release]
+# --release pins the checkout to the newest v* tag instead of the branch tip.
 ensure_latest_git_checkout() {
   local repository="$1"
   local destination="$2"
+  local mode="${3:-}"
 
   if [[ ! -d "$destination/.git" ]]; then
     mkdir -p "${destination:h}"
     git clone --filter=blob:none --depth=1 "$repository" "$destination"
+    [[ "$mode" == --release ]] && checkout_latest_release "$destination"
     return 0
   fi
 
   if [[ -n "$(git -C "$destination" status --porcelain)" ]]; then
     printf "Refusing to update modified Git checkout: %s\n" "$destination" >&2
     exit 1
+  fi
+
+  if [[ "$mode" == --release ]]; then
+    checkout_latest_release "$destination"
+    return 0
   fi
 
   git -C "$destination" fetch --prune origin
@@ -825,7 +847,7 @@ install_nvm_node() {
   log "Installing nvm and Node"
 
   export NVM_DIR="$HOME/.nvm"
-  ensure_latest_git_checkout https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+  ensure_latest_git_checkout https://github.com/nvm-sh/nvm.git "$NVM_DIR" --release
 
   set +u
   . "$NVM_DIR/nvm.sh"
