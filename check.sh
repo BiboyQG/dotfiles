@@ -1404,7 +1404,7 @@ for source in \
   home/.config/sketchybar/helpers/event_providers/network_load/network_load.c \
   home/.config/sketchybar/helpers/menus/menus.c; do
   clang --analyze -std=c99 -Wall -Wextra \
-    -Xanalyzer -analyzer-output=text "$source"
+    -Xanalyzer -analyzer-output=text -Xanalyzer -analyzer-werror "$source"
 done
 
 log "Checking patch whitespace"
@@ -1646,6 +1646,8 @@ LUA
 
   source "$ROOT/lib/brew_bundle.zsh"
   export HOMEBREW_NO_AUTO_UPDATE=1
+  # Missing packages fail the check; merely outdated ones are setup.sh's job.
+  export HOMEBREW_BUNDLE_NO_UPGRADE=1
 
   log "Checking live Brew bundle state"
   bundle_cask_skip="$(brew_bundle_cask_skip)"
