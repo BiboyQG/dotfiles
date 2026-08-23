@@ -204,7 +204,8 @@ def main(argv: List[str]) -> None:
     command = argv[1]
     if command == "switch" and len(argv) >= 3:
         client, _ = parse_optional_client(argv[3:])
-        command_switch(argv[2], client)
+        with mutation_lock():
+            command_switch(argv[2], client)
     elif command == "rename" and len(argv) >= 3:
         with mutation_lock():
             command_rename(argv[2])
@@ -216,7 +217,8 @@ def main(argv: List[str]) -> None:
             command_created()
     elif command == "move-window-to" and len(argv) >= 3:
         client, _ = parse_optional_client(argv[3:])
-        command_move_window_to_session(argv[2], client)
+        with mutation_lock():
+            command_move_window_to_session(argv[2], client)
 
 
 if __name__ == "__main__":
