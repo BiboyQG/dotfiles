@@ -1,0 +1,16 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "permissions": {
+    "defaultMode": "dontAsk"
+  },
+  "model": "sonnet",
+  "enableWorkflows": true,
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "skipWorkflowUsageWarning": true
+}

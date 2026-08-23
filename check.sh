@@ -461,6 +461,7 @@ SETUP_FIXTURE_TMP="$SETUP_FIXTURE_ROOT/tmp"
 SETUP_SNAPSHOT_DIR="$CHECK_WORK_DIR/setup-snapshots"
 SETUP_POISON_MARKER="$SETUP_SNAPSHOT_DIR/poison"
 mkdir -p \
+  "$SETUP_FIXTURE_SOURCE/home/.claude" \
   "$SETUP_FIXTURE_SOURCE/home/.config/kitty" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
