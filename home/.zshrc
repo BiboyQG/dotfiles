@@ -117,7 +117,6 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --color=always --icons=always $
 alias ll="eza -alh --icons=auto --color=always"
 alias s="fastfetch"
 alias l="lazygit"
-alias m="macmon"
 alias tn="tmux new -s"
 unalias ta 2>/dev/null || true
 function ta {
