@@ -258,8 +258,13 @@ sbar.add("item", "ai_usage.popup.spacer", {
 })
 local popup_claude = add_usage_view("ai_usage.popup.claude", "popup." .. bracket.name, assets .. "/claude.png")
 
+local usage_revision = 0
+
 local function update_usage()
+  usage_revision = usage_revision + 1
+  local revision = usage_revision
   sbar.exec(script, function(output)
+    if revision ~= usage_revision then return end
     local usage = parse_usage(output)
     set_usage(codex, usage.codex)
     set_usage(popup_codex, usage.codex)
