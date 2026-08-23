@@ -24,7 +24,6 @@
     },
     "workbench.list.smoothScrolling": true,
     "workbench.editor.showTabs": "single",
-    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
     "terminal.integrated.smoothScrolling": true,
     "terminal.integrated.inheritEnv": false,
     "workbench.settings.applyToAllProfiles": [
