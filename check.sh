@@ -629,45 +629,58 @@ run_setup_preflight() {
       >"$output_file" 2>&1
 }
 
-setup_before="$SETUP_SNAPSHOT_DIR/clean.before"
-setup_after="$SETUP_SNAPSHOT_DIR/clean.after"
-setup_output="$SETUP_SNAPSHOT_DIR/clean.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-run_setup_preflight "$setup_output" || {
-  printf "Clean setup preflight fixture failed:\n" >&2
-  sed 's/^/  /' "$setup_output" >&2
-  exit 1
+assert_setup_preflight() {
+  local name="$1"
+  local expectation="$2"
+  shift 2
+  local -a patterns=()
+  while (( $# )) && [[ "$1" != -- ]]; do
+    patterns+=("$1")
+    shift
+  done
+  (( $# )) && shift
+  local before="$SETUP_SNAPSHOT_DIR/$name.before"
+  local after="$SETUP_SNAPSHOT_DIR/$name.after"
+  local output="$SETUP_SNAPSHOT_DIR/$name.out"
+  local exit_status=0 pattern
+
+  write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$before"
+  run_setup_preflight "$output" "$@" || exit_status=$?
+  if [[ "$expectation" == accept ]] && (( exit_status != 0 )); then
+    printf "Setup preflight fixture %s failed:\n" "$name" >&2
+    sed 's/^/  /' "$output" >&2
+    exit 1
+  fi
+  if [[ "$expectation" == reject ]] && (( exit_status == 0 )); then
+    printf "Setup preflight fixture %s was accepted.\n" "$name" >&2
+    exit 1
+  fi
+  for pattern in "${patterns[@]}"; do
+    grep -Fq -- "$pattern" "$output" || {
+      printf "Setup preflight fixture %s is missing output: %s\n" "$name" "$pattern" >&2
+      exit 1
+    }
+  done
+  write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$after"
+  cmp -s "$before" "$after" || {
+    printf "Setup preflight fixture %s mutated its target:\n" "$name" >&2
+    diff -u "$before" "$after" >&2 || true
+    exit 1
+  }
+  [[ ! -e "$SETUP_POISON_MARKER" ]] || {
+    printf "Setup preflight fixture %s ran a poisoned command.\n" "$name" >&2
+    exit 1
+  }
 }
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup preflight mutated its clean target fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+
+assert_setup_preflight clean accept
 
 printf 'machine-local config\n' \
   >"$SETUP_FIXTURE_SOURCE/home/.codex/config.toml"
 ln -s "$SETUP_FIXTURE_SOURCE/home/.codex" \
   "$SETUP_FIXTURE_HOME/.codex"
-setup_before="$SETUP_SNAPSHOT_DIR/folded.before"
-setup_after="$SETUP_SNAPSHOT_DIR/folded.after"
-setup_output="$SETUP_SNAPSHOT_DIR/folded.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-if run_setup_preflight "$setup_output"; then
-  printf "Setup preflight accepted ignored data in a folded container.\n" >&2
-  exit 1
-fi
-grep -Fxq \
-  "Ignored machine-local data would be stranded by Stow migration: $SETUP_FIXTURE_SOURCE/home/.codex/config.toml" \
-  "$setup_output"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup preflight mutated its folded-container fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+assert_setup_preflight folded reject \
+  "Ignored machine-local data would be stranded by Stow migration: $SETUP_FIXTURE_SOURCE/home/.codex/config.toml"
 rm -f -- \
   "$SETUP_FIXTURE_HOME/.codex" \
   "$SETUP_FIXTURE_SOURCE/home/.codex/config.toml"
@@ -675,103 +688,30 @@ rm -f -- \
 mkdir -p "$SETUP_FIXTURE_HOME/.config/kitty"
 printf 'foreign managed state\n' \
   >"$SETUP_FIXTURE_HOME/.config/kitty/kitty.conf"
-setup_before="$SETUP_SNAPSHOT_DIR/conflict.before"
-setup_after="$SETUP_SNAPSHOT_DIR/conflict.after"
-setup_output="$SETUP_SNAPSHOT_DIR/conflict.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-if run_setup_preflight "$setup_output"; then
-  printf "Setup preflight accepted a managed-file conflict.\n" >&2
-  exit 1
-fi
-grep -Fq \
-  "Stow conflict: $SETUP_FIXTURE_HOME/.config/kitty/kitty.conf already exists." \
-  "$setup_output"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup preflight mutated its conflict target fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+assert_setup_preflight conflict reject \
+  "Stow conflict: $SETUP_FIXTURE_HOME/.config/kitty/kitty.conf already exists."
 
-setup_before="$SETUP_SNAPSHOT_DIR/stow-real.before"
-setup_after="$SETUP_SNAPSHOT_DIR/stow-real.after"
-setup_output="$SETUP_SNAPSHOT_DIR/stow-real.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-if run_setup_preflight "$setup_output" stow-real-conflict; then
-  printf "Setup Stow accepted a conflict through hostile resource options.\n" >&2
-  exit 1
-fi
-grep -Fq '../source/home/.config/kitty/kitty.conf' "$setup_output"
-grep -Fq -- '--adopt not specified' "$setup_output"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup Stow mutated its hostile-resource fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+assert_setup_preflight stow-real reject \
+  '../source/home/.config/kitty/kitty.conf' '--adopt not specified' \
+  -- stow-real-conflict
 
 corrupt_checkout="$SETUP_FIXTURE_HOME/.nvm"
 mkdir -p "$corrupt_checkout/.git/objects"
 printf 'not-a-valid-head\n' >"$corrupt_checkout/.git/HEAD"
-setup_before="$SETUP_SNAPSHOT_DIR/corrupt-git.before"
-setup_after="$SETUP_SNAPSHOT_DIR/corrupt-git.after"
-setup_output="$SETUP_SNAPSHOT_DIR/corrupt-git.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-if run_setup_preflight "$setup_output" git-checkout "$corrupt_checkout"; then
-  printf "Setup preflight accepted a corrupt Git checkout.\n" >&2
-  exit 1
-fi
-grep -Fq "Could not inspect Git checkout $corrupt_checkout:" "$setup_output"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup preflight mutated its corrupt Git fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+assert_setup_preflight corrupt-git reject \
+  "Could not inspect Git checkout $corrupt_checkout:" \
+  -- git-checkout "$corrupt_checkout"
 
 wrong_origin_checkout="$SETUP_FIXTURE_HOME/wrong-nvm"
 git init --quiet "$wrong_origin_checkout"
 git -C "$wrong_origin_checkout" remote add origin \
   https://github.com/example/not-nvm.git
-setup_before="$SETUP_SNAPSHOT_DIR/wrong-origin.before"
-setup_after="$SETUP_SNAPSHOT_DIR/wrong-origin.after"
-setup_output="$SETUP_SNAPSHOT_DIR/wrong-origin.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-if run_setup_preflight "$setup_output" github-checkout "$wrong_origin_checkout"; then
-  printf "Setup preflight accepted a dependency checkout with the wrong origin.\n" >&2
-  exit 1
-fi
-grep -Fq \
+assert_setup_preflight wrong-origin reject \
   "Unexpected origin for Git checkout nvm-sh/nvm at $wrong_origin_checkout: https://github.com/example/not-nvm.git" \
-  "$setup_output"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup preflight mutated its wrong-origin Git fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+  -- github-checkout "$wrong_origin_checkout"
 
 printf '../escape\n' >>"$SETUP_FIXTURE_SOURCE/stow-target-dirs.txt"
-setup_before="$SETUP_SNAPSHOT_DIR/invalid.before"
-setup_after="$SETUP_SNAPSHOT_DIR/invalid.after"
-setup_output="$SETUP_SNAPSHOT_DIR/invalid.out"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_before"
-if run_setup_preflight "$setup_output"; then
-  printf "Setup preflight accepted an unsafe folding boundary.\n" >&2
-  exit 1
-fi
-grep -Fq 'Invalid Stow target directory: ../escape' "$setup_output"
-write_tree_snapshot "$SETUP_FIXTURE_ROOT" >"$setup_after"
-cmp -s "$setup_before" "$setup_after" || {
-  printf "Setup preflight mutated its invalid-manifest target fixture:\n" >&2
-  diff -u "$setup_before" "$setup_after" >&2 || true
-  exit 1
-}
-[[ ! -e "$SETUP_POISON_MARKER" ]]
+assert_setup_preflight invalid reject 'Invalid Stow target directory: ../escape'
 
 log "Checking setup NVM activation"
 NVM_FIXTURE_HOME="$SETUP_SNAPSHOT_DIR/nvm-home"
