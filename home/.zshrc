@@ -185,7 +185,6 @@ function y() {
 
 # Environment variables
 export EDITOR="nvim" # For Yazi default editor
-path=("$HOME/.local/bin" $path)
 
 # Node Version Manager
 export NVM_DIR="$HOME/.nvm"
