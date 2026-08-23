@@ -282,6 +282,7 @@ typeset -g \
 
 run_ip_case() {
   local scenario="$1"
+  local interpreter="$2"
 
   IP_CASE_CURL_LOG="$IP_FIXTURE_DIR/$scenario.curl.log"
   IP_CASE_DIG_LOG="$IP_FIXTURE_DIR/$scenario.dig.log"
@@ -298,7 +299,7 @@ run_ip_case() {
       IP_CURL_LOG="$IP_CASE_CURL_LOG" \
       IP_DIG_LOG="$IP_CASE_DIG_LOG" \
       IP_SLOW_MARKER="$IP_SLOW_MARKER" \
-      /bin/bash "$ROOT/home/bin/ip" 2>"$IP_CASE_STDERR"
+      "$interpreter" "$ROOT/home/bin/ip" 2>"$IP_CASE_STDERR"
   )"; then
     IP_CASE_EXIT=0
   else
@@ -306,54 +307,61 @@ run_ip_case() {
   fi
 }
 
-run_ip_case primary_success
-(( IP_CASE_EXIT == 0 ))
-[[ "$IP_CASE_OUTPUT" == "203.0.113.7" ]]
-[[ ! -s "$IP_CASE_STDERR" ]]
-[[ "$(<"$IP_CASE_CURL_LOG")" == "https://api.ipify.org" ]]
-[[ ! -s "$IP_CASE_DIG_LOG" ]]
-
-run_ip_case invalid_primary_fallback
-(( IP_CASE_EXIT == 0 ))
-[[ "$IP_CASE_OUTPUT" == "198.51.100.17" ]]
-[[ ! -s "$IP_CASE_STDERR" ]]
-grep -Fxq 'https://api.ipify.org' "$IP_CASE_CURL_LOG"
-grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
-[[ ! -s "$IP_CASE_DIG_LOG" ]]
-
 zmodload zsh/datetime
-typeset -F race_started race_elapsed
-race_started=$EPOCHREALTIME
-run_ip_case race
-race_elapsed=$(( EPOCHREALTIME - race_started ))
-(( IP_CASE_EXIT == 0 ))
-[[ "$IP_CASE_OUTPUT" == "192.0.2.44" ]]
-[[ ! -s "$IP_CASE_STDERR" ]]
-[[ -e "$IP_SLOW_MARKER" ]]
-(( race_elapsed < 3.0 )) || {
-  printf "Public IP fallback waited %.3fs for a slow endpoint.\n" \
-    "$race_elapsed" >&2
-  exit 1
-}
-grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
-grep -Fxq 'https://ipinfo.io/ip' "$IP_CASE_CURL_LOG"
-[[ ! -s "$IP_CASE_DIG_LOG" ]]
+# The shebang resolves to whichever bash is first on PATH, so exercise both the
+# macOS baseline and the Homebrew build when they differ.
+typeset -Ua ip_interpreters
+ip_interpreters=(/bin/bash "$(command -v bash)")
+for ip_interpreter in "${ip_interpreters[@]}"; do
+  run_ip_case primary_success "$ip_interpreter"
+  (( IP_CASE_EXIT == 0 ))
+  [[ "$IP_CASE_OUTPUT" == "203.0.113.7" ]]
+  [[ ! -s "$IP_CASE_STDERR" ]]
+  [[ "$(<"$IP_CASE_CURL_LOG")" == "https://api.ipify.org" ]]
+  [[ ! -s "$IP_CASE_DIG_LOG" ]]
 
-run_ip_case all_fail
-(( IP_CASE_EXIT == 1 ))
-[[ -z "$IP_CASE_OUTPUT" ]]
-[[ "$(<"$IP_CASE_STDERR")" == "unable to determine public IPv4" ]]
-[[ "$(awk 'END { print NR }' "$IP_CASE_CURL_LOG")" == 5 ]]
-for endpoint in \
-  'https://api.ipify.org' \
-  'https://ipv4.icanhazip.com' \
-  'https://ipinfo.io/ip' \
-  'https://ifconfig.co/ip' \
-  'https://checkip.amazonaws.com'; do
-  grep -Fxq "$endpoint" "$IP_CASE_CURL_LOG"
+  run_ip_case invalid_primary_fallback "$ip_interpreter"
+  (( IP_CASE_EXIT == 0 ))
+  [[ "$IP_CASE_OUTPUT" == "198.51.100.17" ]]
+  [[ ! -s "$IP_CASE_STDERR" ]]
+  grep -Fxq 'https://api.ipify.org' "$IP_CASE_CURL_LOG"
+  grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
+  [[ ! -s "$IP_CASE_DIG_LOG" ]]
+
+  typeset -F race_started race_elapsed
+  race_started=$EPOCHREALTIME
+  run_ip_case race "$ip_interpreter"
+  race_elapsed=$(( EPOCHREALTIME - race_started ))
+  (( IP_CASE_EXIT == 0 ))
+  [[ "$IP_CASE_OUTPUT" == "192.0.2.44" ]]
+  [[ ! -s "$IP_CASE_STDERR" ]]
+  [[ -e "$IP_SLOW_MARKER" ]]
+  (( race_elapsed < 3.0 )) || {
+    printf "Public IP fallback waited %.3fs for a slow endpoint.\n" \
+      "$race_elapsed" >&2
+    exit 1
+  }
+  grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
+  grep -Fxq 'https://ipinfo.io/ip' "$IP_CASE_CURL_LOG"
+  [[ ! -s "$IP_CASE_DIG_LOG" ]]
+
+  run_ip_case all_fail "$ip_interpreter"
+  (( IP_CASE_EXIT == 1 ))
+  [[ -z "$IP_CASE_OUTPUT" ]]
+  [[ "$(<"$IP_CASE_STDERR")" == "unable to determine public IPv4" ]]
+  [[ "$(awk 'END { print NR }' "$IP_CASE_CURL_LOG")" == 5 ]]
+  for endpoint in \
+    'https://api.ipify.org' \
+    'https://ipv4.icanhazip.com' \
+    'https://ipinfo.io/ip' \
+    'https://ifconfig.co/ip' \
+    'https://checkip.amazonaws.com'; do
+    grep -Fxq "$endpoint" "$IP_CASE_CURL_LOG"
+  done
+  [[ "$(<"$IP_CASE_DIG_LOG")" == \
+    "+short -4 +time=1 +tries=1 myip.opendns.com @resolver1.opendns.com" ]]
 done
-[[ "$(<"$IP_CASE_DIG_LOG")" == \
-  "+short -4 +time=1 +tries=1 myip.opendns.com @resolver1.opendns.com" ]]
+unset ip_interpreter
 
 log "Checking media-state helper behavior"
 media_cache="$CHECK_WORK_DIR/media-cache"

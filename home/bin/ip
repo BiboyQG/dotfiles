@@ -11,317 +11,134 @@ fallback_endpoints=(
   "https://checkip.amazonaws.com"
 )
 curl_opts=( -4 -fsS --max-time 2 --retry 0 )
+# 150 polls of 20 ms outlast curl's own --max-time with room to spare.
+poll_rounds=150
 
 run_dir=""
-shutdown_status=0
-launching_request=0
-request_count=0
-request_sequence=0
 request_pids=()
-request_pgids=()
-request_bodies=()
-request_status_files=()
-request_done=()
-request_reaped=()
-request_group_active=()
-request_status=0
-extracted_ip=""
 result_ip=""
 
-handle_signal() {
-  if (( shutdown_status == 0 )); then
-    shutdown_status="$1"
-  fi
-  (( launching_request == 1 )) || exit "$shutdown_status"
+# Every request runs in its own process group (set -m) so cancelling it also
+# reaches anything the command spawned.
+start_request() {
+  local output="$1"
+  shift
+  set -m
+  "$@" >"$output" 2>/dev/null &
+  request_pids+=("$!")
+  disown "$!" >/dev/null 2>&1 || true
+  set +m
 }
 
-trap 'handle_signal 129' HUP
-trap 'handle_signal 130' INT
-trap 'handle_signal 143' TERM
-
-group_is_running() {
-  local pgid="$1"
-  kill -0 -- "-$pgid" >/dev/null 2>&1
+request_running() {
+  kill -0 -- "-$1" >/dev/null 2>&1
 }
 
-clear_requests() {
-  request_count=0
+stop_requests() {
+  local pid round signal
+  for signal in TERM KILL; do
+    for pid in ${request_pids[@]+"${request_pids[@]}"}; do
+      request_running "$pid" && kill "-$signal" -- "-$pid" >/dev/null 2>&1 || true
+    done
+    for (( round = 0; round < 10; round++ )); do
+      local running=0
+      for pid in ${request_pids[@]+"${request_pids[@]}"}; do
+        request_running "$pid" && running=1
+      done
+      (( running )) || break
+      sleep 0.02
+    done
+  done
   request_pids=()
-  request_pgids=()
-  request_bodies=()
-  request_status_files=()
-  request_done=()
-  request_reaped=()
-  request_group_active=()
-}
-
-cancel_requests() {
-  local index pgid round running
-
-  (( request_count > 0 )) || return 0
-
-  for (( index = 0; index < request_count; index++ )); do
-    [[ "${request_group_active[$index]:-0}" == 1 ]] || continue
-    pgid="${request_pgids[$index]}"
-    group_is_running "$pgid" \
-      && kill -TERM -- "-$pgid" >/dev/null 2>&1 || true
-  done
-
-  for (( round = 0; round < 10; round++ )); do
-    running=0
-    for (( index = 0; index < request_count; index++ )); do
-      [[ "${request_group_active[$index]:-0}" == 1 ]] || continue
-      group_is_running "${request_pgids[$index]}" && running=1
-    done
-    (( running == 1 )) || break
-    sleep 0.02
-  done
-
-  for (( index = 0; index < request_count; index++ )); do
-    [[ "${request_group_active[$index]:-0}" == 1 ]] || continue
-    pgid="${request_pgids[$index]}"
-    group_is_running "$pgid" \
-      && kill -KILL -- "-$pgid" >/dev/null 2>&1 || true
-  done
-
-  for (( round = 0; round < 10; round++ )); do
-    running=0
-    for (( index = 0; index < request_count; index++ )); do
-      [[ "${request_group_active[$index]:-0}" == 1 ]] || continue
-      group_is_running "${request_pgids[$index]}" && running=1
-    done
-    (( running == 1 )) || break
-    sleep 0.02
-  done
-
-  for (( index = 0; index < request_count; index++ )); do
-    request_group_active[$index]=0
-  done
-
-  for (( index = 0; index < request_count; index++ )); do
-    [[ "${request_reaped[$index]:-0}" == 0 ]] || continue
-    wait "${request_pids[$index]}" >/dev/null 2>&1 || true
-    request_reaped[$index]=1
-  done
-
-  clear_requests
 }
 
 cleanup() {
   local status=$?
-
-  trap '' HUP INT TERM
   trap - EXIT
-  cancel_requests 2>/dev/null
-  if [[ -n "$run_dir" && -d "$run_dir" ]]; then
-    rm -r -- "$run_dir"
-  fi
+  stop_requests
+  [[ -n "$run_dir" ]] && rm -rf -- "$run_dir"
   exit "$status"
 }
 trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-start_request() {
-  local body_file="$1"
-  local status_file status_tmp pid
-  shift
-
-  status_file="$run_dir/status.$request_sequence"
-  status_tmp="$status_file.tmp"
-  request_sequence=$((request_sequence + 1))
-  launching_request=1
-  set -m
-  (
-    trap - EXIT HUP INT TERM
-    # The request's own exit status is recorded below instead of aborting here.
-    set +e
-    "$@" >"$body_file" 2>/dev/null
-    child_status=$?
-    printf '%s\n' "$child_status" >"$status_tmp" \
-      && mv "$status_tmp" "$status_file"
-  ) &
-  pid=$!
-  request_pids[$request_count]="$pid"
-  request_pgids[$request_count]="$pid"
-  request_bodies[$request_count]="$body_file"
-  request_status_files[$request_count]="$status_file"
-  request_done[$request_count]=0
-  request_reaped[$request_count]=0
-  request_group_active[$request_count]=1
-  request_count=$((request_count + 1))
-  disown "$pid" >/dev/null 2>&1 || true
-  set +m
-  launching_request=0
-
-  (( shutdown_status == 0 )) || exit "$shutdown_status"
-}
-
-validate_ipv4() {
-  local ip="$1"
-  local a b c d octet value
-
-  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
-  IFS=. read -r a b c d <<<"$ip" || return 1
-  for octet in "$a" "$b" "$c" "$d"; do
-    value="$octet"
-    while [[ "$value" == 0* && "$value" != 0 ]]; do
-      value="${value#0}"
-    done
-    (( value <= 255 )) || return 1
+valid_ipv4() {
+  local octet
+  [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  for octet in ${1//./ }; do
+    (( 10#$octet <= 255 )) || return 1
   done
 }
 
-extract_ipv4() {
-  local body_file="$1"
-  local content="" line
-
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    content+="$line"
-  done <"$body_file"
-  content="${content//$' '/}"
-  content="${content//$'\t'/}"
-  content="${content//$'\n'/}"
-  content="${content//$'\r'/}"
-  validate_ipv4 "$content" || return 1
-  extracted_ip="$content"
+# Prints the response body as a bare IPv4 address, or fails.
+read_ipv4() {
+  local content
+  content="$(tr -d ' \t\r\n' <"$1")"
+  valid_ipv4 "$content" || return 1
+  printf '%s\n' "$content"
 }
 
-finish_request() {
-  local index="$1"
-  local status_file="${request_status_files[$index]}"
-  local status_value
-
-  [[ "${request_done[$index]:-0}" == 0 ]] || return 1
-  if [[ ! -f "$status_file" ]]; then
-    if group_is_running "${request_pgids[$index]}"; then
-      return 1
-    fi
-    wait "${request_pids[$index]}" >/dev/null 2>&1 || true
-    request_reaped[$index]=1
-    request_group_active[$index]=0
-    request_done[$index]=1
-    request_status=125
-    return 0
-  fi
-  IFS= read -r status_value <"$status_file" || return 1
-  [[ "$status_value" =~ ^[0-9]+$ ]] || return 1
-  wait "${request_pids[$index]}" >/dev/null 2>&1 || true
-  request_reaped[$index]=1
-  if ! group_is_running "${request_pgids[$index]}"; then
-    request_group_active[$index]=0
-  fi
-  request_done[$index]=1
-  request_status="$status_value"
-}
-
-wait_for_request() {
-  local index="$1"
-  local max_rounds="$2"
-  local round
-
-  for (( round = 0; round < max_rounds; round++ )); do
-    (( shutdown_status == 0 )) || return "$shutdown_status"
-    finish_request "$index" && return 0
-    sleep 0.02
-  done
-  return 124
-}
-
-run_single_curl() {
-  local endpoint="$1"
-  local body_file="$run_dir/curl.single"
+# Races the given endpoints and keeps the first valid answer.
+fetch_first_ipv4() {
+  local index=0 round pid url
+  local -a settled=()
 
   result_ip=""
-  clear_requests
-  start_request "$body_file" "$curl_bin" "${curl_opts[@]}" "$endpoint"
-  if wait_for_request 0 150 \
-    && (( request_status == 0 )) \
-    && extract_ipv4 "$body_file"; then
-    result_ip="$extracted_ip"
-  fi
-  cancel_requests 2>/dev/null
-  (( shutdown_status == 0 )) || return "$shutdown_status"
-  [[ -n "$result_ip" ]]
-}
-
-run_fallbacks() {
-  local index remaining body_file round
-
-  result_ip=""
-  clear_requests
-  for index in "${!fallback_endpoints[@]}"; do
-    body_file="$run_dir/curl.fallback.$index"
-    start_request "$body_file" "$curl_bin" "${curl_opts[@]}" \
-      "${fallback_endpoints[$index]}"
+  for url in "$@"; do
+    start_request "$run_dir/response.$index" "$curl_bin" "${curl_opts[@]}" "$url"
+    settled+=(0)
+    index=$((index + 1))
   done
 
-  remaining="$request_count"
-  for (( round = 0; round < 150 && remaining > 0; round++ )); do
-    (( shutdown_status == 0 )) || exit "$shutdown_status"
-    for (( index = 0; index < request_count; index++ )); do
-      [[ "${request_done[$index]:-0}" == 0 ]] || continue
-      finish_request "$index" || continue
-      remaining=$((remaining - 1))
-      if (( request_status == 0 )) \
-        && extract_ipv4 "${request_bodies[$index]}"; then
-        result_ip="$extracted_ip"
-        cancel_requests 2>/dev/null
-        (( shutdown_status == 0 )) || return "$shutdown_status"
+  for (( round = 0; round < poll_rounds; round++ )); do
+    local pending=0
+    for (( index = 0; index < ${#request_pids[@]}; index++ )); do
+      (( settled[index] )) && continue
+      pid="${request_pids[$index]}"
+      if request_running "$pid"; then
+        pending=1
+        continue
+      fi
+      settled[index]=1
+      if result_ip="$(read_ipv4 "$run_dir/response.$index")"; then
+        stop_requests
         return 0
       fi
     done
-    (( remaining == 0 )) || sleep 0.02
+    (( pending )) || break
+    sleep 0.02
   done
 
-  cancel_requests 2>/dev/null
-  (( shutdown_status == 0 )) || return "$shutdown_status"
+  stop_requests
   return 1
 }
 
-run_dig() {
-  local body_file="$run_dir/dig"
-  local ip=""
+fetch_dig_ipv4() {
+  local round
+  local output="$run_dir/dig"
 
   result_ip=""
   command -v "$dig_bin" >/dev/null 2>&1 || return 1
-  clear_requests
-  start_request "$body_file" "$dig_bin" +short -4 +time=1 +tries=1 \
+  start_request "$output" "$dig_bin" +short -4 +time=1 +tries=1 \
     myip.opendns.com @resolver1.opendns.com
-  if wait_for_request 0 100 && (( request_status == 0 )); then
-    IFS= read -r ip <"$body_file" || true
-    ip="${ip//$' '/}"
-    ip="${ip//$'\t'/}"
-    ip="${ip//$'\r'/}"
-    validate_ipv4 "$ip" || ip=""
-  fi
-  cancel_requests 2>/dev/null
-  (( shutdown_status == 0 )) || return "$shutdown_status"
-  [[ -n "$ip" ]] || return 1
-  result_ip="$ip"
+  for (( round = 0; round < poll_rounds; round++ )); do
+    request_running "${request_pids[0]}" || break
+    sleep 0.02
+  done
+  stop_requests
+  result_ip="$(read_ipv4 "$output")"
 }
 
-run_dir="$(mktemp -d "${TMPDIR:-/tmp}/public-ip.XXXXXX")" || exit 1
-(( shutdown_status == 0 )) || exit "$shutdown_status"
+run_dir="$(mktemp -d "${TMPDIR:-/tmp}/public-ip.XXXXXX")"
 
-if run_single_curl "$primary_endpoint"; then
-  (( shutdown_status == 0 )) || exit "$shutdown_status"
+if fetch_first_ipv4 "$primary_endpoint" \
+  || fetch_first_ipv4 "${fallback_endpoints[@]}" \
+  || fetch_dig_ipv4; then
   printf '%s\n' "$result_ip"
   exit 0
 fi
-(( shutdown_status == 0 )) || exit "$shutdown_status"
-
-if run_fallbacks; then
-  (( shutdown_status == 0 )) || exit "$shutdown_status"
-  printf '%s\n' "$result_ip"
-  exit 0
-fi
-(( shutdown_status == 0 )) || exit "$shutdown_status"
-
-if run_dig; then
-  (( shutdown_status == 0 )) || exit "$shutdown_status"
-  printf '%s\n' "$result_ip"
-  exit 0
-fi
-(( shutdown_status == 0 )) || exit "$shutdown_status"
 
 printf 'unable to determine public IPv4\n' >&2
 exit 1
