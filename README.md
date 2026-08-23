@@ -144,7 +144,6 @@ To make our life easier, some useful aliases are defined in `home/.zshrc`:
 | Alias | Command          | Description                                  |
 | ----- | ---------------- | -------------------------------------------- |
 | ll    | eza -alh --icons | Enhanced file listing with icons and details |
-| ssh   | kitten ssh       | SSH through Kitty terminal                   |
 | s     | fastfetch        | System information display                   |
 | l     | lazygit          | Terminal Git UI                              |
 | y     | yazi function    | File manager with directory changing support |
