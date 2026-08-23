@@ -862,7 +862,7 @@ install_zsh_plugins() {
   log "Installing latest zsh plugins"
   # The plugin set is declared in the linked ~/.zshrc; sourcing it clones any
   # missing plugin before the update pass.
-  zsh -c 'source "$HOME/.zshrc"; zinit update --all' </dev/null
+  zsh -c 'source "$HOME/.zshrc"; zinit update --all; zinit cclear' </dev/null
 }
 
 install_neovim_plugins() {

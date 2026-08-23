@@ -23,6 +23,7 @@ if [[ -r "$ZINIT_HOME/zinit.zsh" ]]; then
 	zinit ice depth=1; zinit light zsh-users/zsh-completions
 	zinit ice depth=1; zinit light zsh-users/zsh-autosuggestions
 	zinit ice depth=1; zinit light Aloxaf/fzf-tab
+	zinit snippet OMZL::git.zsh
 	zinit snippet OMZP::git
 else
 	print -u2 "zinit is not installed; rerun the dotfiles setup script"
