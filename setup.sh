@@ -1150,12 +1150,10 @@ restart_skhd() {
     return 1
   fi
 
-  local attempt label
+  local attempt
   for attempt in {1..40}; do
-    for label in com.asmvik.skhd com.koekeishiya.skhd; do
-      launchctl print "gui/$(id -u)/$label" 2>/dev/null \
-        | grep -Eq '^[[:space:]]*state = running$' && return 0
-    done
+    launchctl print "gui/$(id -u)/com.koekeishiya.skhd" 2>/dev/null \
+      | grep -Eq '^[[:space:]]*state = running$' && return 0
     sleep 0.25
   done
   skip "skhd restart returned successfully but its launchd job is not running."
