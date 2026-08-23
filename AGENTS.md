@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository manages dotfiles for an Apple Silicon Mac; Intel Macs are not supported. Deployable files live in the `home/` GNU Stow package. Application configuration is under `home/.config/`, shell entry points are in `home/`, command helpers are in `home/bin/`, and launch agents are in `home/Library/LaunchAgents/`. Repository tooling stays at the root: `setup.sh` installs and links the environment, `check.sh` validates it, `Brewfile` declares packages, and `lib/` contains shared shell logic. Deterministic test code belongs in `tests/`, currently including `tests/sketchybar_runtime_spec.lua`.
+This repository manages dotfiles for an Apple Silicon Mac; Intel Macs are not supported. Deployable files live in the `home/` GNU Stow package. Application configuration is under `home/.config/`, shell entry points are in `home/`, command helpers are in `home/bin/`, launch agents are in `home/Library/LaunchAgents/`, and VS Code user settings are in `home/Library/Application Support/Code/User/`. Repository tooling stays at the root: `setup.sh` installs and links the environment, `check.sh` validates it, `Brewfile` declares packages, and `lib/` contains shared shell logic. Deterministic test code belongs in `tests/`, currently including `tests/sketchybar_runtime_spec.lua`.
 
 ## Build, Test, and Development Commands
 

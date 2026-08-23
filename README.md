@@ -2,7 +2,7 @@
 
 This repo contains the dotfiles for my Apple Silicon Mac. Intel Macs are not supported.
 
-Files deployed into the home directory live under the dedicated `home/` Stow package. Repository tooling such as `setup.sh`, `check.sh`, `Brewfile`, and VS Code link sources stays at the repository root.
+Files deployed into the home directory live under the dedicated `home/` Stow package. Repository tooling such as `setup.sh`, `check.sh`, and `Brewfile` stays at the repository root.
 
 Powerlevel10k, Neovim, and Yazi state that affects reproducibility is tracked in `home/.p10k.zsh`, `home/.config/nvim/lazy-lock.json`, and `home/.config/yazi/package.toml`. Machine-specific login-shell additions belong in the untracked `~/.zprofile.local`, which is sourced after the managed `home/.zprofile`.
 
@@ -86,7 +86,7 @@ zsh setup.sh --skip-system-defaults
 
 This will:
 
-- Check Stow, VS Code, tmux plugin, existing Brew tap, and any running AeroSpace configuration conflicts before changing system settings or installing anything; a stopped AeroSpace instance is validated immediately after launch
+- Check Stow, tmux plugin, existing Brew tap, and any running AeroSpace configuration conflicts before changing system settings or installing anything; a stopped AeroSpace instance is validated immediately after launch
 - Symlink the dotfiles without adopting existing files
 - Preserve an existing untracked `.zprofile` as `.zprofile.local` before linking the managed login profile
 - Install or upgrade the Homebrew bundle and validate trusted taps
@@ -94,7 +94,7 @@ This will:
 - Install the latest kitty release with the official installer
 - Install or update nvm, Node, Codex CLI, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
-- Link VS Code settings to its real macOS user-config directory
+- Deploy VS Code settings and keybindings into `~/Library/Application Support/Code/User` through the Stow package
 - Keep machine-local Codex config outside the repo
 - Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar and skhd with postflight checks
 

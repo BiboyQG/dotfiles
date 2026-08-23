@@ -505,31 +505,6 @@ preflight_dotfiles() {
   preflight_stow_simulation || return 1
 }
 
-preflight_vscode_config() {
-  log "Checking VS Code configuration conflicts"
-
-  local vscode_user_dir="$HOME/Library/Application Support/Code/User"
-  local source target resolved
-  for source in "$DOTFILES_DIR/.vscode/vscode-settings.json" "$DOTFILES_DIR/.vscode/keybindings.json"; do
-    if [[ "${source:t}" == "vscode-settings.json" ]]; then
-      target="$vscode_user_dir/settings.json"
-    else
-      target="$vscode_user_dir/keybindings.json"
-    fi
-
-    if [[ -L "$target" ]]; then
-      resolved="$(realpath "$target" 2>/dev/null || true)"
-      if [[ "$resolved" != "$source" ]]; then
-        printf "Refusing to replace unmanaged VS Code config link: %s\n" "$target" >&2
-        return 1
-      fi
-    elif [[ -e "$target" ]] && ! cmp -s "$source" "$target"; then
-      printf "Refusing to replace different VS Code config: %s\n" "$target" >&2
-      return 1
-    fi
-  done
-}
-
 preflight_aerospace_config() {
   have aerospace || return 0
   if ! pgrep -x AeroSpace >/dev/null 2>&1; then
@@ -662,7 +637,6 @@ preflight_setup() {
   preflight_brew_taps || return 1
   preflight_existing_git_checkouts || return 1
   preflight_dotfiles || return 1
-  preflight_vscode_config || return 1
   preflight_tmux_plugins || return 1
   preflight_aerospace_config || return 1
 }
@@ -845,34 +819,6 @@ link_dotfiles() {
   fi
 
   run_stow --dir="$DOTFILES_DIR" --restow --target="$HOME" home
-}
-
-link_vscode_config() {
-  log "Linking VS Code user configuration"
-
-  preflight_vscode_config >/dev/null || return 1
-
-  local vscode_user_dir="$HOME/Library/Application Support/Code/User"
-  mkdir -p "$vscode_user_dir"
-
-  local source target
-  for source in "$DOTFILES_DIR/.vscode/vscode-settings.json" "$DOTFILES_DIR/.vscode/keybindings.json"; do
-    if [[ "${source:t}" == "vscode-settings.json" ]]; then
-      target="$vscode_user_dir/settings.json"
-    else
-      target="$vscode_user_dir/keybindings.json"
-    fi
-
-    if [[ -L "$target" && "$(realpath "$target")" == "$source" ]]; then
-      continue
-    fi
-    if [[ -e "$target" && ! -L "$target" ]] && ! cmp -s "$source" "$target"; then
-      printf "Refusing to replace different VS Code config: %s\n" "$target" >&2
-      exit 1
-    fi
-    rm -f "$target"
-    ln -s "$source" "$target"
-  done
 }
 
 install_nvm_node() {
@@ -1246,7 +1192,6 @@ main() {
   install_homebrew
   install_brew_packages
   link_dotfiles
-  link_vscode_config
   install_nvm_node
   install_codex_cli
   install_zinit

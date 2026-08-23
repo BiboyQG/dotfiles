@@ -467,6 +467,7 @@ mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-ignored" \
   "$SETUP_FIXTURE_SOURCE/home/.codex" \
+  "$SETUP_FIXTURE_SOURCE/home/Library/Application Support/Code/User" \
   "$SETUP_FIXTURE_SOURCE/home/Library/LaunchAgents" \
   "$SETUP_FIXTURE_HOME/.config/preflight-boundary" \
   "$SETUP_FIXTURE_HOME/.config/preflight-ignored" \
@@ -937,7 +938,7 @@ skhd"
 
   for function_name in \
     preflight_setup accept_xcode_license install_homebrew install_brew_packages \
-    link_dotfiles link_vscode_config install_nvm_node install_codex_cli \
+    link_dotfiles install_nvm_node install_codex_cli \
     install_zinit install_zsh_plugins install_kitty install_sketchybar_assets \
     install_tmux_plugins install_yazi_flavor install_neovim_plugins; do
     eval "$function_name() { :; }"
