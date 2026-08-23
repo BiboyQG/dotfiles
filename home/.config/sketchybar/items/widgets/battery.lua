@@ -29,44 +29,58 @@ local remaining_time = sbar.add("item", {
   },
 })
 
+local battery_bracket = sbar.add("bracket", "widgets.battery.bracket", { battery.name }, {
+  background = { color = colors.bg1 }
+})
 
-battery:subscribe({"routine", "power_source_change", "system_woke"}, function()
+local battery_padding = sbar.add("item", "widgets.battery.padding", {
+  position = "right",
+  width = settings.group_paddings
+})
+
+local function set_battery_visible(visible)
+  battery:set({ drawing = visible })
+  battery_bracket:set({ drawing = visible })
+  battery_padding:set({ drawing = visible })
+end
+
+battery:subscribe({"forced", "routine", "power_source_change", "system_woke"}, function()
   sbar.exec("pmset -g batt", function(batt_info)
-    local icon = "!"
-    local label = "?"
-
     local found, _, charge = batt_info:find("(%d+)%%")
-    if found then
-      charge = tonumber(charge)
-      label = charge .. "%"
+    if not found then
+      -- Desktop Macs report no battery; keep the widget out of the bar.
+      set_battery_visible(false)
+      return
     end
+    charge = tonumber(charge)
+    local icon
+    local label = charge .. "%"
 
     local color = colors.green
     local charging, _, _ = batt_info:find("AC Power")
 
     if charging then
       icon = icons.battery.charging
+    elseif charge > 80 then
+      icon = icons.battery._100
+    elseif charge > 60 then
+      icon = icons.battery._75
+    elseif charge > 40 then
+      icon = icons.battery._50
+    elseif charge > 20 then
+      icon = icons.battery._25
+      color = colors.orange
     else
-      if found and charge > 80 then
-        icon = icons.battery._100
-      elseif found and charge > 60 then
-        icon = icons.battery._75
-      elseif found and charge > 40 then
-        icon = icons.battery._50
-      elseif found and charge > 20 then
-        icon = icons.battery._25
-        color = colors.orange
-      else
-        icon = icons.battery._0
-        color = colors.red
-      end
+      icon = icons.battery._0
+      color = colors.red
     end
 
     local lead = ""
-    if found and charge < 10 then
+    if charge < 10 then
       lead = "0"
     end
 
+    set_battery_visible(true)
     battery:set({
       icon = {
         string = icon,
@@ -89,12 +103,3 @@ battery:subscribe("mouse.clicked", function(env)
     end)
   end
 end)
-
-sbar.add("bracket", "widgets.battery.bracket", { battery.name }, {
-  background = { color = colors.bg1 }
-})
-
-sbar.add("item", "widgets.battery.padding", {
-  position = "right",
-  width = settings.group_paddings
-})
