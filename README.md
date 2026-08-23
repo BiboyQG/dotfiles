@@ -52,6 +52,8 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-H
 | Fastfetch           | `brew`                   | System info summary                              |
 | Cloc                | `brew`                   | Count lines of code                              |
 | Dust                | `brew`                   | `du` alternative                                 |
+| hf                  | `brew`                   | Hugging Face Hub CLI                             |
+| Mole                | `brew`                   | Deep clean and optimize macOS                    |
 | Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
 | Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
