@@ -868,9 +868,19 @@ install_nvm_node() {
   set -u
 }
 
+install_claude_cli() {
+  log "Installing latest Claude Code with the native installer"
+  curl -fsSL https://claude.ai/install.sh \
+    | PATH="$HOME/.local/bin:$PATH" /bin/bash -s -- latest
+  "$HOME/.local/bin/claude" --version
+}
+
 install_codex_cli() {
-  log "Installing latest Codex CLI"
-  npm install --global @openai/codex@latest
+  log "Installing latest Codex CLI with the standalone installer"
+  curl -fsSL https://chatgpt.com/codex/install.sh \
+    | PATH="$HOME/.local/bin:$PATH" CODEX_NON_INTERACTIVE=1 \
+      CODEX_INSTALL_DIR="$HOME/.local/bin" /bin/sh -s -- --release latest
+  "$HOME/.local/bin/codex" --version
 }
 
 install_zinit() {
@@ -1216,8 +1226,9 @@ main() {
   install_homebrew
   install_brew_packages
   link_dotfiles
-  install_nvm_node
+  install_claude_cli
   install_codex_cli
+  install_nvm_node
   install_zinit
   install_zsh_plugins
   install_kitty

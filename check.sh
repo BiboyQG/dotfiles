@@ -774,6 +774,62 @@ env \
     [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
   ' setup-nvm "$ROOT/setup.sh"
 
+log "Checking native CLI installation without npm or Homebrew"
+CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"
+mkdir -p "$CLI_FIXTURE_HOME"
+for cli in claude codex; do
+  for install_case in success repeat download-failure installer-failure; do
+    expected_exit=0
+    case "$install_case" in
+      download-failure) expected_exit=22 ;;
+      installer-failure) expected_exit=17 ;;
+    esac
+    actual_exit=0
+    env HOME="$CLI_FIXTURE_HOME" PATH=/usr/bin:/bin \
+      CLI_INSTALL_CASE="$install_case" zsh -fc '
+        setopt FUNCTION_ARGZERO
+        source "$1"
+        ! command -v npm >/dev/null
+        ! command -v brew >/dev/null
+        curl() {
+          [[ "$1" == -fsSL ]]
+          [[ "$CLI_INSTALL_CASE" != download-failure ]] || return 22
+          if [[ "$CLI_INSTALL_CASE" == installer-failure ]]; then
+            print -r -- "exit 17"
+            return
+          fi
+          case "$2" in
+            https://claude.ai/install.sh) print -r -- cli=claude ;;
+            https://chatgpt.com/codex/install.sh) print -r -- cli=codex ;;
+            *) return 1 ;;
+          esac
+          cat <<"SH"
+set -eu
+[ "${PATH%%:*}" = "$HOME/.local/bin" ]
+if [ "$cli" = codex ]; then
+  [ "$CODEX_NON_INTERACTIVE" = 1 ]
+  [ "$CODEX_INSTALL_DIR" = "$HOME/.local/bin" ]
+  [ "$*" = "--release latest" ]
+else
+  [ "$*" = latest ]
+fi
+mkdir -p "$HOME/.local/bin"
+printf "#!/bin/sh\n[ \"\$1\" = --version ]\n" >"$HOME/.local/bin/$cli"
+chmod +x "$HOME/.local/bin/$cli"
+SH
+        }
+        "install_${2}_cli"
+      ' setup-native-cli "$ROOT/setup.sh" "$cli" \
+      >"$CHECK_WORK_DIR/native-cli.log" 2>&1 || actual_exit=$?
+    if (( actual_exit != expected_exit )); then
+      cat "$CHECK_WORK_DIR/native-cli.log" >&2
+      printf 'Unexpected %s %s exit: %s (expected %s)\n' \
+        "$cli" "$install_case" "$actual_exit" "$expected_exit" >&2
+      exit 1
+    fi
+  done
+done
+
 log "Checking Xcode license preflight"
 env zsh -fc '
   setopt FUNCTION_ARGZERO
@@ -938,7 +994,7 @@ skhd"
 
   for function_name in \
     preflight_setup accept_xcode_license install_homebrew install_brew_packages \
-    link_dotfiles install_nvm_node install_codex_cli \
+    link_dotfiles install_claude_cli install_codex_cli install_nvm_node \
     install_zinit install_zsh_plugins install_kitty install_sketchybar_assets \
     install_tmux_plugins install_yazi_flavor install_neovim_plugins; do
     eval "$function_name() { :; }"

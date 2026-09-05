@@ -53,7 +53,6 @@ cask "font-sf-pro"
 cask "nikitabobko/tap/aerospace"
 cask "openusage"
 cask "arc"
-cask "claude-code"
 cask "pdf-expert"
 cask "visual-studio-code"
 

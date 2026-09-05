@@ -62,8 +62,8 @@ Most tools are declared in `Brewfile`; `setup.sh` also installs the latest non-H
 | VS Code             | `brew --cask`            | GUI editor with extensions declared in Brewfile  |
 | Arc                 | `brew --cask`            | Browser used by the AeroSpace shortcut           |
 | PDF Expert          | `brew --cask`            | PDF opener used by Yazi                          |
-| Claude Code         | `brew --cask`            | Anthropic coding CLI                             |
-| Codex CLI           | `npm`                    | OpenAI coding CLI                                |
+| Claude Code         | Native installer         | Anthropic coding CLI                             |
+| Codex CLI           | Standalone installer     | OpenAI coding CLI                                |
 
 AeroSpace is used for window management, so SIP can stay enabled.
 
@@ -93,7 +93,8 @@ This will:
 - Install or upgrade the Homebrew bundle and validate trusted taps
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
 - Install the latest kitty release with the official installer
-- Install or update nvm, Node, Codex CLI, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
+- Install or update [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew
+- Install or update nvm, Node, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
 - Deploy VS Code settings and keybindings into `~/Library/Application Support/Code/User` through the Stow package
 - Keep machine-local Codex config outside the repo
