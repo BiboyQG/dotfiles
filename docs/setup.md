@@ -72,3 +72,4 @@ Live mode adds read-only checks of installed fonts, Neovim parsers and queries, 
 - **A zinit update fails:** inspect `~/.local/state/dotfiles/zinit-update.log`, or `$XDG_STATE_HOME/dotfiles/zinit-update.log` if configured. Setup checks diagnostics and plugin revisions before accepting an update.
 - **Neovim parser setup fails:** setup waits for Tree-sitter updates and validates highlight queries; inspect the reported parser or query error and rerun setup after resolving it.
 - **AeroSpace or SketchyBar fails to start:** inspect setup's service postflight output; use `zsh check.sh --live` to check the current configuration.
+- **Desktop flashes during AeroSpace workspace switches:** see the [local AeroSpace patch](aerospace-patch.md) for the pinned upstream version, rebuild instructions, and rollback procedure.

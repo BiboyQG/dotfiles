@@ -1,0 +1,532 @@
+diff --git a/Sources/AppBundle/layout/LayoutGeneration.swift b/Sources/AppBundle/layout/LayoutGeneration.swift
+new file mode 100644
+index 0000000..d70900b
+--- /dev/null
++++ b/Sources/AppBundle/layout/LayoutGeneration.swift
+@@ -0,0 +1,39 @@
++import Common
++
++/// An awaited layout can be superseded while the main actor runs another session.
++@MainActor
++final class LayoutGeneration {
++    fileprivate var current: UniqueToken? = nil
++
++    func begin(isValid: @escaping @MainActor () -> Bool = { true }) -> LayoutPass {
++        let token = UniqueToken()
++        current = token
++        return LayoutPass(generation: self, token: token, isValid: isValid)
++    }
++}
++
++@MainActor
++struct LayoutPass {
++    fileprivate let generation: LayoutGeneration
++    fileprivate let token: UniqueToken
++    fileprivate let isValid: @MainActor () -> Bool
++
++    var isCurrent: Bool { generation.current == token && isValid() }
++
++    @discardableResult
++    func afterRestoring(
++        _ jobs: [RunLoopJob],
++        _ body: @MainActor () async throws -> Void,
++    ) async throws -> Bool {
++        try await withThrowingTaskGroup(of: Void.self) { group in
++            for job in jobs {
++                group.addTask { try await job.awaitCompletion() }
++            }
++            try await group.waitForAll()
++        }
++        try checkCancellation()
++        guard isCurrent else { return false }
++        try await body()
++        return isCurrent
++    }
++}
+diff --git a/Sources/AppBundle/layout/layoutRecursive.swift b/Sources/AppBundle/layout/layoutRecursive.swift
+index 41756e5..00101e0 100644
+--- a/Sources/AppBundle/layout/layoutRecursive.swift
++++ b/Sources/AppBundle/layout/layoutRecursive.swift
+@@ -2,19 +2,23 @@ import AppKit
+ 
+ extension Workspace {
+     @MainActor
+-    func layoutWorkspace() async throws {
++    func layoutWorkspace(isCurrent: @escaping @MainActor () -> Bool = { true }) async throws {
++        try checkCancellation()
++        guard isCurrent() else { return }
+         if isEffectivelyEmpty { return }
+         let rect = workspaceMonitor.visibleRectPaddedByOuterGaps
+         // If monitors are aligned vertically and the monitor below has smaller width, then macOS may not allow the
+         // window on the upper monitor to take full width. rect.height - 1 resolves this problem
+         // But I also faced this problem in monitors horizontal configuration. ¯\_(ツ)_/¯
+-        try await layoutRecursive(rect.topLeftCorner, width: rect.width, height: rect.height - 1, virtual: rect, LayoutContext(self))
++        try await layoutRecursive(rect.topLeftCorner, width: rect.width, height: rect.height - 1, virtual: rect, LayoutContext(self, isCurrent: isCurrent))
+     }
+ }
+ 
+ extension TreeNode {
+     @MainActor
+     fileprivate func layoutRecursive(_ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect, _ context: LayoutContext) async throws {
++        try checkCancellation()
++        guard context.isCurrent() else { return }
+         let physicalRect = Rect(topLeftX: point.x, topLeftY: point.y, width: width, height: height)
+         switch nodeCases {
+             case .workspace(let workspace):
+@@ -59,11 +63,13 @@ extension TreeNode {
+ private struct LayoutContext {
+     let workspace: Workspace
+     let resolvedGaps: ResolvedGaps
++    let isCurrent: @MainActor () -> Bool
+ 
+     @MainActor
+-    init(_ workspace: Workspace) {
++    init(_ workspace: Workspace, isCurrent: @escaping @MainActor () -> Bool) {
+         self.workspace = workspace
+         self.resolvedGaps = ResolvedGaps(gaps: config.gaps, monitor: workspace.workspaceMonitor)
++        self.isCurrent = isCurrent
+     }
+ }
+ 
+@@ -72,6 +78,8 @@ extension Window {
+     fileprivate func layoutFloatingWindow(_ context: LayoutContext) async throws {
+         let workspace = context.workspace
+         let windowRect = try await getAxRect(.cancellable) // Probably not idempotent
++        try checkCancellation()
++        guard context.isCurrent() else { return }
+         let currentMonitor = windowRect?.center.monitorApproximation
+         if let currentMonitor, let windowRect, workspace != currentMonitor.activeWorkspace {
+             let windowTopLeftCorner = windowRect.topLeftCorner
+diff --git a/Sources/AppBundle/layout/refresh.swift b/Sources/AppBundle/layout/refresh.swift
+index d33f291..c30d92b 100644
+--- a/Sources/AppBundle/layout/refresh.swift
++++ b/Sources/AppBundle/layout/refresh.swift
+@@ -4,6 +4,8 @@ import Common
+ @MainActor
+ private var activeRefreshTask: Task<(), any Error>? = nil
+ 
++@MainActor private let layoutGeneration = LayoutGeneration()
++
+ @MainActor
+ func scheduleCancellableCompleteRefreshSession(
+     _ event: RefreshSessionEvent,
+@@ -80,7 +82,7 @@ func runLightSession<T>(
+         updateTrayText()
+         SecureInputPanel.shared.refresh()
+         if !event.isFocusFollowsMouse { try await layoutWorkspaces() }
+-        if focusBefore != focusAfter {
++        if focusBefore != focusAfter && focusAfter == focus.windowOrNil {
+             focusAfter?.nativeFocus() // syncFocusToMacOs
+         }
+         if !event.isFocusFollowsMouse { scheduleCancellableCompleteRefreshSession(event) }
+@@ -154,16 +156,25 @@ enum OptimalHideCorner {
+ 
+ @MainActor
+ private func layoutWorkspaces() async throws {
++    let layoutMonitors = monitors
++    let visibleWorkspaces = layoutMonitors.map(\.activeWorkspace)
++    let focusedWindow = focus.windowOrNil
++    let focusedWorkspace = focus.workspace
++    let layout = layoutGeneration.begin {
++        focus.windowOrNil == focusedWindow && focus.workspace == focusedWorkspace &&
++            monitors.map(\.activeWorkspace) == visibleWorkspaces
++    }
+     if !TrayMenuModel.shared.isEnabled {
+         for workspace in Workspace.all {
++            try checkCancellation()
++            guard layout.isCurrent else { return }
+             workspace.allLeafWindowsRecursive.forEach { ($0 as! MacWindow).unhideFromCorner() } // todo as!
+-            try await workspace.layoutWorkspace() // Unhide tiling windows from corner
++            try await workspace.layoutWorkspace(isCurrent: { layout.isCurrent }) // Unhide tiling windows from corner
+         }
+         return
+     }
+-    let monitors = monitors
+     var monitorToOptimalHideCorner: [CGPoint: OptimalHideCorner] = [:]
+-    for monitor in monitors {
++    for monitor in layoutMonitors {
+         let xOff = monitor.width * 0.1
+         let yOff = monitor.height * 0.1
+         // brc = bottomRightCorner
+@@ -180,23 +191,36 @@ private func layoutWorkspaces() async throws {
+         let important = 10
+ 
+         let corner: OptimalHideCorner =
+-            monitors.sumOfInt { contains($0, blc1) + contains($0, blc2) + important * contains($0, blc3) } <
+-            monitors.sumOfInt { contains($0, brc1) + contains($0, brc2) + important * contains($0, brc3) }
++            layoutMonitors.sumOfInt { contains($0, blc1) + contains($0, blc2) + important * contains($0, blc3) } <
++            layoutMonitors.sumOfInt { contains($0, brc1) + contains($0, brc2) + important * contains($0, brc3) }
+             ? .bottomLeftCorner
+             : .bottomRightCorner
+         monitorToOptimalHideCorner[monitor.rect.topLeftCorner] = corner
+     }
+ 
+     // to reduce flicker, first unhide visible workspaces, then hide invisible ones
+-    for monitor in monitors {
+-        let workspace = monitor.activeWorkspace
++    var visibleWindows: [MacWindow] = []
++    for workspace in visibleWorkspaces {
++        try checkCancellation()
++        guard layout.isCurrent else { return }
++        visibleWindows += workspace.allLeafWindowsRecursive.map { $0 as! MacWindow } // todo as!
+         workspace.allLeafWindowsRecursive.forEach { ($0 as! MacWindow).unhideFromCorner() } // todo as!
+-        try await workspace.layoutWorkspace()
++        try await workspace.layoutWorkspace(isCurrent: { layout.isCurrent })
+     }
+-    for workspace in Workspace.all where !workspace.isVisible {
+-        let corner = monitorToOptimalHideCorner[workspace.workspaceMonitor.rect.topLeftCorner] ?? .bottomRightCorner
+-        for window in workspace.allLeafWindowsRecursive {
+-            try await (window as! MacWindow).hideInCorner(corner) // todo as!
++    guard layout.isCurrent else { return }
++    // setAxFrame only enqueues AX work. Wait for the actual foreground jobs, including
++    // cancelled jobs, before hiding the previous workspace. This is not a compositor fence.
++    let restoreJobs = visibleWindows.compactMap { $0.macApp.pendingFrameJob($0.windowId) }
++    try await layout.afterRestoring(restoreJobs) {
++        for workspace in Workspace.all where !workspace.isVisible {
++            let corner = monitorToOptimalHideCorner[workspace.workspaceMonitor.rect.topLeftCorner] ?? .bottomRightCorner
++            for window in workspace.allLeafWindowsRecursive {
++                try checkCancellation()
++                guard layout.isCurrent && TrayMenuModel.shared.isEnabled else { return }
++                try await (window as! MacWindow).hideInCorner(corner, isCurrent: {
++                    layout.isCurrent && TrayMenuModel.shared.isEnabled && !workspace.isVisible
++                }) // todo as!
++            }
+         }
+     }
+ }
+diff --git a/Sources/AppBundle/runLoop.swift b/Sources/AppBundle/runLoop.swift
+index 976d51e..de8760d 100644
+--- a/Sources/AppBundle/runLoop.swift
++++ b/Sources/AppBundle/runLoop.swift
+@@ -51,6 +51,7 @@ private final class RunLoopAction: NSObject, Sendable {
+         _refreshSessionEvent = refreshSessionEvent
+     }
+     @objc func action() {
++        defer { job.signalCompletion() }
+         if autoCheckCancelled && job.isCancelled { return }
+         $refreshSessionEvent.withValue(_refreshSessionEvent) {
+             _action(job)
+@@ -59,6 +60,7 @@ private final class RunLoopAction: NSObject, Sendable {
+ }
+ 
+ final class RunLoopJob: Sendable, AeroAny {
++    private let completion: AwaitableOneTimeBroadcastLatch?
+     // Alternative 1. In macOS 15, it's possible to use `Atomic<Bool>` from `Synchronization` module
+     // Alternative 2. https://github.com/apple/swift-atomics/tree/main but I don't want to add one more dependency just for
+     //                AtomicBool
+@@ -72,7 +74,20 @@ final class RunLoopJob: Sendable, AeroAny {
+     }
+ 
+     let cm: CancellationMode
+-    public init(_ cm: CancellationMode) { self.cm = cm }
++    public init(_ cm: CancellationMode, trackCompletion: Bool = false) {
++        self.cm = cm
++        completion = trackCompletion ? AwaitableOneTimeBroadcastLatch() : nil
++    }
++
++    // Cancellation of the waiter must not depend on a slow application's run loop.
++    func awaitCompletion() async throws {
++        try await completion?.await()
++    }
++
++    fileprivate func signalCompletion() {
++        guard let completion else { return }
++        Task.startUnstructured { await completion.signalToAll() }
++    }
+ 
+     static let cancelled: RunLoopJob = RunLoopJob(.cancellable).also { $0.cancel() }
+ 
+diff --git a/Sources/AppBundle/tree/MacApp.swift b/Sources/AppBundle/tree/MacApp.swift
+index 22d9bde..62c1175 100644
+--- a/Sources/AppBundle/tree/MacApp.swift
++++ b/Sources/AppBundle/tree/MacApp.swift
+@@ -149,13 +149,17 @@ final class MacApp: AbstractApp {
+ 
+     func setAxFrame(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {
+         setFrameJobs.removeValue(forKey: windowId)?.cancel()
+-        setFrameJobs[windowId] = withWindowAsync(windowId, .cancellable) { [axApp] window, job in
++        setFrameJobs[windowId] = withWindowAsync(windowId, .cancellable, trackCompletion: true) { [axApp] window, job in
+             try disableAnimations(app: axApp.threadGuarded, job) {
+                 try setFrame(window, topLeft, size, job)
+             }
+         }
+     }
+ 
++    func pendingFrameJob(_ windowId: UInt32) -> RunLoopJob? {
++        setFrameJobs[windowId]
++    }
++
+     func setAxFrameForTermination(_ windowId: UInt32, _ topLeft: CGPoint?, _ size: CGSize?) {
+         setFrameJobs.removeValue(forKey: windowId)?.cancel()
+         let semaphore = DispatchSemaphore(value: 0)
+@@ -351,8 +355,8 @@ final class MacApp: AbstractApp {
+         }
+     }
+ 
+-    private func withWindowAsync(_ windowId: UInt32, _ cm: CancellationMode, _ body: @Sendable @escaping (AXUIElement, RunLoopJob) throws -> ()) -> RunLoopJob {
+-        thread?.runInLoopAsync(job: RunLoopJob(cm)) { [windows] job in
++    private func withWindowAsync(_ windowId: UInt32, _ cm: CancellationMode, trackCompletion: Bool = false, _ body: @Sendable @escaping (AXUIElement, RunLoopJob) throws -> ()) -> RunLoopJob {
++        thread?.runInLoopAsync(job: RunLoopJob(cm, trackCompletion: trackCompletion)) { [windows] job in
+             guard let window = windows.threadGuarded[windowId] else { return }
+             try? body(window.ax, job)
+         } ?? .cancelled
+diff --git a/Sources/AppBundle/tree/MacWindow.swift b/Sources/AppBundle/tree/MacWindow.swift
+index 5fd6cbd..a3899f5 100644
+--- a/Sources/AppBundle/tree/MacWindow.swift
++++ b/Sources/AppBundle/tree/MacWindow.swift
+@@ -120,11 +120,14 @@ final class MacWindow: Window {
+ 
+     // todo it's part of the window layout and should be moved to layoutRecursive.swift
+     @MainActor
+-    func hideInCorner(_ corner: OptimalHideCorner) async throws {
++    func hideInCorner(_ corner: OptimalHideCorner, isCurrent: @MainActor () -> Bool = { true }) async throws {
++        try checkCancellation()
++        guard isCurrent() else { return }
+         guard let nodeMonitor else { return }
+         // Don't accidentally override prevUnhiddenEmulationPosition in case of subsequent `hideInCorner` calls
+         if !isHiddenInCorner {
+             guard let windowRect = try await getAxRect(.cancellable) else { return }
++            guard isCurrent() else { return }
+             // Check for isHiddenInCorner for the second time because of the suspension point above
+             if !isHiddenInCorner {
+                 let topLeftCorner = windowRect.topLeftCorner
+@@ -151,6 +154,8 @@ final class MacWindow: Window {
+                 let onePixelOffset = macApp.appId == .zoom ? .zero : CGPoint(x: 1, y: 1)
+                 p = nodeMonitor.visibleRect.bottomRightCorner - onePixelOffset
+         }
++        try checkCancellation()
++        guard isCurrent() else { return }
+         setAxFrame(p, nil)
+     }
+ 
+diff --git a/Sources/AppBundleTests/WorkspaceTransitionTest.swift b/Sources/AppBundleTests/WorkspaceTransitionTest.swift
+new file mode 100644
+index 0000000..e6897c1
+--- /dev/null
++++ b/Sources/AppBundleTests/WorkspaceTransitionTest.swift
+@@ -0,0 +1,225 @@
++@testable import AppBundle
++import Common
++import Foundation
++import XCTest
++
++@MainActor
++final class WorkspaceTransitionTest: XCTestCase {
++    func testRestoresEveryForegroundAppBeforeHidingOutgoingWindows() async throws {
++        let slowApp = TestAppRunLoop()
++        let fastApp = TestAppRunLoop()
++        defer {
++            slowApp.stop()
++            fastApp.stop()
++        }
++        let releaseSlowFrame = DispatchSemaphore(value: 0)
++        defer { releaseSlowFrame.signal() }
++        let slowFrameStarted = XCTestExpectation(description: "slow frame started")
++        let slowFrameFinished = DispatchSemaphore(value: 0)
++        let fastFrameFinished = DispatchSemaphore(value: 0)
++        let slowFrame = slowApp.enqueue {
++            slowFrameStarted.fulfill()
++            assertEquals(releaseSlowFrame.wait(timeout: .now() + 5), .success)
++            slowFrameFinished.signal()
++        }
++        let fastFrame = fastApp.enqueue { fastFrameFinished.signal() }
++        await waitFor(slowFrameStarted)
++        try await fastFrame.awaitCompletion()
++
++        let generation = LayoutGeneration()
++        let pass = generation.begin()
++        let transitionStarted = XCTestExpectation(description: "transition started")
++        var didHide = false
++        let transition = Task<Bool, any Error> { @MainActor in
++            transitionStarted.fulfill()
++            return try await pass.afterRestoring([slowFrame, fastFrame]) {
++                assertTrue(hasCompleted(slowFrameFinished))
++                assertTrue(hasCompleted(fastFrameFinished))
++                didHide = true
++            }
++        }
++        await waitFor(transitionStarted)
++        assertFalse(didHide)
++        releaseSlowFrame.signal()
++        assertTrue(try await transition.value)
++        assertTrue(didHide)
++    }
++
++    func testNewerWorkspaceTransitionRejectsPendingOldHide() async throws {
++        let app = TestAppRunLoop()
++        defer { app.stop() }
++        let releaseFrame = DispatchSemaphore(value: 0)
++        defer { releaseFrame.signal() }
++        let frameStarted = XCTestExpectation(description: "frame started")
++        let frame = app.enqueue {
++            frameStarted.fulfill()
++            assertEquals(releaseFrame.wait(timeout: .now() + 5), .success)
++        }
++        await waitFor(frameStarted)
++
++        var hiddenBy: [String] = []
++        let generation = LayoutGeneration()
++        let oldPass = generation.begin()
++        let oldTransitionStarted = XCTestExpectation(description: "old transition started")
++        let oldTransition = Task<Bool, any Error> { @MainActor in
++            oldTransitionStarted.fulfill()
++            return try await oldPass.afterRestoring([frame]) { hiddenBy.append("B") }
++        }
++        await waitFor(oldTransitionStarted)
++        let newPass = generation.begin()
++        assertTrue(try await newPass.afterRestoring([]) { hiddenBy.append("C") })
++        releaseFrame.signal()
++
++        assertFalse(try await oldTransition.value)
++        assertEquals(hiddenBy, ["C"])
++        assertTrue(newPass.isCurrent)
++    }
++
++    func testLogicalWorkspaceChangeRejectsHideBeforeAnotherLayoutBegins() async throws {
++        let app = TestAppRunLoop()
++        defer { app.stop() }
++        let releaseFrame = DispatchSemaphore(value: 0)
++        defer { releaseFrame.signal() }
++        let frameStarted = XCTestExpectation(description: "frame started")
++        let frame = app.enqueue {
++            frameStarted.fulfill()
++            assertEquals(releaseFrame.wait(timeout: .now() + 5), .success)
++        }
++        await waitFor(frameStarted)
++
++        let activeWorkspace = TestWorkspaceSelection("B")
++        let generation = LayoutGeneration()
++        let pass = generation.begin(isValid: { activeWorkspace.name == "B" })
++        let transitionStarted = XCTestExpectation(description: "transition started")
++        var didHide = false
++        let transition = Task<Bool, any Error> { @MainActor in
++            transitionStarted.fulfill()
++            return try await pass.afterRestoring([frame]) { didHide = true }
++        }
++        await waitFor(transitionStarted)
++        activeWorkspace.name = "C"
++        releaseFrame.signal()
++
++        assertFalse(try await transition.value)
++        assertFalse(didHide)
++    }
++
++    func testNewTransitionDuringSuspendedHideInvalidatesOldResult() async throws {
++        let allowHideToReturn = AwaitableOneTimeBroadcastLatch()
++        let hideStarted = XCTestExpectation(description: "hide started")
++        let generation = LayoutGeneration()
++        let oldPass = generation.begin()
++        let oldTransition = Task<Bool, any Error> { @MainActor in
++            try await oldPass.afterRestoring([]) {
++                hideStarted.fulfill()
++                try await allowHideToReturn.await()
++            }
++        }
++        await waitFor(hideStarted)
++        let newPass = generation.begin()
++        await allowHideToReturn.signalToAll()
++
++        assertFalse(try await oldTransition.value)
++        assertTrue(newPass.isCurrent)
++    }
++
++    func testCancellingRestoreWaitReturnsWhileApplicationIsStillBlocked() async throws {
++        let app = TestAppRunLoop()
++        defer { app.stop() }
++        let releaseFrame = DispatchSemaphore(value: 0)
++        defer { releaseFrame.signal() }
++        let frameStarted = XCTestExpectation(description: "frame started")
++        let frameFinished = DispatchSemaphore(value: 0)
++        let frame = app.enqueue {
++            frameStarted.fulfill()
++            _ = releaseFrame.wait(timeout: .now() + 5)
++            frameFinished.signal()
++        }
++        await waitFor(frameStarted)
++
++        let generation = LayoutGeneration()
++        let pass = generation.begin()
++        let transitionStarted = XCTestExpectation(description: "transition started")
++        var didHide = false
++        let transition = Task<Bool, any Error> { @MainActor in
++            transitionStarted.fulfill()
++            return try await pass.afterRestoring([frame]) { didHide = true }
++        }
++        await waitFor(transitionStarted)
++        transition.cancel()
++        do {
++            _ = try await transition.value
++            XCTFail("Expected CancellationError")
++        } catch is CancellationError {
++            // Cancellation must not wait for the blocked application to respond.
++        }
++        assertFalse(hasCompleted(frameFinished))
++        assertFalse(didHide)
++        releaseFrame.signal()
++        try await frame.awaitCompletion()
++    }
++
++    func testAppShutdownDrainsCancelledFrameAndReleasesCompletionWaiters() async throws {
++        let app = TestAppRunLoop()
++        defer { app.stop() }
++        let releaseBlocker = DispatchSemaphore(value: 0)
++        defer { releaseBlocker.signal() }
++        let blockerStarted = XCTestExpectation(description: "blocker started")
++        _ = app.enqueue {
++            blockerStarted.fulfill()
++            assertEquals(releaseBlocker.wait(timeout: .now() + 5), .success)
++        }
++        await waitFor(blockerStarted)
++        let frameDidRun = DispatchSemaphore(value: 0)
++        let frame = app.enqueue { frameDidRun.signal() }
++        frame.cancel()
++        app.stop()
++        releaseBlocker.signal()
++
++        try await frame.awaitCompletion()
++        assertFalse(hasCompleted(frameDidRun))
++    }
++
++    private func waitFor(_ expectation: XCTestExpectation) async {
++        assertEquals(await XCTWaiter.fulfillment(of: [expectation], timeout: 5), .completed)
++    }
++}
++
++private func hasCompleted(_ semaphore: DispatchSemaphore) -> Bool {
++    semaphore.wait(timeout: .now()) == .success
++}
++
++@MainActor
++private final class TestWorkspaceSelection {
++    var name: String
++
++    init(_ name: String) {
++        self.name = name
++    }
++}
++
++@MainActor
++private final class TestAppRunLoop {
++    private let thread: Thread
++    private var isStopped = false
++
++    init() {
++        thread = Thread {
++            let port = Port()
++            RunLoop.current.add(port, forMode: .default)
++            CFRunLoopRun()
++            port.invalidate()
++        }
++        thread.start()
++    }
++
++    func enqueue(_ body: @Sendable @escaping () -> Void) -> RunLoopJob {
++        thread.runInLoopAsync(job: RunLoopJob(.cancellable, trackCompletion: true)) { _ in body() }
++    }
++
++    func stop() {
++        if isStopped { return }
++        isStopped = true
++        thread.runInLoopAsync(job: RunLoopJob(.nonCancellable)) { _ in CFRunLoopStop(CFRunLoopGetCurrent()) }
++    }
++}
