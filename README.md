@@ -96,6 +96,8 @@ This will:
 - Install or update [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew
 - Install or update nvm, Node, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
+- Verify zinit update diagnostics and plugin revisions, retaining the log in `~/.local/state/dotfiles/zinit-update.log` (or `$XDG_STATE_HOME/dotfiles/`)
+- Wait for Neovim Tree-sitter parser updates and validate their highlight queries before finishing the editor setup
 - Deploy VS Code settings and keybindings into `~/Library/Application Support/Code/User` through the Stow package
 - Keep machine-local Codex config outside the repo
 - Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar and skhd with postflight checks
@@ -106,7 +108,7 @@ Run the repository checks without installing or upgrading anything:
 zsh check.sh
 ```
 
-The default checker validates shell, Lua, Python, TOML, JSON/JSONC, setup preflight isolation, the LaunchAgent, deterministic IP/media/SketchyBar fixtures, strict C builds/static analysis, tracked `home/` package boundaries, and clean Stow simulations.
+The default checker validates shell, Lua, Python, TOML, JSON/JSONC, setup preflight isolation, the LaunchAgent, deterministic IP/media/SketchyBar/NVM/zinit fixtures, Tree-sitter failure propagation, tmux routing and clipboard content in a disposable server, strict C builds/static analysis, tracked `home/` package boundaries, and clean Stow simulations.
 
 Run read-only checks that depend on the current machine state:
 

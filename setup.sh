@@ -3,6 +3,7 @@ set -euo pipefail
 
 DOTFILES_DIR="${0:A:h}"
 source "$DOTFILES_DIR/lib/brew_bundle.zsh"
+source "$DOTFILES_DIR/lib/zinit_update.zsh"
 SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
@@ -892,18 +893,27 @@ install_zinit() {
 
 install_zsh_plugins() {
   log "Installing latest zsh plugins"
-  # The plugin set is declared in the linked ~/.zshrc; sourcing it clones any
-  # missing plugin before the update pass.
-  # `zinit update --all` terminates the calling shell with status 1 even when
-  # every plugin updated cleanly, which previously skipped `zinit cclear` and
-  # aborted setup. Run it in a subshell and ignore its meaningless exit code;
-  # only `zinit cclear` is allowed to fail the step.
-  zsh -c 'source "$HOME/.zshrc"; ( zinit update --all ) || true; zinit cclear' </dev/null
+  local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+  local update_log="$state_dir/zinit-update.log"
+  local exit_code=0
+  mkdir -p "$state_dir"
+  # Source the declared plugin set, and retain diagnostics even if zinit exits
+  # the child shell before returning to us.
+  zsh -c 'source "$HOME/.zshrc"; zinit update --all --no-pager' </dev/null \
+    >"$update_log" 2>&1 || exit_code=$?
+  cat "$update_log"
+  if ! zinit_update_succeeded "$update_log" "$exit_code" \
+    || ! verify_zinit_checkouts "${XDG_DATA_HOME:-$HOME/.local/share}/zinit/plugins" "$update_log"; then
+    printf "Zinit update failed verification; see %s\n" "$update_log" >&2
+    return 1
+  fi
+  zsh -c 'source "$HOME/.zshrc"; zinit cclear' </dev/null
 }
 
 install_neovim_plugins() {
   log "Installing latest Neovim plugins"
   NVIM_LOG_FILE=/dev/null nvim --headless "+Lazy! sync" +qa
+  NVIM_LOG_FILE=/dev/null nvim --headless -u NONE --noplugin -l "$DOTFILES_DIR/lib/sync_treesitter.lua"
 }
 
 install_yazi_flavor() {

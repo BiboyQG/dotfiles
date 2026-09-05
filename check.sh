@@ -192,7 +192,7 @@ cmp -s "$real_git_index" "$REAL_GIT_INDEX_SNAPSHOT" || {
 }
 
 log "Checking shell syntax"
-zsh -n setup.sh check.sh lib/brew_bundle.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
+zsh -n setup.sh check.sh lib/*.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
   home/.config/aerospace/scripts/resize-edge \
   home/.config/sketchybar/scripts/ai_usage.sh \
   home/.config/sketchybar/scripts/media_state.sh
@@ -1022,6 +1022,15 @@ done < <(
 
 log "Checking SketchyBar runtime behavior"
 lua tests/sketchybar_runtime_spec.lua "$ROOT"
+lua tests/treesitter_sync_spec.lua "$ROOT"
+
+log "Checking shell runtime regression fixtures"
+python3 tests/nvm_runtime_spec.py "$ROOT"
+python3 tests/zinit_update_spec.py "$ROOT"
+
+log "Checking tmux runtime regression fixtures"
+require tmux
+python3 tests/tmux_runtime_spec.py "$ROOT"
 
 log "Checking Python syntax"
 python3 - "$ROOT" <<'PY'
@@ -1042,13 +1051,6 @@ for name in sorted(files):
     if path.is_file():
         ast.parse(path.read_text(), filename=name)
 PY
-
-log "Checking NVM runtime regression fixtures"
-python3 tests/nvm_runtime_spec.py "$ROOT"
-
-log "Checking tmux runtime regression fixtures"
-require tmux
-python3 tests/tmux_runtime_spec.py "$ROOT"
 
 log "Checking tmux session-manager behavior"
 env "${ISOLATED_ENV[@]}" python3 - \
