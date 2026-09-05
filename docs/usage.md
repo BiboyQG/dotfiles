@@ -11,6 +11,10 @@ Some tmux behavior in this repo is optimized for “session slots” (fast switc
 - Create a new session with `Ctrl+s` (keeps numbering contiguous)
 - Switch sessions with `F1..F10` (in Kitty, `⌘1..⌘0` sends `F1..F10` to tmux)
 - Move the current window to session slot with `<prefix> + 1..0`
+- Automatic startup restore keeps saved session names until tmux-resurrect has
+  restored windows and removed its initial placeholder, then numbers sessions
+  once. The startup wrapper retains Continuum's multiple-server check and
+  `~/tmux_no_auto_restore` opt-out; Continuum continues to save automatically.
 
 Shell helpers:
 

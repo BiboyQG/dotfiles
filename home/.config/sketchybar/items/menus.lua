@@ -1,5 +1,4 @@
 local colors = require("colors")
-local icons = require("icons")
 local settings = require("settings")
 
 local menu_watcher = sbar.add("item", {
@@ -42,8 +41,15 @@ local menu_padding = sbar.add("item", "menu.padding", {
   width = 5
 })
 
+local menus_visible = false
+local menu_revision = 0
+
 local function update_menus()
+  if not menus_visible then return end
+  menu_revision = menu_revision + 1
+  local revision = menu_revision
   sbar.exec("$HOME/.local/libexec/sketchybar/menus -l", function(menus)
+    if not menus_visible or revision ~= menu_revision then return end
     sbar.set('/menu\\..*/', { drawing = false })
     menu_padding:set({ drawing = true })
     local id = 1
@@ -58,16 +64,15 @@ end
 
 menu_watcher:subscribe("front_app_switched", update_menus)
 
-space_menu_swap:subscribe("swap_menus_and_spaces", function(env)
-  local drawing = menu_items[1]:query().geometry.drawing == "on"
-  if drawing then
-    menu_watcher:set( { updates = false })
-    sbar.set("/menu\\..*/", { drawing = false })
-    sbar.set("front_app", { drawing = true })
-  else
-    menu_watcher:set( { updates = true })
-    sbar.set("front_app", { drawing = false })
+space_menu_swap:subscribe("swap_menus_and_spaces", function()
+  menus_visible = not menus_visible
+  menu_revision = menu_revision + 1
+  menu_watcher:set({ updates = menus_visible })
+  sbar.set("front_app", { drawing = not menus_visible })
+  if menus_visible then
     update_menus()
+  else
+    sbar.set("/menu\\..*/", { drawing = false })
   end
 end)
 

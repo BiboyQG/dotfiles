@@ -7,6 +7,7 @@ ROOT="${0:A:h}"
 cd "$ROOT"
 
 RUN_LIVE_CHECKS=0
+CHECK_WARNINGS=()
 FOLDING_MANIFEST="$ROOT/stow-target-dirs.txt"
 INSTALLED_XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
@@ -192,19 +193,19 @@ cmp -s "$real_git_index" "$REAL_GIT_INDEX_SNAPSHOT" || {
 }
 
 log "Checking shell syntax"
-zsh -n setup.sh check.sh lib/*.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
+for file in setup.sh check.sh lib/*.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
   home/.config/aerospace/scripts/resize-edge \
   home/.config/sketchybar/scripts/ai_usage.sh \
-  home/.config/sketchybar/scripts/media_state.sh
-/bin/bash -n \
+  home/.config/sketchybar/scripts/media_state.sh; do
+  zsh -n "$file"
+done
+for file in \
   home/bin/abs \
   home/bin/ip \
-  home/.config/tmux/scripts/copy_to_clipboard.sh \
-  home/.config/tmux/scripts/move_window_to_session.sh \
-  home/.config/tmux/scripts/new_session.sh \
-  home/.config/tmux/scripts/rename_session_prompt.sh \
-  home/.config/tmux/scripts/session_created.sh \
-  home/.config/tmux/tmux-status/left.sh
+  home/.config/tmux/scripts/*.sh \
+  home/.config/tmux/tmux-status/*.sh; do
+  /bin/bash -n "$file"
+done
 
 log "Checking public IP helper behavior"
 IP_FIXTURE_DIR="$CHECK_WORK_DIR/ip-fixtures"
@@ -381,6 +382,20 @@ jq -e \
   ' <<<"$media_playing_output" >/dev/null
 media_artwork="$(jq -er '.artwork' <<<"$media_playing_output")"
 [[ -s "$media_artwork" ]]
+
+media_expired="$media_cache/media-artwork-expired-fixture"
+media_recent="$media_cache/media-artwork-recent-fixture"
+cp "$media_artwork" "$media_expired"
+cp "$media_artwork" "$media_recent"
+touch -t 200001010000 "$media_artwork" "$media_expired"
+media_reused_output="$(
+  printf '%s\n' \
+    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"clientBundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
+    | env "${ISOLATED_ENV[@]}" zsh \
+      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+)"
+[[ "$(jq -er '.artwork' <<<"$media_reused_output")" == "$media_artwork" ]]
+[[ -s "$media_artwork" && ! -e "$media_expired" && -s "$media_recent" ]]
 
 media_stopped_output="$(
   printf '%s\n' \
@@ -1022,17 +1037,22 @@ done < <(
   } | LC_ALL=C sort -u
 )
 
-log "Checking SketchyBar runtime behavior"
+log "Checking Lua runtime regression fixtures"
 lua tests/sketchybar_runtime_spec.lua "$ROOT"
 lua tests/treesitter_sync_spec.lua "$ROOT"
+lua tests/neovim_sync_spec.lua "$ROOT"
 
 log "Checking shell runtime regression fixtures"
+python3 tests/shell_syntax_spec.py "$ROOT"
 python3 tests/nvm_runtime_spec.py "$ROOT"
+python3 tests/zsh_completion_spec.py "$ROOT"
 python3 tests/zinit_update_spec.py "$ROOT"
+python3 tests/brew_bundle_spec.py "$ROOT"
 
 log "Checking tmux runtime regression fixtures"
 require tmux
 python3 tests/tmux_runtime_spec.py "$ROOT"
+python3 tests/tmux_restore_spec.py "$ROOT"
 
 log "Checking Python syntax"
 python3 - "$ROOT" <<'PY'
@@ -1619,6 +1639,7 @@ LUA
       "$installed_tmux_plugins/tpm/tpm" >&2
     exit 1
   }
+  python3 tests/tmux_restore_spec.py "$ROOT" "$installed_tmux_plugins"
   mkdir -p "$ISOLATED_HOME/.tmux"
   ln -s "$installed_tmux_plugins" "$ISOLATED_HOME/.tmux/plugins"
   tmux_config_output="$CHECK_WORK_DIR/tmux-config.out"
@@ -1685,7 +1706,9 @@ LUA
     brew bundle check --file="$ROOT/Brewfile" --verbose
 
   log "Reporting unmanaged Brew dependencies"
-  brew_bundle_report_extras "$ROOT/Brewfile"
+  if ! brew_bundle_report_extras "$ROOT/Brewfile"; then
+    CHECK_WARNINGS+=("Optional Homebrew cleanup audit did not complete.")
+  fi
 else
   printf "  Live font, Neovim, AeroSpace, tmux, and Homebrew checks skipped; rerun with --live.\n"
 fi
@@ -1717,4 +1740,9 @@ cmp -s "$real_git_index" "$REAL_GIT_INDEX_SNAPSHOT" || {
   exit 1
 }
 
-printf "All checks passed.\n"
+if (( ${#CHECK_WARNINGS} )); then
+  printf "Required checks passed with warnings:\n"
+  printf '  %s\n' "${CHECK_WARNINGS[@]}"
+else
+  printf "All checks passed.\n"
+fi

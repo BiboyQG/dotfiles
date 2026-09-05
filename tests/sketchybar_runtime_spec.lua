@@ -324,8 +324,7 @@ local function test_spaces()
   local before_front_app = #state.execs
   local before_front_app_delays = #state.delays
   state.emit("front_app_switched")
-  expect(#state.execs == before_front_app + 1, "front-app event started a redundant spaces query")
-  expect(state.execs[#state.execs].command:find("menus") ~= nil, "front-app menu refresh is missing")
+  expect(#state.execs == before_front_app, "front-app event queried hidden menus or spaces")
   expect(#state.delays == before_front_app_delays, "front-app event scheduled a redundant retry")
 
   local before_focus = #state.execs
@@ -378,6 +377,50 @@ local function test_spaces()
     state.execs[#state.execs].command == "/opt/homebrew/bin/aerospace move-node-to-workspace --focus-follows-window 4",
     "right-click move command is incorrect"
   )
+end
+
+local function test_menus()
+  load_modules()
+  local sbar, state = fake_sbar()
+  _G.sbar = sbar
+  sbar.add("item", "front_app", { drawing = true })
+  dofile(sketchybar_root .. "/items/menus.lua")
+
+  -- A second toggle must exit menu mode even before the first query completes.
+  state.emit("swap_menus_and_spaces")
+  local initial_query = state.execs[#state.execs]
+  state.emit("swap_menus_and_spaces")
+  initial_query.callback("Old App\nFile\nEdit", 0)
+  expect(state.objects["menu.1"].properties.drawing == false, "late query reopened hidden menus")
+  expect(state.objects["menu.padding"].properties.drawing == false, "late query reopened menu padding")
+  expect(state.objects["front_app"].properties.drawing == true, "rapid toggle did not restore the front app")
+
+  state.emit("swap_menus_and_spaces")
+  state.execs[#state.execs].callback("Initial App\nFile", 0)
+  state.emit("front_app_switched")
+  local stale_query = state.execs[#state.execs]
+  state.emit("front_app_switched")
+  state.execs[#state.execs].callback("Latest App\nFile", 0)
+  stale_query.callback("Stale App\nEdit", 0)
+  expect(state.objects["menu.1"].properties.label == "Latest App", "stale app query replaced current menus")
+
+  -- A pending refresh cannot restore menus after switching back to spaces.
+  state.emit("front_app_switched")
+  local closed_mode_query = state.execs[#state.execs]
+  state.emit("swap_menus_and_spaces")
+  closed_mode_query.callback("Closed App\nFile", 0)
+  expect(state.objects["menu.1"].properties.drawing == false, "query resurrected menus after leaving menu mode")
+
+  -- Reopening must also invalidate queries from the previous menu session.
+  state.emit("swap_menus_and_spaces")
+  local previous_mode_query = state.execs[#state.execs]
+  state.emit("swap_menus_and_spaces")
+  state.emit("swap_menus_and_spaces")
+  previous_mode_query.callback("Closed App\nFile", 0)
+  expect(state.objects["menu.1"].properties.drawing == false, "reopening accepted a query from the previous mode")
+  state.execs[#state.execs].callback("Reopened App\nFile", 0)
+  expect(state.objects["menu.1"].properties.label == "Reopened App", "current mode query was not applied")
+  expect(state.objects["menu.1"].properties.drawing == true, "current menus stayed hidden")
 end
 
 local function test_focus_refresh()
@@ -694,6 +737,7 @@ end
 
 test_app_icons()
 test_spaces()
+test_menus()
 test_focus_refresh()
 test_media()
 test_wifi()

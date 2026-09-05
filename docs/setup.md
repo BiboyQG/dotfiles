@@ -25,6 +25,7 @@ Review conflicting existing files before replacing them; the installer does not 
 - Install or update [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew
 - Install or update nvm, Node, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions
 - Install declared VS Code extensions and pre-install zsh and Neovim plugins
+- Verify Neovim plugin installation, update, build, and cleanup tasks; fail setup if any task fails
 - Verify zinit update diagnostics and plugin revisions, retaining the log in `~/.local/state/dotfiles/zinit-update.log` (or `$XDG_STATE_HOME/dotfiles/`)
 - Wait for Neovim Tree-sitter parser updates and validate their highlight queries before finishing the editor setup
 - Deploy VS Code settings and keybindings into `~/Library/Application Support/Code/User` through the Stow package
@@ -61,9 +62,9 @@ zsh check.sh
 zsh check.sh --live
 ```
 
-The default suite runs syntax and manifest checks, deterministic runtime fixtures, strict C compilation and static analysis, and isolated Stow simulations. It covers setup preflight, tmux routing and clipboard content, SketchyBar, NVM, zinit, and Tree-sitter failure handling without installing or updating tools.
+The default suite runs syntax and manifest checks, deterministic runtime fixtures, strict C compilation and static analysis, and isolated Stow simulations. It covers setup preflight, tmux routing and restore coordination, clipboard content, SketchyBar, shell completion, NVM, zinit, Neovim plugin sync, and Tree-sitter failure handling without installing or updating tools.
 
-Live mode adds read-only checks of installed fonts, Neovim parsers and queries, AeroSpace, an isolated tmux server, and the Homebrew bundle. The optional Brew cleanup audit reports undeclared dependencies without removing them. Read its output for warnings or audit failures as well as checking the command's exit status.
+Live mode adds read-only checks of installed fonts, Neovim parsers and queries, AeroSpace, an isolated tmux server, and the Homebrew bundle. The optional Brew cleanup audit reports undeclared dependencies without removing them. If that audit cannot finish, the final summary says `Required checks passed with warnings` and identifies the incomplete audit; mandatory checks still fail with a nonzero exit status.
 
 ## Useful diagnostics
 

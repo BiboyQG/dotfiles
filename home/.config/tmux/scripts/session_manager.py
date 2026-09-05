@@ -5,11 +5,14 @@ import os
 import re
 import subprocess
 import sys
+import time
 from contextlib import contextmanager
 from typing import List, Dict, Optional
 
 
 LOCK_NAME = "dotfiles-session-manager"
+STARTUP_OPTION = "@dotfiles-session-startup"
+RESTORING_OPTION = "@dotfiles-session-restoring"
 
 
 def run_tmux(args: List[str], check: bool = True, capture: bool = False) -> str:
@@ -75,6 +78,21 @@ def sanitize_label(label: str) -> str:
     return stripped or "session"
 
 
+def get_option(name: str) -> str:
+    return run_tmux(["show-option", "-gqv", name], check=False, capture=True)
+
+
+def set_option(name: str, value: str) -> None:
+    run_tmux(["set-option", "-gq", name, value])
+
+
+def numbering_suspended() -> bool:
+    return (
+        get_option(STARTUP_OPTION) in ("pending", "restoring")
+        or get_option(RESTORING_OPTION) == "on"
+    )
+
+
 def rename_session(session_id: object, name: str) -> None:
     # The session may have been killed between listing and renaming.
     try:
@@ -129,6 +147,8 @@ def command_switch(index_str: str, client: Optional[str] = None) -> None:
 
 
 def command_rename(label: str, session_id: str) -> None:
+    if numbering_suspended():
+        return
     label = sanitize_label(label)
     sessions = list_sessions()
     for session in sessions:
@@ -142,6 +162,8 @@ def command_rename(label: str, session_id: str) -> None:
 
 
 def command_ensure() -> None:
+    if numbering_suspended():
+        return
     sessions = list_sessions()
     if sessions:
         apply_order(sessions)
@@ -150,6 +172,37 @@ def command_ensure() -> None:
 
 def command_created() -> None:
     # Called after a session is created; ensure numbering stays contiguous.
+    command_ensure()
+
+
+def command_startup_prepare() -> None:
+    # Set before loading plugins or installing session-created hooks. In
+    # particular, resurrect must still see the initial session named "0".
+    if not get_option(STARTUP_OPTION):
+        started = int(run_tmux(["display-message", "-p", "#{start_time}"], capture=True))
+        max_delay = int(get_option("@continuum-restore-max-delay") or "10")
+        state = "pending" if started > time.time() - max_delay else "complete"
+        set_option(STARTUP_OPTION, state)
+
+
+def command_startup_claim() -> None:
+    if get_option(STARTUP_OPTION) == "pending":
+        set_option(STARTUP_OPTION, "restoring")
+        print("claimed")
+
+
+def command_startup_finish() -> None:
+    set_option(STARTUP_OPTION, "complete")
+    set_option(RESTORING_OPTION, "off")
+    command_ensure()
+
+
+def command_restore_begin() -> None:
+    set_option(RESTORING_OPTION, "on")
+
+
+def command_restore_end() -> None:
+    set_option(RESTORING_OPTION, "off")
     command_ensure()
 
 
@@ -191,7 +244,10 @@ def main(argv: List[str]) -> None:
     move.add_argument("--session", required=True)
     move.add_argument("--window", required=True)
     move.add_argument("--client")
-    for command in ("ensure", "created", "list"):
+    for command in (
+        "ensure", "created", "list", "startup-prepare", "startup-claim",
+        "startup-finish", "restore-begin", "restore-end",
+    ):
         commands.add_parser(command)
     args = parser.parse_args(argv[1:])
     for option, pattern in (("session", r"\$\d+"), ("window", r"@\d+")):
@@ -208,6 +264,16 @@ def main(argv: List[str]) -> None:
             command_ensure()
         elif args.command == "created":
             command_created()
+        elif args.command == "startup-prepare":
+            command_startup_prepare()
+        elif args.command == "startup-claim":
+            command_startup_claim()
+        elif args.command == "startup-finish":
+            command_startup_finish()
+        elif args.command == "restore-begin":
+            command_restore_begin()
+        elif args.command == "restore-end":
+            command_restore_end()
         elif args.command == "move-window-to":
             command_move_window_to_session(args.index, args.session, args.window, args.client)
         elif args.command == "list":

@@ -915,7 +915,8 @@ install_zsh_plugins() {
 
 install_neovim_plugins() {
   log "Installing latest Neovim plugins"
-  NVIM_LOG_FILE=/dev/null nvim --headless "+Lazy! sync" +qa
+  NVIM_LOG_FILE=/dev/null DOTFILES_NVIM_SYNC="$DOTFILES_DIR/lib/sync_neovim.lua" \
+    nvim --headless '+lua dofile(vim.env.DOTFILES_NVIM_SYNC)' +qa
   NVIM_LOG_FILE=/dev/null nvim --headless -u NONE --noplugin -l "$DOTFILES_DIR/lib/sync_treesitter.lua"
 }
 

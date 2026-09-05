@@ -81,6 +81,11 @@ else
 fi
 unset zcomp_signature zcompctime zcompdir zcompdirs zcompdump zcompdump_ctime zcompdump_fpath zcompdump_mtime zcompdump_tmp zcompinit_refresh zcompstat
 
+# Plugins loaded before compinit queue their compdef registrations in Zinit.
+if (( $+functions[zinit] )); then
+	zinit cdreplay -q
+fi
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 

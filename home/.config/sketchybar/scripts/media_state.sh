@@ -55,7 +55,9 @@ if [[ -n "$artwork_data" ]] && /bin/mkdir -p "$CACHE_DIR"; then
       else
         /bin/rm -f "$temporary_artwork"
       fi
-      /usr/bin/find "$CACHE_DIR" -type f -name 'media-artwork-*' -mtime +7 -delete 2>/dev/null || true
+      # The current cover may be old but must exist when SketchyBar loads it.
+      /usr/bin/find "$CACHE_DIR" -type f -name 'media-artwork-*' \
+        ! -name "media-artwork-$artwork_hash" -mtime +7 -delete 2>/dev/null || true
     else
       /bin/rm -f "$temporary_artwork"
     fi
