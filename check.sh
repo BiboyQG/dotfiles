@@ -1043,6 +1043,9 @@ for name in sorted(files):
         ast.parse(path.read_text(), filename=name)
 PY
 
+log "Checking NVM runtime regression fixtures"
+python3 tests/nvm_runtime_spec.py "$ROOT"
+
 log "Checking tmux runtime regression fixtures"
 require tmux
 python3 tests/tmux_runtime_spec.py "$ROOT"

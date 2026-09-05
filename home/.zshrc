@@ -192,6 +192,16 @@ if [[ -r "$NVM_DIR/alias/default" ]]; then
 	nvm_default_version="$(<"$NVM_DIR/alias/default")"
 	if [[ -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
 		path=("$NVM_DIR/versions/node/$nvm_default_version/bin" $path)
+	elif [[ -s "$NVM_DIR/nvm.sh" ]]; then
+		# Resolve symbolic/partial aliases with NVM itself without loading its
+		# functions or completions into the interactive shell.
+		nvm_default_version="$(
+			source "$NVM_DIR/nvm.sh" --no-use
+			nvm version default
+		)" || nvm_default_version=""
+		if [[ -n "$nvm_default_version" && -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
+			path=("$NVM_DIR/versions/node/$nvm_default_version/bin" $path)
+		fi
 	fi
 	unset nvm_default_version
 fi
