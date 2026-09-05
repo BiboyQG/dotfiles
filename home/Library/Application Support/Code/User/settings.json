@@ -147,7 +147,7 @@
     "editor.showFoldingControls": "never",
     "workbench.activityBar.location": "top",
     "window.customTitleBarVisibility": "never",
-    "editor.largeFileOptimizations": false,
+    "editor.largeFileOptimizations": true,
     "editor.unicodeHighlight.ambiguousCharacters": false,
     "terminal.integrated.enableMultiLinePasteWarning": "never",
     "editor.hover.showLongLineWarning": false
