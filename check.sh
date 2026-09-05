@@ -1043,6 +1043,10 @@ for name in sorted(files):
         ast.parse(path.read_text(), filename=name)
 PY
 
+log "Checking tmux runtime regression fixtures"
+require tmux
+python3 tests/tmux_runtime_spec.py "$ROOT"
+
 log "Checking tmux session-manager behavior"
 env "${ISOLATED_ENV[@]}" python3 - \
   "$ROOT/home/.config/tmux/scripts/session_manager.py" <<'PY'
@@ -1060,11 +1064,6 @@ spec.loader.exec_module(module)
 checks = (
     (module.sanitize_label("  research  ") == "research", "label trimming"),
     (module.sanitize_label("   ") == "session", "empty-label fallback"),
-    (
-        module.parse_optional_client(["--client", "client-1", "extra"])
-        == ("client-1", ["extra"]),
-        "optional client parsing",
-    ),
 )
 for passed, description in checks:
     if not passed:

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-content=$(cat | tr -d '\r')
-# Update tmux buffer and system clipboard (uses tmux set-clipboard setting)
-tmux set-buffer -w -- "$content"
-printf '%s' "$content" | pbcopy || true
+copy_file="$(mktemp "${TMPDIR:-/tmp}/tmux-copy.XXXXXX")"
+trap 'rm -f -- "$copy_file"' EXIT
+cat > "$copy_file"
+# Keep trailing newlines and avoid the command-line argument size limit.
+tmux load-buffer -w "$copy_file"
+pbcopy < "$copy_file" || true

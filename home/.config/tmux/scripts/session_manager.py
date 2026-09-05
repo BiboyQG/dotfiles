@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import re
 import subprocess
 import sys
 from contextlib import contextmanager
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 
 LOCK_NAME = "dotfiles-session-manager"
@@ -108,26 +109,6 @@ def mutation_lock():
         run_tmux(["wait-for", "-U", LOCK_NAME], check=False)
 
 
-def current_session_id() -> str:
-    return run_tmux(["display-message", "-p", "#{session_id}"], capture=True)
-
-
-def current_window_id() -> str:
-    return run_tmux(["display-message", "-p", "#{window_id}"], capture=True)
-
-
-def parse_optional_client(args: List[str]) -> Tuple[Optional[str], List[str]]:
-    client: Optional[str] = None
-    remaining: List[str] = []
-    it = iter(args)
-    for arg in it:
-        if arg == "--client":
-            client = next(it, None)
-        else:
-            remaining.append(arg)
-    return client, remaining
-
-
 def command_switch(index_str: str, client: Optional[str] = None) -> None:
     try:
         index = int(index_str)
@@ -147,12 +128,11 @@ def command_switch(index_str: str, client: Optional[str] = None) -> None:
         run_tmux(["refresh-client", "-S"], check=False)
 
 
-def command_rename(label: str) -> None:
+def command_rename(label: str, session_id: str) -> None:
     label = sanitize_label(label)
-    current_id = current_session_id()
     sessions = list_sessions()
     for session in sessions:
-        if session["id"] == current_id:
+        if session["id"] == session_id:
             session["label"] = label
             break
     else:
@@ -173,7 +153,9 @@ def command_created() -> None:
     command_ensure()
 
 
-def command_move_window_to_session(index_str: str, client: Optional[str] = None) -> None:
+def command_move_window_to_session(
+    index_str: str, session_id: str, window_id: str, client: Optional[str] = None
+) -> None:
     try:
         index = int(index_str)
     except ValueError:
@@ -184,12 +166,9 @@ def command_move_window_to_session(index_str: str, client: Optional[str] = None)
     if index > len(sessions):
         return
     target_session_id = sessions[index - 1]["id"]
-    source_window_id = current_window_id()
-    if not source_window_id:
-        return
-    current_id = current_session_id()
-    if target_session_id != current_id:
-        run_tmux(["move-window", "-s", source_window_id, "-t", f"{target_session_id}:"], check=False)
+    if target_session_id != session_id:
+        # A vanished window must fail here instead of falling back to another one.
+        run_tmux(["move-window", "-s", window_id, "-t", f"{target_session_id}:"])
     if client:
         run_tmux(["switch-client", "-c", client, "-t", target_session_id], check=False)
         run_tmux(["refresh-client", "-S", "-t", client], check=False)
@@ -199,26 +178,41 @@ def command_move_window_to_session(index_str: str, client: Optional[str] = None)
 
 
 def main(argv: List[str]) -> None:
-    if len(argv) < 2:
-        return
-    command = argv[1]
-    if command == "switch" and len(argv) >= 3:
-        client, _ = parse_optional_client(argv[3:])
-        with mutation_lock():
-            command_switch(argv[2], client)
-    elif command == "rename" and len(argv) >= 3:
-        with mutation_lock():
-            command_rename(argv[2])
-    elif command == "ensure":
-        with mutation_lock():
+    parser = argparse.ArgumentParser()
+    commands = parser.add_subparsers(dest="command", required=True)
+    switch = commands.add_parser("switch")
+    switch.add_argument("index")
+    switch.add_argument("--client")
+    rename = commands.add_parser("rename")
+    rename.add_argument("label")
+    rename.add_argument("--session", required=True)
+    move = commands.add_parser("move-window-to")
+    move.add_argument("index")
+    move.add_argument("--session", required=True)
+    move.add_argument("--window", required=True)
+    move.add_argument("--client")
+    for command in ("ensure", "created", "list"):
+        commands.add_parser(command)
+    args = parser.parse_args(argv[1:])
+    for option, pattern in (("session", r"\$\d+"), ("window", r"@\d+")):
+        value = getattr(args, option, None)
+        if value is not None and not re.fullmatch(pattern, value):
+            parser.error(f"--{option} requires a tmux {option} ID")
+
+    with mutation_lock():
+        if args.command == "switch":
+            command_switch(args.index, args.client)
+        elif args.command == "rename":
+            command_rename(args.label, args.session)
+        elif args.command == "ensure":
             command_ensure()
-    elif command == "created":
-        with mutation_lock():
+        elif args.command == "created":
             command_created()
-    elif command == "move-window-to" and len(argv) >= 3:
-        client, _ = parse_optional_client(argv[3:])
-        with mutation_lock():
-            command_move_window_to_session(argv[2], client)
+        elif args.command == "move-window-to":
+            command_move_window_to_session(args.index, args.session, args.window, args.client)
+        elif args.command == "list":
+            for session in list_sessions():
+                print(f"{session['id']}::{session['name']}")
 
 
 if __name__ == "__main__":

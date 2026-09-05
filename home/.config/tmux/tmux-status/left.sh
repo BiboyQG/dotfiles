@@ -42,7 +42,7 @@ extract_index() {
   fi
 }
 
-sessions=$(tmux list-sessions -F '#{session_id}::#{session_name}' 2>/dev/null || true)
+sessions=$(python3 "$(dirname "$0")/../scripts/session_manager.py" list 2>/dev/null || true)
 if [[ -z "$sessions" ]]; then
   exit 0
 fi
