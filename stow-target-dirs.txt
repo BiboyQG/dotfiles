@@ -2,6 +2,5 @@
 .claude
 .config
 .config/yazi
-.codex
 Library/Application Support/Code/User
 Library/LaunchAgents

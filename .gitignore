@@ -1,9 +1,6 @@
 **/.DS_Store
 /nvim.log
 
-/home/.codex/config.toml
-/home/.codex/.tmp/
-/home/.codex/__pycache__/
-/home/.codex/skills/
+/home/.codex/
 
 __pycache__/

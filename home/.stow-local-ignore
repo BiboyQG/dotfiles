@@ -19,7 +19,4 @@ _darcs
 
 # Machine-local or generated directories that must never be deployed.
 ^/\.config/yazi/flavors($|/)
-^/\.codex/config\.toml$
-^/\.codex/\.tmp($|/)
-^/\.codex/__pycache__($|/)
-^/\.codex/skills($|/)
+^/\.codex($|/)

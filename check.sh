@@ -466,7 +466,6 @@ mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-ignored" \
-  "$SETUP_FIXTURE_SOURCE/home/.codex" \
   "$SETUP_FIXTURE_SOURCE/home/Library/Application Support/Code/User" \
   "$SETUP_FIXTURE_SOURCE/home/Library/LaunchAgents" \
   "$SETUP_FIXTURE_HOME/.config/preflight-boundary" \
@@ -685,15 +684,13 @@ assert_setup_preflight() {
 
 assert_setup_preflight clean accept
 
-printf 'machine-local config\n' \
-  >"$SETUP_FIXTURE_SOURCE/home/.codex/config.toml"
-ln -s "$SETUP_FIXTURE_SOURCE/home/.codex" \
-  "$SETUP_FIXTURE_HOME/.codex"
+mkdir -p "$SETUP_FIXTURE_SOURCE/home/.config/yazi/flavors"
+ln -s "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
+  "$SETUP_FIXTURE_HOME/.config/yazi"
 assert_setup_preflight folded reject \
-  "Ignored machine-local data would be stranded by Stow migration: $SETUP_FIXTURE_SOURCE/home/.codex/config.toml"
-rm -f -- \
-  "$SETUP_FIXTURE_HOME/.codex" \
-  "$SETUP_FIXTURE_SOURCE/home/.codex/config.toml"
+  "Ignored machine-local data would be stranded by Stow migration: $SETUP_FIXTURE_SOURCE/home/.config/yazi/flavors"
+rm -- "$SETUP_FIXTURE_HOME/.config/yazi"
+rmdir "$SETUP_FIXTURE_SOURCE/home/.config/yazi/flavors"
 
 mkdir -p "$SETUP_FIXTURE_HOME/.config/kitty"
 printf 'foreign managed state\n' \
