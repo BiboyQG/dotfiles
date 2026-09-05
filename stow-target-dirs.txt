@@ -1,5 +1,6 @@
 # Target directories that must stay real to prevent Stow directory folding.
 .claude
+.codex
 .config
 .config/yazi
 Library/Application Support/Code/User

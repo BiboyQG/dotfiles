@@ -462,6 +462,7 @@ SETUP_SNAPSHOT_DIR="$CHECK_WORK_DIR/setup-snapshots"
 SETUP_POISON_MARKER="$SETUP_SNAPSHOT_DIR/poison"
 mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.claude" \
+  "$SETUP_FIXTURE_SOURCE/home/.codex" \
   "$SETUP_FIXTURE_SOURCE/home/.config/kitty" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
@@ -477,6 +478,7 @@ printf '.config/preflight-boundary\n' \
   >>"$SETUP_FIXTURE_SOURCE/stow-target-dirs.txt"
 cp home/.stow-local-ignore \
   "$SETUP_FIXTURE_SOURCE/home/.stow-local-ignore"
+cp home/.codex/AGENTS.md "$SETUP_FIXTURE_SOURCE/home/.codex/AGENTS.md"
 printf '^/\\.config/preflight-ignored($|/)\n' \
   >>"$SETUP_FIXTURE_SOURCE/home/.stow-local-ignore"
 printf 'font_family fixture\n' \
@@ -1220,6 +1222,22 @@ done
 log "Checking generated-state boundaries"
 [[ ! -e home/.config/tmux/plugins.lock ]]
 [[ -z "$(find home/.codex/skills -type f -print -quit 2>/dev/null)" ]]
+[[ -s home/.codex/AGENTS.md ]]
+if git check-ignore --no-index -q home/.codex/AGENTS.md; then
+  printf "Shared Codex instructions must not be Git-ignored.\n" >&2
+  exit 1
+fi
+for local_path in config.toml AGENTS.override.md AGENTS.md.bak skills/test/SKILL.md future-state.json; do
+  git check-ignore --no-index -q "home/.codex/$local_path"
+  env "${ISOLATED_ENV[@]}" zsh -c \
+    'source "$1"; stow_path_is_ignored "$2"' \
+    zsh "$ROOT/setup.sh" ".codex/$local_path"
+done
+env "${ISOLATED_ENV[@]}" zsh -c '
+  source "$1"
+  stow_path_is_ignored .codex/AGENTS.md && exit 1
+  [[ $? == 1 ]]
+' zsh "$ROOT/setup.sh"
 rg -q 'use = "yazi-rs/flavors:catppuccin-mocha"' home/.config/yazi/package.toml
 
 log "Checking tmux plugin manifest"
@@ -1349,6 +1367,9 @@ mkdir -p \
   "$CANDIDATE_ROOT/home/.codex/skills/test"
 : >"$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi/flavor.toml"
 : >"$CANDIDATE_ROOT/home/.codex/config.toml"
+: >"$CANDIDATE_ROOT/home/.codex/AGENTS.override.md"
+: >"$CANDIDATE_ROOT/home/.codex/AGENTS.md.bak"
+: >"$CANDIDATE_ROOT/home/.codex/future-state.json"
 : >"$CANDIDATE_ROOT/home/.codex/skills/test/SKILL.md"
 mkdir -p "$ignored_target"
 create_stow_target "$ignored_target"
@@ -1391,6 +1412,8 @@ if grep -Fq '.stow-local-ignore' "$worktree_plan"; then
 fi
 
 (( boundary_failed == 0 )) || exit 1
+
+assert_line "$(cat "$worktree_plan")" "LINK .codex/AGENTS.md"
 
 create_stow_target "$ISOLATED_HOME"
 (

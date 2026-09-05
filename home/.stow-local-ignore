@@ -17,6 +17,7 @@ _darcs
 ^/LICENSE.*
 ^/COPYING
 
-# Machine-local or generated directories that must never be deployed.
+# Machine-local or generated paths that must never be deployed.
 ^/\.config/yazi/flavors($|/)
-^/\.codex($|/)
+# Only the shared Codex instructions belong in the Stow package.
+^/\.codex/(?!AGENTS\.md$).+

@@ -345,6 +345,8 @@ stow_target_directories() {
 }
 
 load_stow_ignore_patterns() {
+  # Stow uses Perl regexes; keep preflight compatible with lookahead rules.
+  setopt local_options rematch_pcre
   local manifest="$DOTFILES_DIR/home/.stow-local-ignore"
   local line regex regex_status
 
@@ -380,6 +382,7 @@ load_stow_ignore_patterns() {
 }
 
 stow_path_is_ignored() {
+  setopt local_options rematch_pcre
   local relative="$1"
   local subject pattern regex
 
