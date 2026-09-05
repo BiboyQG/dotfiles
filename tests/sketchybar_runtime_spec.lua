@@ -40,6 +40,7 @@ local function fake_sbar()
     }
 
     function object:set(update)
+      self.set_count = (self.set_count or 0) + 1
       merge(self.properties, update)
     end
 
@@ -379,6 +380,37 @@ local function test_spaces()
   )
 end
 
+local function test_focus_refresh()
+  load_modules()
+  local api, state = fake_sbar()
+  _G.sbar = api
+  dofile(sketchybar_root .. "/items/spaces.lua")
+  local windows = { { workspace = "1", ["app-name"] = "kitty" } }
+  state.emit("forced")
+  complete_full(state, workspace_rows(true, "1"), windows)
+  local initial_count = state.objects["space.1"].set_count
+  for _ = 1, 20 do state.emit("aerospace_windows_change") end
+  expect(#state.execs == 2, "focus burst queried before its debounce")
+  expect(#state.delays == 1, "focus burst created duplicate timers")
+  state.delays[1]()
+  expect(#state.execs == 3, "focus refresh queried workspace topology again")
+  state.execs[3].callback(windows, 0)
+  expect(state.objects["space.1"].set_count == initial_count, "unchanged state was redrawn")
+
+  state.emit("aerospace_workspace_change", { FOCUSED = "2", PREV = "1" })
+  state.emit("aerospace_windows_change")
+  state.delays[2]()
+  state.execs[4].callback({ { workspace = "2", ["app-name"] = "kitty" } }, 0)
+  expect(state.objects["space.1"].properties.label.string == " —", "move left a stale source icon")
+  expect(state.objects["space.2"].properties.label.string == "K", "move missed the destination icon")
+  expect(state.objects["space.2"].properties.icon.highlight, "cached topology overwrote current focus")
+
+  state.emit("display_change")
+  expect(#state.execs == 6, "display change did not invalidate the cached mapping")
+  complete_full(state, workspace_rows(false, "2"), {})
+  expect(state.objects["space.1"].properties.display == 2, "display change kept the old mapping")
+end
+
 local function test_media()
   load_modules()
   local sbar, state = fake_sbar()
@@ -662,6 +694,7 @@ end
 
 test_app_icons()
 test_spaces()
+test_focus_refresh()
 test_media()
 test_wifi()
 test_battery()

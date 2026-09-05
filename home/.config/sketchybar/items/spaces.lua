@@ -14,7 +14,11 @@ local focused_workspace
 local spaces_mode_visible = true
 local full_refresh_running = false
 local full_refresh_pending = false
+local pending_windows_only = true
 local window_refresh_revision = 0
+local focus_refresh_scheduled = false
+local cached_workspaces
+local rendered = {}
 
 for index, workspace in ipairs(workspace_names) do
   known_workspaces[workspace] = true
@@ -29,6 +33,7 @@ local function app_icon(app)
 end
 
 local function set_selected(workspace, selected)
+  if rendered[workspace] then rendered[workspace].selected = selected end
   spaces[workspace]:set({
     icon = { highlight = selected },
     label = { highlight = selected },
@@ -42,6 +47,7 @@ end
 local function apply_drawing()
   for _, workspace in ipairs(workspace_names) do
     local drawing = spaces_mode_visible and workspace_available[workspace]
+    if rendered[workspace] then rendered[workspace].drawing = drawing end
     spaces[workspace]:set({ drawing = drawing })
     space_brackets[workspace]:set({ drawing = drawing })
     space_paddings[workspace]:set({ drawing = drawing })
@@ -104,9 +110,11 @@ local function parse_windows(rows)
   return icons_by_workspace
 end
 
-local function update_spaces()
+local function update_spaces(windows_only)
+  windows_only = windows_only == true and cached_workspaces ~= nil
   if full_refresh_running then
     full_refresh_pending = true
+    pending_windows_only = pending_windows_only and windows_only
     return
   end
 
@@ -119,7 +127,9 @@ local function update_spaces()
     full_refresh_running = false
     if full_refresh_pending then
       full_refresh_pending = false
-      update_spaces()
+      local only_windows = pending_windows_only
+      pending_windows_only = true
+      update_spaces(only_windows)
     end
   end
 
@@ -143,10 +153,11 @@ local function update_spaces()
     end
 
     local selected_workspace = queried_focus
-    if focus_revision ~= current_focus_revision and known_workspaces[focused_workspace] then
+    if (windows_only or focus_revision ~= current_focus_revision) and known_workspaces[focused_workspace] then
       selected_workspace = focused_workspace
     end
     focused_workspace = selected_workspace
+    if not windows_only then cached_workspaces = results.workspaces.output end
 
     for _, workspace in ipairs(workspace_names) do
       local display = workspace_displays[workspace]
@@ -154,38 +165,61 @@ local function update_spaces()
       local selected = workspace == selected_workspace
       local icon_line = #icons_by_workspace[workspace] > 0 and table.concat(icons_by_workspace[workspace]) or " —"
       workspace_available[workspace] = available
-
-      spaces[workspace]:set({
-        display = display,
-        drawing = spaces_mode_visible and available,
-        icon = { highlight = selected },
-        label = {
-          string = icon_line,
-          highlight = selected,
-        },
-        background = { border_color = selected and colors.black or colors.bg2 },
-      })
-      space_brackets[workspace]:set({
-        display = display,
-        drawing = spaces_mode_visible and available,
-        background = { border_color = selected and colors.grey or colors.bg2 },
-      })
-      space_paddings[workspace]:set({
-        display = display,
-        drawing = spaces_mode_visible and available,
-      })
+      local drawing = spaces_mode_visible and available
+      local previous = rendered[workspace]
+      if not previous or previous.display ~= display or previous.drawing ~= drawing
+        or previous.selected ~= selected or previous.icon_line ~= icon_line then
+        rendered[workspace] = {
+          display = display, drawing = drawing, selected = selected, icon_line = icon_line,
+        }
+        spaces[workspace]:set({
+          display = display,
+          drawing = drawing,
+          icon = { highlight = selected },
+          label = {
+            string = icon_line,
+            highlight = selected,
+          },
+          background = { border_color = selected and colors.black or colors.bg2 },
+        })
+        space_brackets[workspace]:set({
+          display = display,
+          drawing = drawing,
+          background = { border_color = selected and colors.grey or colors.bg2 },
+        })
+        space_paddings[workspace]:set({
+          display = display,
+          drawing = drawing,
+        })
+      end
     end
     finish()
   end
 
-  sbar.exec(
-    "/opt/homebrew/bin/aerospace list-workspaces --all --format '%{workspace} %{workspace-is-focused} %{monitor-appkit-nsscreen-screens-id}' --json",
-    function(result, exit_code) receive("workspaces", result, exit_code) end
-  )
+  if windows_only then
+    results.workspaces = { output = cached_workspaces, ok = true }
+    completed = 1
+  else
+    sbar.exec(
+      "/opt/homebrew/bin/aerospace list-workspaces --all --format '%{workspace} %{workspace-is-focused} %{monitor-appkit-nsscreen-screens-id}' --json",
+      function(result, exit_code) receive("workspaces", result, exit_code) end
+    )
+  end
   sbar.exec(
     "/opt/homebrew/bin/aerospace list-windows --all --format '%{workspace} %{app-name}' --json",
     function(result, exit_code) receive("windows", result, exit_code) end
   )
+end
+
+-- Focus events are only a fallback for window changes. Coalesce a burst and
+-- reuse the display mapping until a topology event requests a full refresh.
+local function schedule_focus_refresh()
+  if focus_refresh_scheduled then return end
+  focus_refresh_scheduled = true
+  sbar.delay(0.2, function()
+    focus_refresh_scheduled = false
+    update_spaces(true)
+  end)
 end
 
 local function schedule_window_refresh()
@@ -305,9 +339,9 @@ local spaces_indicator = sbar.add("item", {
 space_window_observer:subscribe({
   "display_change",
   "forced",
-  "aerospace_windows_change",
   "system_woke",
 }, update_spaces)
+space_window_observer:subscribe("aerospace_windows_change", schedule_focus_refresh)
 space_window_observer:subscribe("space_windows_change", update_space_windows)
 space_window_observer:subscribe("aerospace_workspace_change", update_workspace_focus)
 
