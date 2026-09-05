@@ -32,6 +32,18 @@ local function app_icon(app)
   return app_icons[app] or app_icons["Default"]
 end
 
+local function update_workspace_drawing(workspace)
+  local drawing = spaces_mode_visible
+    and (workspace_available[workspace] or workspace == focused_workspace)
+  if rendered[workspace] then
+    if rendered[workspace].drawing == drawing then return end
+    rendered[workspace].drawing = drawing
+  end
+  spaces[workspace]:set({ drawing = drawing })
+  space_brackets[workspace]:set({ drawing = drawing })
+  space_paddings[workspace]:set({ drawing = drawing })
+end
+
 local function set_selected(workspace, selected)
   if rendered[workspace] then rendered[workspace].selected = selected end
   spaces[workspace]:set({
@@ -42,15 +54,12 @@ local function set_selected(workspace, selected)
   space_brackets[workspace]:set({
     background = { border_color = selected and colors.grey or colors.bg2 },
   })
+  update_workspace_drawing(workspace)
 end
 
 local function apply_drawing()
   for _, workspace in ipairs(workspace_names) do
-    local drawing = spaces_mode_visible and workspace_available[workspace]
-    if rendered[workspace] then rendered[workspace].drawing = drawing end
-    spaces[workspace]:set({ drawing = drawing })
-    space_brackets[workspace]:set({ drawing = drawing })
-    space_paddings[workspace]:set({ drawing = drawing })
+    update_workspace_drawing(workspace)
   end
 end
 
@@ -161,11 +170,12 @@ local function update_spaces(windows_only)
 
     for _, workspace in ipairs(workspace_names) do
       local display = workspace_displays[workspace]
-      local available = display_count > 1 or tonumber(workspace) <= 6
+      local has_windows = #icons_by_workspace[workspace] > 0
+      local available = display_count > 1 or tonumber(workspace) <= 6 or has_windows
       local selected = workspace == selected_workspace
-      local icon_line = #icons_by_workspace[workspace] > 0 and table.concat(icons_by_workspace[workspace]) or " —"
+      local icon_line = has_windows and table.concat(icons_by_workspace[workspace]) or " —"
       workspace_available[workspace] = available
-      local drawing = spaces_mode_visible and available
+      local drawing = spaces_mode_visible and (available or selected)
       local previous = rendered[workspace]
       if not previous or previous.display ~= display or previous.drawing ~= drawing
         or previous.selected ~= selected or previous.icon_line ~= icon_line then

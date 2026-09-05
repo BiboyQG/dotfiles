@@ -42,7 +42,7 @@ def server():
     with tempfile.TemporaryDirectory(prefix="dotfiles-tmux-restore-") as directory:
         work = Path(directory)
         socket = str(work / "tmux.sock")
-        env = dict(os.environ, HOME=str(work), XDG_DATA_HOME=str(work / "data"))
+        env = dict(os.environ, HOME=str(work), XDG_DATA_HOME=str(work / "data"), HISTFILE="/dev/null")
         base = ["tmux", "-S", socket]
 
         def tmux(*args, check=True):
@@ -116,11 +116,13 @@ if PLUGINS is None:
             assert marker.exists() == (outcome == "restored")
             expected = "1-alpha" if outcome == "restored" else "1-0"
             assert tmux("list-sessions", "-F", "#{session_name}") == expected
-            # Reload must not claim another restore or rename existing sessions.
-            tmux("rename-session", "-t", expected, "kept-on-reload")
+            # Keep valid numbering so queued creation hooks cannot reorder the
+            # fixture while checking that reload does not restore the old name.
+            tmux("rename-session", "-t", expected, "1-kept-on-reload")
             manager("startup-prepare")
             subprocess.run(["/bin/bash", str(STARTUP)], env=env, check=True)
-            assert tmux("list-sessions", "-F", "#{session_name}") == "kept-on-reload"
+            actual = tmux("list-sessions", "-F", "#{session_name}")
+            assert actual == "1-kept-on-reload", actual
 
 
     with server() as (work, env, tmux, manager):
@@ -185,6 +187,9 @@ if PLUGINS is not None:
         env = dict(
             os.environ, HOME=str(work), XDG_CONFIG_HOME=str(work / ".config"),
             XDG_DATA_HOME=str(work / "data"), XDG_CACHE_HOME=str(work / "cache"),
+            # Match the saved sh process, without caller-specific zsh history
+            # writes racing TemporaryDirectory cleanup after kill-server.
+            SHELL="/bin/sh", HISTFILE="/dev/null",
         )
         base = ["tmux", "-S", str(work / "tmux.sock")]
 
@@ -196,6 +201,7 @@ if PLUGINS is not None:
         try:
             result = tmux_config("-f", str(work / ".tmux.conf"), "new-session", "-d", "/usr/bin/tail -f /dev/null")
             assert not result.stdout and not result.stderr, result.stdout + result.stderr
+            assert tmux_config("show-option", "-gqv", "default-shell").stdout.strip() == "/bin/sh"
             deadline = time.monotonic() + 5
             while time.monotonic() < deadline:
                 name = tmux_config("list-sessions", "-F", "#{session_name}").stdout.strip()
@@ -207,10 +213,12 @@ if PLUGINS is not None:
             assert state == "complete", state
             actual = tmux_config("list-windows", "-a", "-F", "#{session_name}:#{window_name}:#{window_panes}").stdout.strip()
             assert actual == "1-alpha:saved-1-alpha:2\n2-beta:saved-2-beta:2", actual
-            tmux_config("rename-session", "-t", "1-alpha", "kept-on-reload")
+            # A queued session-created hook may still enforce valid numbering.
+            tmux_config("rename-session", "-t", "1-alpha", "1-kept-on-reload")
             tmux_config("source-file", str(work / ".tmux.conf"))
             assert tmux_config("show-option", "-gqv", "@dotfiles-session-startup").stdout.strip() == "complete"
-            assert tmux_config("list-sessions", "-F", "#{session_name}").stdout.strip() == "2-beta\nkept-on-reload"
+            actual = tmux_config("list-sessions", "-F", "#{session_name}").stdout.strip()
+            assert actual == "1-kept-on-reload\n2-beta", actual
             print("Deployed tmux configuration restored a new server without a placeholder and reloaded safely.")
         finally:
             tmux_config("kill-server", check=False)

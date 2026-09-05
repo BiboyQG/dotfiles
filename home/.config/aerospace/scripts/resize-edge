@@ -18,14 +18,38 @@ case "$direction" in
     ;;
 esac
 
+# Keep the focus probe and resize together when a held hotkey starts more than
+# one process. The kernel releases this lock on exit, including SIGKILL; keep
+# the file in place so contenders always lock the same inode.
+zmodload zsh/system
+lock_file="${TMPDIR:-/tmp}/dotfiles-aerospace-resize-${UID}.lock"
+: >> "$lock_file"
+zsystem flock -f lock_fd "$lock_file"
+
+restore_focus=false
+cleanup() {
+  local exit_code=$?
+  if [[ "$restore_focus" == true ]]; then
+    "$AEROSPACE" focus --window-id "$window_id" >/dev/null 2>&1 || true
+  fi
+  zsystem flock -u "$lock_fd" || true
+  return "$exit_code"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 window_id="$("$AEROSPACE" list-windows --focused --format '%{window-id}' 2>/dev/null || true)"
 [[ -n "$window_id" ]] || exit 0
 
+restore_focus=true
 if "$AEROSPACE" focus --boundaries workspace --boundaries-action fail "$direction" >/dev/null 2>&1; then
   delta="+$amount"
 else
   delta="-$amount"
 fi
 
-"$AEROSPACE" focus --window-id "$window_id" >/dev/null 2>&1 || true
+"$AEROSPACE" focus --window-id "$window_id" >/dev/null 2>&1
+restore_focus=false
 "$AEROSPACE" resize --window-id "$window_id" "$dimension" "$delta"

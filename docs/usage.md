@@ -26,6 +26,11 @@ Shell helpers:
 
 `Ctrl+s` is bound in tmux, so XON/XOFF is disabled in interactive shells to avoid terminal “freezing”.
 
+## Editors
+
+- VS Code: `Ctrl+Shift+[` opens the previous editor while the text editor has focus. `Ctrl+[` retains Vim's Escape behavior and passes through to the terminal.
+- Neovim: Neo-tree shows dotfiles and hides Git-ignored files by default. Toggle hidden items in Neo-tree when you need to inspect ignored files.
+
 ## Shell shortcuts
 
 Aliases and helper functions are defined in [`home/.zshrc`](../home/.zshrc):

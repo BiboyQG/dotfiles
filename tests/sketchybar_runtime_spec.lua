@@ -118,6 +118,13 @@ local function fake_sbar()
 
   function sbar.remove(target)
     table.insert(state.removed, target)
+    if target == "/volume.device\\.*/" then
+      for name in pairs(state.objects) do
+        if name:match("^volume%.device%.") then state.objects[name] = nil end
+      end
+    else
+      state.objects[target] = nil
+    end
   end
 
   function sbar.animate(_, _, callback)
@@ -377,6 +384,64 @@ local function test_spaces()
     state.execs[#state.execs].command == "/opt/homebrew/bin/aerospace move-node-to-workspace --focus-follows-window 4",
     "right-click move command is incorrect"
   )
+end
+
+local function test_space_visibility()
+  load_modules()
+  local sbar, state = fake_sbar()
+  _G.sbar = sbar
+  dofile(sketchybar_root .. "/items/spaces.lua")
+
+  local function expect_visible(workspace, visible, message)
+    for _, object in ipairs({
+      state.objects["space." .. workspace],
+      state.brackets["space." .. workspace],
+      state.objects["space.padding." .. workspace],
+    }) do
+      expect(object.properties.drawing == visible, message .. " (" .. object.name .. ")")
+    end
+  end
+
+  state.emit("forced")
+  complete_full(state, workspace_rows(true, "1"), { { workspace = "7", ["app-name"] = "kitty" } })
+  for workspace = 1, 6 do expect_visible(workspace, true, "default workspace is hidden") end
+  expect_visible(7, true, "nonempty single-screen workspace is hidden")
+  expect_visible(8, false, "unused single-screen workspace is visible")
+
+  local before_focus = #state.execs
+  state.emit("aerospace_workspace_change", { FOCUSED = "8", PREV = "1" })
+  expect_visible(8, true, "focus did not reveal an empty workspace immediately")
+  expect_visible(7, true, "focus change hid a nonempty workspace")
+  state.emit("aerospace_workspace_change", { FOCUSED = "9", PREV = "8" })
+  expect_visible(8, false, "previous empty workspace stayed visible")
+  expect_visible(9, true, "next focused workspace is hidden")
+  expect(#state.execs == before_focus, "visibility-only focus change queried AeroSpace")
+
+  state.emit("forced")
+  complete_full(state, workspace_rows(true, "9"), {})
+  expect_visible(7, false, "closing the last window did not hide an unused workspace")
+  expect_visible(9, true, "empty focused workspace was hidden by refresh")
+
+  state.emit("swap_menus_and_spaces")
+  expect_visible(9, false, "menu mode did not hide the focused workspace")
+  state.emit("aerospace_workspace_change", { FOCUSED = "10", PREV = "9" })
+  expect_visible(10, false, "focus change resurrected spaces in menu mode")
+  state.emit("forced")
+  complete_full(state, workspace_rows(true, "10"), { { workspace = "8", ["app-name"] = "Safari" } })
+  expect_visible(8, false, "window refresh resurrected spaces in menu mode")
+  state.emit("swap_menus_and_spaces")
+  expect_visible(8, true, "leaving menu mode lost a nonempty workspace")
+  expect_visible(9, false, "leaving menu mode revealed an unused workspace")
+  expect_visible(10, true, "leaving menu mode lost the focused workspace")
+
+  state.emit("display_change")
+  complete_full(state, workspace_rows(false, "10"), {})
+  for workspace = 1, 10 do expect_visible(workspace, true, "dual-screen workspace is hidden") end
+  state.emit("display_change")
+  complete_full(state, workspace_rows(true, "10"), { { workspace = "7", ["app-name"] = "kitty" } })
+  expect_visible(7, true, "disconnecting a display hid a nonempty workspace")
+  expect_visible(8, false, "disconnecting a display retained an unused workspace")
+  expect_visible(10, true, "disconnecting a display hid the focused workspace")
 end
 
 local function test_menus()
@@ -670,6 +735,65 @@ local function test_volume()
 
   state.emit_object("widgets.volume2", "mouse.clicked", { BUTTON = "right" })
   expect(state.execs[#state.execs].command:find("Sound", 1, true) ~= nil, "right click did not open sound settings")
+
+  local function open_devices()
+    state.emit_object("widgets.volume2", "mouse.clicked", { BUTTON = "left" })
+    return state.execs[#state.execs]
+  end
+
+  local function close_devices()
+    state.emit_object("widgets.volume1", "mouse.exited.global", {})
+  end
+
+  local closed_query = open_devices()
+  close_devices()
+  local after_close = #state.execs
+  closed_query.callback("Old Speakers\n", 0)
+  expect(#state.execs == after_close, "closed popup continued its device query")
+  expect(state.objects["volume.device.0"] == nil, "closed popup contains a device")
+
+  local old_query = open_devices()
+  close_devices()
+  local current_query = open_devices()
+  local after_reopen = #state.execs
+  old_query.callback("Old Speakers\n", 0)
+  expect(#state.execs == after_reopen, "reopening accepted an old current-device query")
+  current_query.callback("Speakers\n", 0)
+  local old_list_query = state.execs[#state.execs]
+  close_devices()
+  current_query = open_devices()
+  current_query.callback("Headphones\n", 0)
+  state.execs[#state.execs].callback("Speakers\nHeadphones\n", 0)
+  expect(state.objects["volume.device.1"].properties.label.color == "white", "current device is not highlighted")
+  old_list_query.callback("Detached Device\n", 0)
+  expect(state.objects["volume.device.0"].properties.label.string == "Speakers", "old device list replaced the current session")
+  expect(state.objects["volume.device.1"].properties.label.string == "Headphones", "old list removed the current device")
+
+  close_devices()
+  expect(state.objects["volume.device.0"] == nil and state.objects["volume.device.1"] == nil, "closing did not remove device items")
+  current_query = open_devices()
+  current_query.callback("Speakers", 0)
+  state.execs[#state.execs].callback("Speakers\n", 0)
+  expect(state.objects["volume.device.0"].properties.label.color == "white", "current device without trailing newline is not highlighted")
+  expect(state.objects["volume.device.1"] == nil, "shorter list retained a disconnected device")
+
+  close_devices()
+  current_query = open_devices()
+  current_query.callback("Speakers\n", 0)
+  local closed_list_query = state.execs[#state.execs]
+  close_devices()
+  closed_list_query.callback("Speakers\nDetached Device\n", 0)
+  expect(state.objects["volume.device.0"] == nil, "late list callback populated a closed popup")
+
+  current_query = open_devices()
+  local before_failure = #state.execs
+  current_query.callback("Error finding device\n", 1)
+  expect(#state.execs == before_failure, "failed current-device query started another command")
+  close_devices()
+  current_query = open_devices()
+  current_query.callback("Speakers\n", 0)
+  state.execs[#state.execs].callback("Error listing devices\n", 1)
+  expect(state.objects["volume.device.0"] == nil, "failed device query rendered its error as a device")
 end
 
 local function test_calendar()
@@ -737,6 +861,7 @@ end
 
 test_app_icons()
 test_spaces()
+test_space_visibility()
 test_menus()
 test_focus_refresh()
 test_media()

@@ -135,8 +135,9 @@
         "command": "workbench.action.nextEditor"
     },
     {
-        "key": "ctrl+[",
-        "command": "workbench.action.previousEditor"
+        "key": "ctrl+shift+[",
+        "command": "workbench.action.previousEditor",
+        "when": "editorTextFocus"
     },
     {
         "key": "] ]",

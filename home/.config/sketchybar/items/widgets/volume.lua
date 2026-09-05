@@ -92,14 +92,14 @@ volume_percent:subscribe("volume_change", function(env)
   volume_slider:set({ slider = { percentage = volume } })
 end)
 
+local device_revision = 0
+
 local function volume_collapse_details()
-  local drawing = volume_bracket:query().popup.drawing == "on"
-  if not drawing then return end
+  device_revision = device_revision + 1
   volume_bracket:set({ popup = { drawing = false } })
   sbar.remove('/volume.device\\.*/')
 end
 
-local current_audio_device = "None"
 local function volume_toggle_details(env)
   if env.BUTTON == "right" then
     sbar.exec("open /System/Library/PreferencePanes/Sound.prefpane")
@@ -108,11 +108,20 @@ local function volume_toggle_details(env)
 
   local should_draw = volume_bracket:query().popup.drawing == "off"
   if should_draw then
+    device_revision = device_revision + 1
+    local revision = device_revision
+    local function is_current()
+      return revision == device_revision and volume_bracket:query().popup.drawing == "on"
+    end
+
+    sbar.remove('/volume.device\\.*/')
     volume_bracket:set({ popup = { drawing = true } })
-    sbar.exec("SwitchAudioSource -t output -c", function(result)
-      current_audio_device = result:sub(1, -2)
-      sbar.exec("SwitchAudioSource -a -t output", function(available)
-        local current = current_audio_device
+    sbar.exec("SwitchAudioSource -t output -c", function(result, exit_code)
+      if not is_current() or exit_code ~= 0 or type(result) ~= "string" then return end
+      local current = result:gsub("[\r\n]+$", "")
+      sbar.exec("SwitchAudioSource -a -t output", function(available, list_exit_code)
+        if not is_current() or list_exit_code ~= 0 or type(available) ~= "string" then return end
+        sbar.remove('/volume.device\\.*/')
         local counter = 0
 
         for device in string.gmatch(available, '[^\r\n]+') do

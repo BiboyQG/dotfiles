@@ -23,8 +23,15 @@ result_ip=""
 start_request() {
   local output="$1"
   shift
+  rm -f -- "$output.status"
   set -m
-  "$@" >"$output" 2>/dev/null &
+  (
+    trap - EXIT HUP INT TERM
+    set +m
+    request_exit=0
+    "$@" >"$output" 2>/dev/null || request_exit=$?
+    printf '%s\n' "$request_exit" >"$output.status"
+  ) &
   request_pids+=("$!")
   disown "$!" >/dev/null 2>&1 || true
   set +m
@@ -32,6 +39,13 @@ start_request() {
 
 request_running() {
   kill -0 -- "-$1" >/dev/null 2>&1
+}
+
+request_succeeded() {
+  local status_file="$1.status" request_exit
+  [[ -r "$status_file" ]] || return 1
+  IFS= read -r request_exit <"$status_file" || return 1
+  [[ "$request_exit" == 0 ]]
 }
 
 stop_requests() {
@@ -102,7 +116,8 @@ fetch_first_ipv4() {
         continue
       fi
       settled[index]=1
-      if result_ip="$(read_ipv4 "$run_dir/response.$index")"; then
+      if request_succeeded "$run_dir/response.$index" \
+        && result_ip="$(read_ipv4 "$run_dir/response.$index")"; then
         stop_requests
         return 0
       fi
@@ -128,6 +143,7 @@ fetch_dig_ipv4() {
     sleep 0.02
   done
   stop_requests
+  request_succeeded "$output" || return 1
   result_ip="$(read_ipv4 "$output")"
 }
 

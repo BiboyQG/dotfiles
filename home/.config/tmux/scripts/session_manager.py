@@ -38,7 +38,7 @@ def list_sessions() -> List[Dict[str, object]]:
         return []
 
     sessions = []
-    for line in output.splitlines():
+    for line in output.split("\n"):
         session_id, name, created_str = line.split("\t")
         created = int(created_str)
         match = re.match(r"^(\d+)-(.*)$", name)
@@ -74,6 +74,9 @@ def refresh_clients() -> None:
 
 
 def sanitize_label(label: str) -> str:
+    if re.search(r"[\x00-\x1f\x7f]", label):
+        raise ValueError("session labels cannot contain ASCII control characters")
+    label.encode("utf-8")
     stripped = label.strip()
     return stripped or "session"
 
@@ -93,12 +96,17 @@ def numbering_suspended() -> bool:
     )
 
 
-def rename_session(session_id: object, name: str) -> None:
+def rename_session(session_id: object, name: str) -> bool:
     # The session may have been killed between listing and renaming.
     try:
-        run_tmux(["rename-session", "-t", str(session_id), name])
+        # tmux expands this argument as a format, even when passed without a shell.
+        run_tmux(["rename-session", "-t", str(session_id), name.replace("#", "##")])
     except subprocess.CalledProcessError:
-        pass
+        live_ids = run_tmux(["list-sessions", "-F", "#{session_id}"], capture=True)
+        if str(session_id) in live_ids.split("\n"):
+            raise
+        return False
+    return True
 
 
 def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
@@ -111,11 +119,25 @@ def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
         return
 
     prefix = f"__dotfiles_{os.getpid()}_"
-    for session, _ in planned_names:
-        session_id = str(session["id"]).lstrip("$")
-        rename_session(session["id"], f"{prefix}{session_id}")
-    for session, new_name in planned_names:
-        rename_session(session["id"], new_name)
+    changed_sessions = []
+    try:
+        for session, _ in planned_names:
+            session_id = str(session["id"]).lstrip("$")
+            temporary_name = f"{prefix}{session_id}"
+            if rename_session(session["id"], temporary_name):
+                changed_sessions.append((session, temporary_name))
+        for session, new_name in planned_names:
+            rename_session(session["id"], new_name)
+    except subprocess.CalledProcessError:
+        # Vacate final names before restoring originals, which may overlap them.
+        for restore_originals in (False, True):
+            for session, temporary_name in changed_sessions:
+                name = str(session["name"]) if restore_originals else temporary_name
+                try:
+                    rename_session(session["id"], name)
+                except subprocess.CalledProcessError as error:
+                    print(f"Unable to restore session {session['id']}: {error}", file=sys.stderr)
+        raise
 
 
 @contextmanager
@@ -282,4 +304,8 @@ def main(argv: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    try:
+        main(sys.argv)
+    except (ValueError, subprocess.CalledProcessError) as error:
+        print(f"session_manager: {error}", file=sys.stderr)
+        sys.exit(1)

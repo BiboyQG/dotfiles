@@ -236,6 +236,16 @@ case "$IP_MOCK_SCENARIO:$url" in
   invalid_primary_fallback:*)
     exit 22
     ;;
+  partial_primary_fallback:https://api.ipify.org)
+    printf '203.0.113.7'
+    exit 18
+    ;;
+  partial_primary_fallback:https://ipv4.icanhazip.com)
+    printf '203.0.113.70\n'
+    ;;
+  partial_primary_fallback:*)
+    exit 22
+    ;;
   race:https://api.ipify.org)
     exit 22
     ;;
@@ -256,7 +266,7 @@ case "$IP_MOCK_SCENARIO:$url" in
     sleep 8
     exit 22
     ;;
-  all_fail:*)
+  all_fail:* | partial_dig:* | successful_dig:*)
     exit 22
     ;;
   *)
@@ -270,6 +280,15 @@ cat >"$IP_FIXTURE_DIR/dig" <<'BASH'
 set -euo pipefail
 
 printf '%s\n' "$*" >>"$IP_DIG_LOG"
+case "$IP_MOCK_SCENARIO" in
+  partial_dig)
+    printf '203.0.113.7\n'
+    ;;
+  successful_dig)
+    printf '198.51.100.18\n'
+    exit 0
+    ;;
+esac
 exit 9
 BASH
 chmod +x "$IP_FIXTURE_DIR/curl" "$IP_FIXTURE_DIR/dig"
@@ -328,6 +347,25 @@ for ip_interpreter in "${ip_interpreters[@]}"; do
   grep -Fxq 'https://api.ipify.org' "$IP_CASE_CURL_LOG"
   grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
   [[ ! -s "$IP_CASE_DIG_LOG" ]]
+
+  run_ip_case partial_primary_fallback "$ip_interpreter"
+  (( IP_CASE_EXIT == 0 ))
+  [[ "$IP_CASE_OUTPUT" == "203.0.113.70" ]]
+  [[ ! -s "$IP_CASE_STDERR" ]]
+  grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
+  [[ ! -s "$IP_CASE_DIG_LOG" ]]
+
+  run_ip_case partial_dig "$ip_interpreter"
+  (( IP_CASE_EXIT == 1 ))
+  [[ -z "$IP_CASE_OUTPUT" ]]
+  [[ "$(<"$IP_CASE_STDERR")" == "unable to determine public IPv4" ]]
+  [[ -s "$IP_CASE_DIG_LOG" ]]
+
+  run_ip_case successful_dig "$ip_interpreter"
+  (( IP_CASE_EXIT == 0 ))
+  [[ "$IP_CASE_OUTPUT" == "198.51.100.18" ]]
+  [[ ! -s "$IP_CASE_STDERR" ]]
+  [[ -s "$IP_CASE_DIG_LOG" ]]
 
   typeset -F race_started race_elapsed
   race_started=$EPOCHREALTIME
@@ -1044,6 +1082,7 @@ lua tests/neovim_sync_spec.lua "$ROOT"
 
 log "Checking shell runtime regression fixtures"
 python3 tests/shell_syntax_spec.py "$ROOT"
+python3 tests/aerospace_resize_spec.py "$ROOT"
 python3 tests/nvm_runtime_spec.py "$ROOT"
 python3 tests/zsh_completion_spec.py "$ROOT"
 python3 tests/zinit_update_spec.py "$ROOT"
