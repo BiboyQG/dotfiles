@@ -5,13 +5,3 @@ show_hidden = true
 [preview]
 max_width  = 1600
 max_height = 1200
-
-[opener]
-pdff = [
-	{ run = 'open -a "PDF Expert" %s', desc = "PDF Expert", block = true, for = "macos" },
-]
-
-[open]
-prepend_rules = [
-	{ mime = "application/pdf", use = [ "pdff", "reveal" ] },
-]

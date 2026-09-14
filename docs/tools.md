@@ -20,7 +20,6 @@ The package manifest is [Brewfile](../Brewfile); native installers and plugin up
 | NowPlaying CLI      | `brew`                   | Now Playing metadata (for Sketchybar)            |
 | SbarLua             | `git`                    | Lua API for Sketchybar                           |
 | AeroSpace           | `brew --cask`            | Tiling window manager for macOS                  |
-| Skhd                | `brew`                   | Fallback for the AeroSpace enable/disable hotkey |
 | OpenUsage           | `brew --cask`            | Local AI usage API and menu bar app              |
 | Yazi                | `brew`                   | Terminal file manager                            |
 | Lazygit             | `brew`                   | Terminal UI for git operations                   |
@@ -44,17 +43,14 @@ The package manifest is [Brewfile](../Brewfile); native installers and plugin up
 | Bat                 | `brew`                   | `cat` replacement with syntax highlighting       |
 | Gh                  | `brew`                   | GitHub CLI                                       |
 | Fastfetch           | `brew`                   | System info summary                              |
-| Cloc                | `brew`                   | Count lines of code                              |
 | Dust                | `brew`                   | `du` alternative                                 |
 | hf                  | `brew`                   | Hugging Face Hub CLI                             |
 | Mole                | `brew`                   | Deep clean and optimize macOS                    |
 | Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
-| Mos                 | `brew --cask`            | Smooth mouse/scroll wheel tuning                 |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
 | Fonts               | `brew --cask`            | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
 | Uv                  | `brew`                   | Python package/venv manager                      |
 | VS Code             | `brew --cask`            | GUI editor with extensions declared in Brewfile  |
 | Arc                 | `brew --cask`            | Browser used by the AeroSpace shortcut           |
-| PDF Expert          | `brew --cask`            | PDF opener used by Yazi                          |
 | Claude Code         | Native installer         | Anthropic coding CLI                             |
 | Codex CLI           | Standalone installer     | OpenAI coding CLI                                |

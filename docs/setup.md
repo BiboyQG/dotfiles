@@ -30,7 +30,7 @@ Review conflicting existing files before replacing them; the installer does not 
 - Wait for Neovim Tree-sitter parser updates and validate their highlight queries before finishing the editor setup
 - Deploy VS Code settings and keybindings into `~/Library/Application Support/Code/User` through the Stow package
 - Deploy shared Codex instructions from `home/.codex/AGENTS.md` to `~/.codex/AGENTS.md`; keep other Codex configuration and runtime state machine-local
-- Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar and skhd with postflight checks
+- Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar with postflight checks
 
 
 ## Configuration layout

@@ -1167,29 +1167,8 @@ restart_sketchybar() {
   return 1
 }
 
-restart_skhd() {
-  if ! have skhd; then
-    skip "skhd CLI is not installed."
-    return 1
-  fi
-
-  if ! skhd --restart-service && ! skhd --start-service; then
-    skip "Could not start skhd."
-    return 1
-  fi
-
-  local attempt
-  for attempt in {1..40}; do
-    launchctl print "gui/$(id -u)/com.koekeishiya.skhd" 2>/dev/null \
-      | grep -Eq '^[[:space:]]*state = running$' && return 0
-    sleep 0.25
-  done
-  skip "skhd restart returned successfully but its launchd job is not running."
-  return 1
-}
-
 restart_services() {
-  log "Restarting OpenUsage, AeroSpace, SketchyBar, and skhd"
+  log "Restarting OpenUsage, AeroSpace, and SketchyBar"
 
   local failed=0
   restart_openusage || failed=1
@@ -1199,7 +1178,6 @@ restart_services() {
     failed=1
     skip "AeroSpace is not ready; SketchyBar was not restarted."
   fi
-  restart_skhd || failed=1
 
   if (( failed )); then
     printf "One or more required services failed postflight checks.\n" >&2

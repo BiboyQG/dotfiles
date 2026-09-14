@@ -213,7 +213,6 @@ return {
 	["Skim"] = ":pdf_old:",
 	["zathura"] = ":pdf_old:",
 	["Aperçu"] = ":preview:",
-	["PDF Expert"] = ":pdf_expert:",
 	["Pearcleaner"] = ":pearcleaner:",
 	["Phoenix Slides"] = ":phoenix_slides:",
 	["Adobe Photoshop"] = ":photoshop:",

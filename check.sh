@@ -984,16 +984,9 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   sketchybar() { return 1; }
   expect_failure restart_sketchybar
 
-  have() { [[ "$1" == skhd ]]; }
-  skhd() { return 0; }
-  launchctl() { return 1; }
-  id() { print -r -- 501; }
-  expect_failure restart_skhd
-
   OPENUSAGE_EXIT=0
   AEROSPACE_EXIT=0
   SKETCHYBAR_EXIT=0
-  SKHD_EXIT=0
   restart_openusage() {
     print -r -- openusage >>"$SERVICE_FIXTURE_LOG"
     return "$OPENUSAGE_EXIT"
@@ -1005,10 +998,6 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   restart_sketchybar() {
     print -r -- sketchybar >>"$SERVICE_FIXTURE_LOG"
     return "$SKETCHYBAR_EXIT"
-  }
-  restart_skhd() {
-    print -r -- skhd >>"$SERVICE_FIXTURE_LOG"
-    return "$SKHD_EXIT"
   }
 
   assert_service_case() {
@@ -1027,21 +1016,16 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
 
   all_calls="openusage
 aerospace
-sketchybar
-skhd"
+sketchybar"
   assert_service_case 0 "$all_calls"
   OPENUSAGE_EXIT=1
   assert_service_case 1 "$all_calls"
   OPENUSAGE_EXIT=0
   AEROSPACE_EXIT=1
   assert_service_case 1 "openusage
-aerospace
-skhd"
+aerospace"
   AEROSPACE_EXIT=0
   SKETCHYBAR_EXIT=1
-  assert_service_case 1 "$all_calls"
-  SKETCHYBAR_EXIT=0
-  SKHD_EXIT=1
   assert_service_case 1 "$all_calls"
 
   for function_name in \
@@ -1214,7 +1198,7 @@ brew_trust_targets="$(
   env "${ISOLATED_ENV[@]}" zsh -c \
     'source "$1"; declared_brew_trust_targets' zsh "$ROOT/setup.sh"
 )"
-[[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\nbrew\tasmvik/formulae/skhd\ncask\tnikitabobko/tap/aerospace' ]]
+[[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace' ]]
 if rg -q 'brew trust --tap' setup.sh; then
   printf "Setup must trust declared Brew dependencies, not entire taps.\n" >&2
   exit 1

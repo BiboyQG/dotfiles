@@ -30,6 +30,7 @@ Shell helpers:
 
 - VS Code: `Ctrl+Shift+[` opens the previous editor while the text editor has focus. `Ctrl+[` retains Vim's Escape behavior and passes through to the terminal.
 - Neovim: Neo-tree shows dotfiles and hides Git-ignored files by default. Toggle hidden items in Neo-tree when you need to inspect ignored files.
+- Yazi: PDF files open with the default macOS application.
 
 ## Shell shortcuts
 

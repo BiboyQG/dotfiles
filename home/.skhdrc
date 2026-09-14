@@ -1,2 +1,0 @@
-# AeroSpace stops handling native bindings while disabled, so this external toggle must remain.
-lctrl + alt - g : /opt/homebrew/bin/aerospace enable toggle
