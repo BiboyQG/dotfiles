@@ -24,17 +24,22 @@ start_request() {
   local output="$1"
   shift
   rm -f -- "$output.status"
-  set -m
-  (
-    trap - EXIT HUP INT TERM
+  # bash prints "child setpgid ...: Operation not permitted" on its own stderr
+  # when a job-control child exits before the parent's setpgid; keep that
+  # diagnostic out of the helper's stderr (the request redirects its own).
+  {
+    set -m
+    (
+      trap - EXIT HUP INT TERM
+      set +m
+      request_exit=0
+      "$@" >"$output" 2>/dev/null || request_exit=$?
+      printf '%s\n' "$request_exit" >"$output.status"
+    ) &
+    request_pids+=("$!")
+    disown "$!" >/dev/null 2>&1 || true
     set +m
-    request_exit=0
-    "$@" >"$output" 2>/dev/null || request_exit=$?
-    printf '%s\n' "$request_exit" >"$output.status"
-  ) &
-  request_pids+=("$!")
-  disown "$!" >/dev/null 2>&1 || true
-  set +m
+  } 2>/dev/null
 }
 
 request_running() {
