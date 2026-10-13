@@ -8,6 +8,7 @@ import sys
 import tempfile
 import tarfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -78,51 +79,59 @@ def server():
             tmux("kill-server", check=False)
 
 
+def run_outcome(outcome):
+    with server() as (work, env, tmux, manager):
+        # Only external restore eligibility is mocked; lifecycle commands and
+        # asynchronous tmux hooks run against the real disposable server.
+        helpers = work / ".tmux/plugins/tmux-continuum/scripts/helpers.sh"
+        helpers.parent.mkdir(parents=True)
+        helpers.write_text("another_tmux_server_running_on_startup() { [[ ${TEST_MULTIPLE_SERVERS:-no} == yes ]]; }\n")
+        restore = work / "restore.sh"
+        marker = work / "restored"
+        restore.write_text(
+            "#!/bin/bash\nset -euo pipefail\n"
+            "[[ ${TEST_RESTORE_OUTCOME:-} != no-snapshot ]] || exit 0\n"
+            "eval \"$(tmux show-option -gqv @resurrect-hook-pre-restore-all)\"\n"
+            "[[ ${TEST_RESTORE_OUTCOME:-} != failed ]] || exit 7\n"
+            "tmux new-session -d -s 1-alpha /bin/sleep 120\n"
+            f"{shlex.quote(sys.executable)} {shlex.quote(str(MANAGER))} ensure\n"
+            "tmux new-window -d -t 1-alpha:2 -n saved-alpha /bin/sleep 120\n"
+            "tmux kill-session -t 0\n"
+            "eval \"$(tmux show-option -gqv @resurrect-hook-post-restore-all)\"\n"
+            f"touch {shlex.quote(str(marker))}\n"
+        )
+        restore.chmod(0o755)
+        tmux("set", "-g", "@resurrect-restore-script-path", str(restore))
+        env["TEST_RESTORE_OUTCOME"] = outcome
+        if outcome == "multiple-servers":
+            env["TEST_MULTIPLE_SERVERS"] = "yes"
+        if outcome == "opt-out":
+            (work / "tmux_no_auto_restore").touch()
+        if outcome == "missing-plugin":
+            helpers.unlink()
+        result = subprocess.run(["/bin/bash", str(STARTUP)], env=env, capture_output=True, text=True)
+        assert result.returncode == (7 if outcome == "failed" else 0), result.stderr
+        assert tmux("show-option", "-gqv", "@dotfiles-session-startup") == "complete"
+        assert tmux("show-option", "-gqv", "@dotfiles-session-restoring") == "off"
+        assert marker.exists() == (outcome == "restored")
+        expected = "1-alpha" if outcome == "restored" else "1-0"
+        assert tmux("list-sessions", "-F", "#{session_name}") == expected
+        # Keep valid numbering so queued creation hooks cannot reorder the
+        # fixture while checking that reload does not restore the old name.
+        tmux("rename-session", "-t", expected, "1-kept-on-reload")
+        manager("startup-prepare")
+        subprocess.run(["/bin/bash", str(STARTUP)], env=env, check=True)
+        actual = tmux("list-sessions", "-F", "#{session_name}")
+        assert actual == "1-kept-on-reload", actual
+    return outcome
+
+
 if PLUGINS is None:
-    for outcome in ("restored", "no-snapshot", "multiple-servers", "opt-out", "missing-plugin", "failed"):
-        with server() as (work, env, tmux, manager):
-            # Only external restore eligibility is mocked; lifecycle commands and
-            # asynchronous tmux hooks run against the real disposable server.
-            helpers = work / ".tmux/plugins/tmux-continuum/scripts/helpers.sh"
-            helpers.parent.mkdir(parents=True)
-            helpers.write_text("another_tmux_server_running_on_startup() { [[ ${TEST_MULTIPLE_SERVERS:-no} == yes ]]; }\n")
-            restore = work / "restore.sh"
-            marker = work / "restored"
-            restore.write_text(
-                "#!/bin/bash\nset -euo pipefail\n"
-                "[[ ${TEST_RESTORE_OUTCOME:-} != no-snapshot ]] || exit 0\n"
-                "eval \"$(tmux show-option -gqv @resurrect-hook-pre-restore-all)\"\n"
-                "[[ ${TEST_RESTORE_OUTCOME:-} != failed ]] || exit 7\n"
-                "tmux new-session -d -s 1-alpha /bin/sleep 120\n"
-                f"{shlex.quote(sys.executable)} {shlex.quote(str(MANAGER))} ensure\n"
-                "tmux new-window -d -t 1-alpha:2 -n saved-alpha /bin/sleep 120\n"
-                "tmux kill-session -t 0\n"
-                "eval \"$(tmux show-option -gqv @resurrect-hook-post-restore-all)\"\n"
-                f"touch {shlex.quote(str(marker))}\n"
-            )
-            restore.chmod(0o755)
-            tmux("set", "-g", "@resurrect-restore-script-path", str(restore))
-            env["TEST_RESTORE_OUTCOME"] = outcome
-            if outcome == "multiple-servers":
-                env["TEST_MULTIPLE_SERVERS"] = "yes"
-            if outcome == "opt-out":
-                (work / "tmux_no_auto_restore").touch()
-            if outcome == "missing-plugin":
-                helpers.unlink()
-            result = subprocess.run(["/bin/bash", str(STARTUP)], env=env, capture_output=True, text=True)
-            assert result.returncode == (7 if outcome == "failed" else 0), result.stderr
-            assert tmux("show-option", "-gqv", "@dotfiles-session-startup") == "complete"
-            assert tmux("show-option", "-gqv", "@dotfiles-session-restoring") == "off"
-            assert marker.exists() == (outcome == "restored")
-            expected = "1-alpha" if outcome == "restored" else "1-0"
-            assert tmux("list-sessions", "-F", "#{session_name}") == expected
-            # Keep valid numbering so queued creation hooks cannot reorder the
-            # fixture while checking that reload does not restore the old name.
-            tmux("rename-session", "-t", expected, "1-kept-on-reload")
-            manager("startup-prepare")
-            subprocess.run(["/bin/bash", str(STARTUP)], env=env, check=True)
-            actual = tmux("list-sessions", "-F", "#{session_name}")
-            assert actual == "1-kept-on-reload", actual
+    outcomes = ("restored", "no-snapshot", "multiple-servers", "opt-out", "missing-plugin", "failed")
+    # Each outcome has its own temporary HOME and socket, so they run at once;
+    # list() re-raises the first failure and the result keeps the order explicit.
+    with ThreadPoolExecutor(len(outcomes)) as pool:
+        assert list(pool.map(run_outcome, outcomes)) == list(outcomes)
 
 
     with server() as (work, env, tmux, manager):
