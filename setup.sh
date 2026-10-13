@@ -1051,24 +1051,39 @@ install_sketchybar_assets() {
 
   install_sketchybar_helpers
 
+  local sbarlua_repository="https://github.com/FelixKratz/SbarLua.git"
   local sbarlua_dir="$HOME/.local/share/sketchybar_lua"
   local sbarlua_stamp="$sbarlua_dir/.dotfiles-ref"
-  local tmp_dir latest_commit
-  tmp_dir="$(mktemp -d)"
-  ensure_latest_git_checkout https://github.com/FelixKratz/SbarLua.git "$tmp_dir"
-  latest_commit="$(git -C "$tmp_dir" rev-parse HEAD)"
+  local sha1_regex='^[0-9a-f]{40}$'
+  local tmp_dir latest_commit installed_commit build_status=0
 
+  # One ls-remote request tells whether the stamped build is still current;
+  # the clone below only happens when it is not.
+  latest_commit="$(git ls-remote "$sbarlua_repository" HEAD)"
+  latest_commit="${latest_commit%%$'\t'*}"
+  if [[ ! "$latest_commit" =~ $sha1_regex ]]; then
+    printf "Could not resolve the SbarLua default branch tip.\n" >&2
+    exit 1
+  fi
   if [[ -f "$sbarlua_dir/sketchybar.so" && -r "$sbarlua_stamp" \
     && "$(<"$sbarlua_stamp")" == "$latest_commit" ]]; then
     info "SbarLua already installed"
-    rm -rf "$tmp_dir"
     return 0
   fi
 
-  make -C "$tmp_dir" install
+  tmp_dir="$(mktemp -d)"
+  # Check the build status explicitly instead of relying on errexit: zsh 5.9
+  # skips always blocks and EXIT traps when errexit stops a function, which
+  # used to leave the clone behind after a failed make.
+  {
+    git clone --filter=blob:none --depth=1 "$sbarlua_repository" "$tmp_dir" \
+      && installed_commit="$(git -C "$tmp_dir" rev-parse HEAD)" \
+      && make -C "$tmp_dir" install
+  } || build_status=$?
+  rm -rf -- "$tmp_dir"
+  (( build_status == 0 )) || return "$build_status"
   mkdir -p "$sbarlua_dir"
-  printf "%s\n" "$latest_commit" >"$sbarlua_stamp"
-  rm -rf "$tmp_dir"
+  printf "%s\n" "$installed_commit" >"$sbarlua_stamp"
 }
 
 install_tmux_plugins() {

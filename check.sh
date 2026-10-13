@@ -1086,6 +1086,64 @@ for kitty_case in current outdated missing; do
 done
 unset kitty_case kitty_expected
 
+log "Checking SbarLua install stamp and cleanup"
+SBARLUA_FIXTURE_HOME="$CHECK_WORK_DIR/sbarlua-home"
+SBARLUA_FIXTURE_TMP="$CHECK_WORK_DIR/sbarlua-clone"
+SBARLUA_FIXTURE_DIR="$SBARLUA_FIXTURE_HOME/.local/share/sketchybar_lua"
+sbarlua_commit="$(printf 'a%.0s' {1..40})"
+# A matching stamp costs one ls-remote and no clone; a build installs and
+# stamps the cloned commit; a failed build must still remove its clone.
+for sbarlua_case in current install build-failure; do
+  rm -rf "$SBARLUA_FIXTURE_HOME" "$SBARLUA_FIXTURE_TMP"
+  mkdir -p "$SBARLUA_FIXTURE_HOME"
+  if [[ "$sbarlua_case" == current ]]; then
+    mkdir -p "$SBARLUA_FIXTURE_DIR"
+    : >"$SBARLUA_FIXTURE_DIR/sketchybar.so"
+    printf '%s\n' "$sbarlua_commit" >"$SBARLUA_FIXTURE_DIR/.dotfiles-ref"
+  fi
+  sbarlua_exit=0
+  env HOME="$SBARLUA_FIXTURE_HOME" PATH=/usr/bin:/bin \
+    SBARLUA_FIXTURE_TMP="$SBARLUA_FIXTURE_TMP" SBARLUA_CASE="$sbarlua_case" \
+    SBARLUA_COMMIT="$sbarlua_commit" zsh -fc '
+      setopt FUNCTION_ARGZERO
+      source "$1"
+      log() { :; }
+      info() { :; }
+      install_sketchybar_helpers() { :; }
+      mktemp() {
+        command mkdir -p "$SBARLUA_FIXTURE_TMP"
+        print -r -- "$SBARLUA_FIXTURE_TMP"
+      }
+      git() {
+        case "$1" in
+          ls-remote) printf "%s\tHEAD\n" "$SBARLUA_COMMIT" ;;
+          clone) : >"${@[-1]}/Makefile" ;;
+          -C) print -r -- "$SBARLUA_COMMIT" ;;
+          *) return 1 ;;
+        esac
+      }
+      make() { [[ "$SBARLUA_CASE" != build-failure ]]; }
+      install_sketchybar_assets
+    ' setup-sbarlua "$ROOT/setup.sh" >"$CHECK_WORK_DIR/sbarlua.log" 2>&1 \
+    || sbarlua_exit=$?
+  case "$sbarlua_case" in
+    current)
+      (( sbarlua_exit == 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] ;;
+    install)
+      (( sbarlua_exit == 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] \
+        && [[ "$(<"$SBARLUA_FIXTURE_DIR/.dotfiles-ref")" == "$sbarlua_commit" ]] ;;
+    build-failure)
+      (( sbarlua_exit != 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] ;;
+  esac || {
+    cat "$CHECK_WORK_DIR/sbarlua.log" >&2
+    printf 'install_sketchybar_assets %s: exit %s, clone directory %s\n' \
+      "$sbarlua_case" "$sbarlua_exit" \
+      "$([[ -e "$SBARLUA_FIXTURE_TMP" ]] && echo leaked || echo removed)" >&2
+    exit 1
+  }
+done
+unset sbarlua_case sbarlua_exit sbarlua_commit
+
 log "Checking Xcode license preflight"
 env zsh -fc '
   setopt FUNCTION_ARGZERO
