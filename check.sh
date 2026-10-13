@@ -778,23 +778,38 @@ assert_setup_preflight invalid reject 'Invalid Stow target directory: ../escape'
 log "Checking setup NVM activation"
 NVM_FIXTURE_HOME="$SETUP_SNAPSHOT_DIR/nvm-home"
 NVM_FIXTURE_BIN="$NVM_FIXTURE_HOME/.nvm/versions/node/v1.2.3/bin"
+NVM_FIXTURE_LOG="$NVM_FIXTURE_HOME/nvm-calls.log"
 BREW_FIXTURE_BIN="$SETUP_SNAPSHOT_DIR/homebrew/bin"
 mkdir -p "$NVM_FIXTURE_HOME/.nvm" "$NVM_FIXTURE_BIN" "$BREW_FIXTURE_BIN"
 printf '#!/bin/sh\nexit 0\n' >"$NVM_FIXTURE_BIN/npm"
 printf '#!/bin/sh\nexit 0\n' >"$BREW_FIXTURE_BIN/npm"
 chmod +x "$NVM_FIXTURE_BIN/npm" "$BREW_FIXTURE_BIN/npm"
 cat >"$NVM_FIXTURE_HOME/.nvm/nvm.sh" <<'ZSH'
+NVM_FIXTURE_INSTALLED=0
 nvm() {
   local command="$1"
   local entry
   local -a updated_path
 
   case "$command" in
-    install | alias)
+    install)
+      NVM_FIXTURE_INSTALLED=1
+      ;;
+    alias)
       return 0
       ;;
     version)
-      print -r -- v1.2.3
+      # Until install runs, the default alias still names the previous release
+      # or, like the real nvm, prints N/A and fails when it does not exist.
+      if [[ "$2" == default && "$NVM_FIXTURE_INSTALLED" == 0 ]]; then
+        print -r -- "$NVM_FIXTURE_PREVIOUS"
+        [[ "$NVM_FIXTURE_PREVIOUS" != N/A ]] || return 3
+      else
+        print -r -- v1.2.3
+      fi
+      ;;
+    reinstall-packages | uninstall)
+      print -r -- "$command $2" >>"$NVM_FIXTURE_LOG"
       ;;
     deactivate)
       for entry in "${path[@]}"; do
@@ -814,17 +829,38 @@ nvm() {
   esac
 }
 ZSH
-env \
-  HOME="$NVM_FIXTURE_HOME" \
-  NVM_FIXTURE_BIN="$NVM_FIXTURE_BIN" \
-  PATH="$BREW_FIXTURE_BIN:$NVM_FIXTURE_BIN:/usr/bin:/bin" \
-  zsh -fc '
-    setopt FUNCTION_ARGZERO
-    source "$1"
-    ensure_latest_git_checkout() { :; }
-    install_nvm_node >/dev/null
-    [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
-  ' setup-nvm "$ROOT/setup.sh"
+# The previous default is migrated and removed only when it is a different,
+# existing version; a matching or missing default must leave nvm alone.
+for nvm_previous in v1.0.0 v1.2.3 N/A; do
+  : >"$NVM_FIXTURE_LOG"
+  env \
+    HOME="$NVM_FIXTURE_HOME" \
+    NVM_FIXTURE_BIN="$NVM_FIXTURE_BIN" \
+    NVM_FIXTURE_LOG="$NVM_FIXTURE_LOG" \
+    NVM_FIXTURE_PREVIOUS="$nvm_previous" \
+    PATH="$BREW_FIXTURE_BIN:$NVM_FIXTURE_BIN:/usr/bin:/bin" \
+    zsh -fc '
+      setopt FUNCTION_ARGZERO
+      source "$1"
+      ensure_latest_git_checkout() { :; }
+      install_nvm_node >/dev/null
+      [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
+    ' setup-nvm "$ROOT/setup.sh"
+  if [[ "$nvm_previous" == v1.0.0 ]]; then
+    [[ "$(<"$NVM_FIXTURE_LOG")" == $'reinstall-packages v1.0.0\nuninstall v1.0.0' ]] || {
+      printf "install_nvm_node did not migrate and remove the previous default:\n" >&2
+      sed 's/^/  /' "$NVM_FIXTURE_LOG" >&2
+      exit 1
+    }
+  else
+    [[ ! -s "$NVM_FIXTURE_LOG" ]] || {
+      printf "install_nvm_node touched nvm for previous default %s:\n" "$nvm_previous" >&2
+      sed 's/^/  /' "$NVM_FIXTURE_LOG" >&2
+      exit 1
+    }
+  fi
+done
+unset nvm_previous
 
 log "Checking native CLI installation without npm or Homebrew"
 CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"

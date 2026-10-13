@@ -867,7 +867,9 @@ install_nvm_node() {
   set +u
   . "$NVM_DIR/nvm.sh"
 
-  local installed_node_version
+  local installed_node_version previous_node_version
+  # nvm prints N/A and fails while the default alias does not exist yet.
+  previous_node_version="$(nvm version default)" || previous_node_version="N/A"
   nvm install node
   installed_node_version="$(nvm version node)"
 
@@ -879,6 +881,15 @@ install_nvm_node() {
   nvm alias default "$installed_node_version"
   nvm deactivate --silent >/dev/null 2>&1 || true
   nvm use "$installed_node_version"
+
+  # Carry the previous default's global packages over, then remove it.
+  # reinstall-packages refuses the version in use and uninstall refuses the
+  # active one, so this runs after `nvm use` and in this order.
+  if [[ "$previous_node_version" != "N/A" \
+    && "$previous_node_version" != "$installed_node_version" ]]; then
+    nvm reinstall-packages "$previous_node_version"
+    nvm uninstall "$previous_node_version"
+  fi
 
   set -u
 }
