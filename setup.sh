@@ -10,7 +10,8 @@ SUDO_KEEPALIVE_PID=""
 APPLY_SYSTEM_DEFAULTS=1
 UPDATE_LOCKS=0
 NEEDS_XCODE_LICENSE=0
-STOW_IGNORE_PATTERNS=()
+STOW_IGNORE_REGEXES=()
+STOW_IGNORE_FULL_PATH=()
 STOW_IGNORE_PATTERNS_LOADED=0
 STOW_CONFIG_CWD="/var/empty"
 STOW_CONFIG_HOME="$STOW_CONFIG_CWD/dotfiles-stow-home"
@@ -250,20 +251,51 @@ preflight_git_checkout() {
   fi
 }
 
-preflight_github_checkout() {
-  local repository="$1"
-  local checkout="$2"
+github_repository_from_remote() {
+  local remote="${1%.git}"
+  case "$remote" in
+    https://github.com/*)
+      print -r -- "${remote#https://github.com/}"
+      ;;
+    https://git::@github.com/*)
+      print -r -- "${remote#https://git::@github.com/}"
+      ;;
+    git@github.com:*)
+      print -r -- "${remote#git@github.com:}"
+      ;;
+    ssh://git@github.com/*)
+      print -r -- "${remote#ssh://git@github.com/}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Usage: require_github_origin <checkout> <owner/repo> <description>
+# GitHub owner and repository names are case-insensitive.
+require_github_origin() {
+  local checkout="$1"
+  local repository="$2"
+  local description="$3"
   local remote actual_repository
 
-  [[ -e "$checkout" || -L "$checkout" ]] || return 0
-  preflight_git_checkout "$checkout" || return 1
   remote="$(git -C "$checkout" remote get-url origin 2>/dev/null || true)"
   actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
   if [[ "${(L)actual_repository}" != "${(L)repository}" ]]; then
-    printf "Unexpected origin for Git checkout %s at %s: %s\n" \
-      "$repository" "$checkout" "${remote:-missing}" >&2
+    printf "Unexpected origin for %s: %s\n" "$description" "${remote:-missing}" >&2
     return 1
   fi
+}
+
+preflight_github_checkout() {
+  local repository="$1"
+  local checkout="$2"
+
+  [[ -e "$checkout" || -L "$checkout" ]] || return 0
+  preflight_git_checkout "$checkout" || return 1
+  require_github_origin "$checkout" "$repository" \
+    "Git checkout $repository at $checkout" || return 1
 }
 
 preflight_existing_git_checkouts() {
@@ -285,7 +317,7 @@ preflight_brew_taps() {
   [[ -n "$brew_bin" ]] || return 0
 
   log "Checking existing Homebrew taps"
-  local output tap tap_dir remote actual_repository expected_repository
+  local output tap tap_dir
   local -a taps
   output="$(declared_brew_taps "$brew_bin")" || return 1
   taps=("${(@f)output}")
@@ -294,14 +326,8 @@ preflight_brew_taps() {
     tap_dir="$("$brew_bin" --repository "$tap" 2>/dev/null || true)"
     [[ -e "$tap_dir" || -L "$tap_dir" ]] || continue
     preflight_git_checkout "$tap_dir" || return 1
-    remote="$(git -C "$tap_dir" remote get-url origin 2>/dev/null || true)"
-    actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
-    expected_repository="${tap%%/*}/homebrew-${tap#*/}"
-    if [[ "${(L)actual_repository}" != "${(L)expected_repository}" ]]; then
-      printf "Unexpected origin for Homebrew tap %s: %s\n" \
-        "$tap" "${remote:-missing}" >&2
-      return 1
-    fi
+    require_github_origin "$tap_dir" "${tap%%/*}/homebrew-${tap#*/}" \
+      "Homebrew tap $tap" || return 1
   done
 }
 
@@ -315,10 +341,23 @@ preflight_zprofile() {
   fi
 }
 
+# Print a manifest's content lines: trimmed, without CRs, blanks or comments.
+manifest_lines() {
+  local line
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" && "$line" != \#* ]] || continue
+    print -r -- "$line"
+  done <"$1"
+}
+
 stow_target_directories() {
   local manifest="$DOTFILES_DIR/stow-target-dirs.txt"
   local line component
-  local -a components
+  local -a lines components
   local -A seen
   local safe_component='^[A-Za-z0-9._ -]+$'
 
@@ -327,12 +366,9 @@ stow_target_directories() {
     return 1
   fi
 
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%$'\r'}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [[ -n "$line" && "$line" != \#* ]] || continue
-
+  lines=("${(@f)$(manifest_lines "$manifest")}")
+  for line in "${lines[@]}"; do
+    [[ -n "$line" ]] || continue
     components=("${(@s:/:)line}")
     if [[ "$line" == /* || "$line" == */ || "$line" == *//* ]]; then
       printf "Invalid Stow target directory: %s\n" "$line" >&2
@@ -351,14 +387,15 @@ stow_target_directories() {
     fi
     seen[$line]=1
     print -r -- "$line"
-  done <"$manifest"
+  done
 }
 
 load_stow_ignore_patterns() {
   # Stow uses Perl regexes; keep preflight compatible with lookahead rules.
   setopt local_options rematch_pcre
   local manifest="$DOTFILES_DIR/home/.stow-local-ignore"
-  local line regex regex_status
+  local line regex regex_status full_path
+  local -a lines
 
   (( STOW_IGNORE_PATTERNS_LOADED )) && return 0
   if [[ ! -r "$manifest" ]]; then
@@ -366,16 +403,19 @@ load_stow_ignore_patterns() {
     return 1
   fi
 
-  STOW_IGNORE_PATTERNS=()
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%$'\r'}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [[ -n "$line" && "$line" != \#* ]] || continue
+  STOW_IGNORE_REGEXES=()
+  STOW_IGNORE_FULL_PATH=()
+  lines=("${(@f)$(manifest_lines "$manifest")}")
+  for line in "${lines[@]}"; do
+    [[ -n "$line" ]] || continue
+    # Stow matches a pattern containing a slash against the whole package
+    # path and any other pattern against the basename.
     if [[ "$line" == */* ]]; then
       regex="(^|/)(${line})(/|$)"
+      full_path=1
     else
       regex="^(${line})$"
+      full_path=0
     fi
     if [[ "" =~ $regex ]]; then
       regex_status=0
@@ -386,27 +426,26 @@ load_stow_ignore_patterns() {
       printf "Invalid pattern in Stow ignore manifest: %s\n" "$line" >&2
       return 1
     fi
-    STOW_IGNORE_PATTERNS+=("$line")
-  done <"$manifest"
+    STOW_IGNORE_REGEXES+=("$regex")
+    STOW_IGNORE_FULL_PATH+=("$full_path")
+  done
   STOW_IGNORE_PATTERNS_LOADED=1
 }
 
 stow_path_is_ignored() {
   setopt local_options rematch_pcre
   local relative="$1"
-  local subject pattern regex
+  local index subject
 
   [[ "$relative" == ".stow-local-ignore" ]] && return 0
   load_stow_ignore_patterns || return 2
-  for pattern in "${STOW_IGNORE_PATTERNS[@]}"; do
-    if [[ "$pattern" == */* ]]; then
+  for (( index = 1; index <= ${#STOW_IGNORE_REGEXES[@]}; index++ )); do
+    if (( STOW_IGNORE_FULL_PATH[index] )); then
       subject="/$relative"
-      regex="(^|/)(${pattern})(/|$)"
     else
       subject="${relative:t}"
-      regex="^(${pattern})$"
     fi
-    [[ "$subject" =~ $regex ]] && return 0
+    [[ "$subject" =~ ${STOW_IGNORE_REGEXES[index]} ]] && return 0
   done
   return 1
 }
@@ -571,17 +610,16 @@ preflight_aerospace_config() {
 tmux_plugin_repositories() {
   local manifest="$DOTFILES_DIR/home/.config/tmux/plugins.conf"
   local line repository owner name
+  local -a lines
 
   if [[ ! -r "$manifest" ]]; then
     printf "Missing tmux plugin manifest: %s\n" "$manifest" >&2
     return 1
   fi
 
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%$'\r'}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [[ -n "$line" && "$line" != \#* ]] || continue
+  lines=("${(@f)$(manifest_lines "$manifest")}")
+  for line in "${lines[@]}"; do
+    [[ -n "$line" ]] || continue
     repository="${line#*\'}"
     repository="${repository%\'}"
     owner="${repository%%/*}"
@@ -593,41 +631,7 @@ tmux_plugin_repositories() {
       return 1
     fi
     print -r -- "$repository"
-  done <"$manifest"
-}
-
-github_repository_from_remote() {
-  local remote="${1%.git}"
-  case "$remote" in
-    https://github.com/*)
-      print -r -- "${remote#https://github.com/}"
-      ;;
-    https://git::@github.com/*)
-      print -r -- "${remote#https://git::@github.com/}"
-      ;;
-    git@github.com:*)
-      print -r -- "${remote#git@github.com:}"
-      ;;
-    ssh://git@github.com/*)
-      print -r -- "${remote#ssh://git@github.com/}"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-validate_tmux_plugin_checkout() {
-  local repository="$1"
-  local plugin_dir="$2"
-  local remote actual_repository
-
-  remote="$(git -C "$plugin_dir" remote get-url origin 2>/dev/null || true)"
-  actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
-  if [[ "$actual_repository" != "$repository" ]]; then
-    printf "Unexpected origin for tmux plugin %s: %s\n" "$repository" "${remote:-missing}" >&2
-    return 1
-  fi
+  done
 }
 
 preflight_tmux_plugins() {
@@ -655,7 +659,8 @@ preflight_tmux_plugins() {
       return 1
     fi
     if [[ -d "$plugin_dir/.git" ]]; then
-      validate_tmux_plugin_checkout "$repository" "$plugin_dir" || return 1
+      require_github_origin "$plugin_dir" "$repository" \
+        "tmux plugin $repository" || return 1
       preflight_git_checkout "$plugin_dir" || return 1
     fi
   done
@@ -1053,10 +1058,10 @@ install_tmux_plugins() {
 
   local tpm_dir="$HOME/.tmux/plugins/tpm"
   if [[ -d "$tpm_dir/.git" ]]; then
-    validate_tmux_plugin_checkout "$tpm_repository" "$tpm_dir"
+    require_github_origin "$tpm_dir" "$tpm_repository" "tmux plugin $tpm_repository"
   fi
   ensure_latest_git_checkout "https://github.com/$tpm_repository.git" "$tpm_dir"
-  validate_tmux_plugin_checkout "$tpm_repository" "$tpm_dir"
+  require_github_origin "$tpm_dir" "$tpm_repository" "tmux plugin $tpm_repository"
 
   /bin/bash "$tpm_dir/scripts/install_plugins.sh"
 
@@ -1068,7 +1073,7 @@ install_tmux_plugins() {
       printf "TPM did not install expected plugin: %s\n" "$plugin" >&2
       exit 1
     fi
-    validate_tmux_plugin_checkout "$repository" "$plugin_dir"
+    require_github_origin "$plugin_dir" "$repository" "tmux plugin $repository"
     ensure_latest_git_checkout "https://github.com/$repository.git" "$plugin_dir"
   done
 }

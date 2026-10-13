@@ -663,7 +663,6 @@ run_setup_preflight() {
       cd "$6"
       source "$1"
       DOTFILES_DIR="${2:A}"
-      STOW_IGNORE_PATTERNS=()
       STOW_IGNORE_PATTERNS_LOADED=0
       POISON_MARKER="$3"
       PREFLIGHT_ACTION="$4"
