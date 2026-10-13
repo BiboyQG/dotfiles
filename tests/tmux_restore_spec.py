@@ -69,9 +69,9 @@ def server():
             tmux("set", "-g", "@resurrect-hook-pre-restore-all", f"{command} restore-begin")
             tmux("set", "-g", "@resurrect-hook-post-restore-all", f"{command} restore-end")
             manager("startup-prepare")
-            tmux("set-hook", "-g", "session-created[100]", f"run-shell -b {shlex.quote(command + ' created')}")
+            tmux("set-hook", "-g", "session-created[100]", f"run-shell -b {shlex.quote(command + ' ensure')}")
             tmux("set-hook", "-g", "session-closed[100]", f"run-shell -b {shlex.quote(command + ' ensure')}")
-            manager("created")
+            manager("ensure")
             assert tmux("list-sessions", "-F", "#{session_name}") == "0"
             yield work, env, tmux, manager
         finally:
@@ -94,7 +94,7 @@ if PLUGINS is None:
                 "eval \"$(tmux show-option -gqv @resurrect-hook-pre-restore-all)\"\n"
                 "[[ ${TEST_RESTORE_OUTCOME:-} != failed ]] || exit 7\n"
                 "tmux new-session -d -s 1-alpha /bin/sleep 120\n"
-                f"{shlex.quote(sys.executable)} {shlex.quote(str(MANAGER))} created\n"
+                f"{shlex.quote(sys.executable)} {shlex.quote(str(MANAGER))} ensure\n"
                 "tmux new-window -d -t 1-alpha:2 -n saved-alpha /bin/sleep 120\n"
                 "tmux kill-session -t 0\n"
                 "eval \"$(tmux show-option -gqv @resurrect-hook-post-restore-all)\"\n"
@@ -129,7 +129,7 @@ if PLUGINS is None:
         manager("startup-finish")
         manager("restore-begin")
         tmux("new-session", "-d", "-s", "10-restored", "/bin/sleep 120")
-        manager("created")
+        manager("ensure")
         manager("rename", "must-not-change", "--session", "$0")
         assert tmux("list-sessions", "-F", "#{session_name}") == "1-0\n10-restored"
         manager("restore-end")

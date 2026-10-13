@@ -173,11 +173,6 @@ def command_ensure() -> None:
     refresh_clients()
 
 
-def command_created() -> None:
-    # Called after a session is created; ensure numbering stays contiguous.
-    command_ensure()
-
-
 def command_startup_prepare() -> None:
     # Set before loading plugins or installing session-created hooks. In
     # particular, resurrect must still see the initial session named "0".
@@ -249,7 +244,7 @@ def main(argv: List[str]) -> None:
     move.add_argument("--window", required=True)
     move.add_argument("--client")
     for command in (
-        "ensure", "created", "list", "startup-prepare", "startup-claim",
+        "ensure", "list", "startup-prepare", "startup-claim",
         "startup-finish", "restore-begin", "restore-end",
     ):
         commands.add_parser(command)
@@ -264,8 +259,6 @@ def main(argv: List[str]) -> None:
             command_rename(args.label, args.session)
         elif args.command == "ensure":
             command_ensure()
-        elif args.command == "created":
-            command_created()
         elif args.command == "startup-prepare":
             command_startup_prepare()
         elif args.command == "startup-claim":
