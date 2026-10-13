@@ -1,6 +1,11 @@
 typeset -U path PATH
 unset NO_COLOR
 
+# Apply direnv's environment before the instant prompt. Its precmd hook prints
+# "direnv: loading ..." otherwise, which trips the p10k warning about console
+# output during initialization.
+(( $+commands[direnv] )) && emulate zsh -c "$(direnv export zsh)"
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
