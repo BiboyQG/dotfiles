@@ -35,7 +35,7 @@ fi
 
 autoload -Uz compinit
 zmodload zsh/datetime
-zmodload zsh/stat
+zmodload -F zsh/stat b:zstat
 zcompdump="${ZDOTDIR:-$HOME}/.zcompdump-${ZSH_VERSION}"
 zcompdump_fpath="${zcompdump}.fpath"
 zcompdump_tmp="${zcompdump}.tmp.$$"
@@ -223,4 +223,6 @@ nvm() {
 }
 
 # Cargo (Rust package manager)
-[[ -r "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
+if [[ -r "$HOME/.cargo/env" ]]; then
+	source "$HOME/.cargo/env"
+fi
