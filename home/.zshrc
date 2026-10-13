@@ -167,6 +167,9 @@ function ta {
 		return $?
 	fi
 
+	# tmux refuses to attach from inside a session; switch the client instead.
+	local cmd=attach
+	[[ -n "${TMUX:-}" ]] && cmd=switch-client
 	local target=""
 	local sessions
 	sessions="$(tmux list-sessions -F '#{session_id}:::#{session_name}' 2>/dev/null)"
@@ -183,11 +186,11 @@ function ta {
 	fi
 
 	if [[ -n "$target" ]]; then
-		tmux attach -t "$target" "$@"
+		tmux "$cmd" -t "$target" "$@"
 		return $?
 	fi
 
-	tmux attach -t "$query" "$@"
+	tmux "$cmd" -t "$query" "$@"
 }
 alias tls="tmux ls"
 alias c="claude"

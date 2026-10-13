@@ -479,6 +479,50 @@ jq -e \
   <<<"$media_invalid_artwork_output" >/dev/null
 [[ -z "$(find "$media_cache" -type f -name 'media-artwork.??????' -print -quit)" ]]
 
+log "Checking tmux attach helper"
+ta_function="$(sed -n '/^function ta {$/,/^}$/p' home/.zshrc)"
+[[ -n "$ta_function" ]]
+TA_FIXTURE_LOG="$CHECK_WORK_DIR/ta-calls.log"
+# From a plain shell the helper attaches; inside tmux, which refuses nested
+# attach, it switches the client. Bare and option-only calls always attach.
+for ta_case in outside inside; do
+  : >"$TA_FIXTURE_LOG"
+  env "${ISOLATED_ENV[@]}" TA_FIXTURE_LOG="$TA_FIXTURE_LOG" TA_CASE="$ta_case" \
+    zsh -fc '
+      eval "$1"
+      tmux() {
+        if [[ "$1" == list-sessions ]]; then
+          printf "%s\n" "\$3:::1-dot" "\$7:::2-spreadsheet-build"
+          return 0
+        fi
+        print -r -- "tmux $*" >>"$TA_FIXTURE_LOG"
+      }
+      [[ "$TA_CASE" == inside ]] && TMUX=fixture-socket,1,0
+      ta
+      ta -d
+      ta dot
+      ta 2 -d
+      ta spreadsheet-build
+      ta missing
+    ' ta-fixture "$ta_function"
+  case "$ta_case" in
+    outside) ta_command=attach ;;
+    inside) ta_command=switch-client ;;
+  esac
+  ta_expected="tmux attach
+tmux attach -d
+tmux $ta_command -t \$3
+tmux $ta_command -t \$7 -d
+tmux $ta_command -t \$7
+tmux $ta_command -t missing"
+  [[ "$(<"$TA_FIXTURE_LOG")" == "$ta_expected" ]] || {
+    printf "ta ran the wrong tmux commands %s tmux:\n" "$ta_case" >&2
+    sed 's/^/  /' "$TA_FIXTURE_LOG" >&2
+    exit 1
+  }
+done
+unset ta_case ta_command ta_expected ta_function
+
 log "Checking setup command-line behavior"
 setup_help="$(env "${ISOLATED_ENV[@]}" zsh setup.sh --help)"
 grep -Fq 'usage:' <<<"$setup_help"
