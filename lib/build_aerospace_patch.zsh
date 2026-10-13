@@ -42,7 +42,6 @@ cd "$source_dir"
   printf 'Upstream tag no longer matches the reviewed commit.\n' >&2
   exit 1
 }
-git apply --check "$patch_snapshot"
 git apply "$patch_snapshot"
 /opt/homebrew/bin/bash ./generate.sh --ignore-xcodeproj --ignore-cmd-help \
   --build-version "$build_version" --generate-git-hash
