@@ -18,7 +18,7 @@ zsh setup.sh --skip-system-defaults
 
 This installs or updates tools, deploys links, and restarts managed services. It skips macOS defaults and NVRAM changes. Run `zsh setup.sh` to include those system preferences.
 
-Setup can still ask for an administrator password with `--skip-system-defaults`: once when Homebrew is not installed yet, and once when a full Xcode installation has a license left to accept.
+Setup can still ask for an administrator password with `--skip-system-defaults`: once when Homebrew is not installed yet, once when a full Xcode installation has a license left to accept, and whenever `brew bundle` installs or upgrades a pkg-based cask (SF Symbols, SF Mono, SF Pro).
 
 Neovim plugins and the Yazi flavor are installed at the revisions pinned in [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json) and [`package.toml`](../home/.config/yazi/package.toml), so a fresh machine matches the repository. To move those pins to the latest upstream versions, run:
 
