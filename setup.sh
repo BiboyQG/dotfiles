@@ -642,7 +642,7 @@ preflight_tmux_plugins() {
       return 1
     fi
     seen_plugins[$plugin]=1
-    [[ "$plugin" == "tpm" ]] && (( tpm_count += 1 ))
+    [[ "$repository" == "tmux-plugins/tpm" ]] && (( tpm_count += 1 ))
 
     plugin_dir="$HOME/.tmux/plugins/$plugin"
     if [[ ( -e "$plugin_dir" || -L "$plugin_dir" ) && ! -d "$plugin_dir/.git" ]]; then

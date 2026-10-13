@@ -1322,33 +1322,13 @@ if rg -q '^[[:space:]]*set -g @plugin' home/.tmux.conf; then
   exit 1
 fi
 rg -Fq 'home/.config/tmux/plugins.conf' setup.sh
-python3 - home/.config/tmux/plugins.conf <<'PY'
-import re
-import sys
-from pathlib import Path
-
-manifest = Path(sys.argv[1])
-pattern = re.compile(r"set -g @plugin '([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)'")
-plugins = []
-for line_number, raw_line in enumerate(manifest.read_text().splitlines(), start=1):
-    line = raw_line.strip()
-    if not line or line.startswith("#"):
-        continue
-    match = pattern.fullmatch(line)
-    if match is None:
-        raise SystemExit(f"{manifest}:{line_number}: invalid plugin declaration")
-    plugins.append(match.group(1))
-
-if not plugins:
-    raise SystemExit(f"{manifest}: no plugins declared")
-if len(plugins) != len(set(plugins)):
-    raise SystemExit(f"{manifest}: duplicate plugin declaration")
-basenames = [plugin.rsplit("/", 1)[1] for plugin in plugins]
-if len(basenames) != len(set(basenames)):
-    raise SystemExit(f"{manifest}: plugin install-directory collision")
-if "tmux-plugins/tpm" not in plugins:
-    raise SystemExit(f"{manifest}: tmux-plugins/tpm is required")
-PY
+# Validate the manifest with setup.sh's own parser. The isolated HOME has no
+# plugin checkouts, so only the manifest rules apply.
+env "${ISOLATED_ENV[@]}" zsh -fc '
+  setopt FUNCTION_ARGZERO
+  source "$1"
+  preflight_tmux_plugins >/dev/null
+' setup-tmux-plugins "$ROOT/setup.sh"
 
 log "Checking explicit Stow folding boundaries"
 manifest_target_dirs="$(python3 - "$FOLDING_MANIFEST" <<'PY'
