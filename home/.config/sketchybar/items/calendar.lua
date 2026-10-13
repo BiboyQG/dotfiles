@@ -41,8 +41,11 @@ local clock_revision = 0
 
 local function tick(revision)
   if revision ~= clock_revision then return end
-  cal:set({ icon = os.date("%a. %d %b."), label = os.date("%H:%M") })
-  sbar.delay(60 - tonumber(os.date("%S")), function() tick(revision) end)
+  -- One timestamp for both the label and the delay, so a tick that straddles
+  -- a minute boundary cannot draw the old minute and then wait a full minute.
+  local now = os.time()
+  cal:set({ icon = os.date("%a. %d %b.", now), label = os.date("%H:%M", now) })
+  sbar.delay(60 - tonumber(os.date("%S", now)), function() tick(revision) end)
 end
 
 cal:subscribe({ "forced", "system_woke" }, function()
