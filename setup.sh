@@ -165,9 +165,11 @@ ensure_sudo() {
   fi
 
   if (( CAN_SUDO )); then
-    while true; do
-      sudo -n true >/dev/null 2>&1 || exit
-      sleep 60
+    # Stop once this script is gone, so a killed run cannot leave an orphan
+    # extending the sudo credential.
+    local parent=$$
+    while kill -0 "$parent" 2>/dev/null && sudo -n true >/dev/null 2>&1; do
+      sleep 10
     done &
     SUDO_KEEPALIVE_PID=$!
   fi
@@ -177,7 +179,10 @@ cleanup_sudo() {
   [[ -n "$SUDO_KEEPALIVE_PID" ]] && kill "$SUDO_KEEPALIVE_PID" >/dev/null 2>&1 || true
 }
 
+# zsh skips the EXIT trap when a signal kills the script.
 trap cleanup_sudo EXIT
+trap 'cleanup_sudo; exit 130' INT
+trap 'cleanup_sudo; exit 143' TERM
 
 sudo_run() {
   if (( CAN_SUDO )); then
