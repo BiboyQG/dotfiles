@@ -3,8 +3,6 @@ set -euo pipefail
 
 label="${1:-}"
 session_id="${2:-}"
-# The prompt captures a numeric ID before its template is parsed again.
-[[ "$session_id" =~ ^[0-9]+$ ]] && session_id="\$$session_id"
 
 if [ -z "$label" ]; then
   exit 0
