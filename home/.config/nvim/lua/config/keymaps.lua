@@ -5,7 +5,5 @@
 local keymap = vim.keymap
 
 keymap.set("i", "kj", "<Esc>")
-keymap.set("n", "<leader>sv", "<C-w>v")
-keymap.set("n", "<leader>sx", ":close<cr>")
 
 keymap.set("n", "<leader><tab>e", ":tabedit ", { desc = "Edit in New Tab" })
