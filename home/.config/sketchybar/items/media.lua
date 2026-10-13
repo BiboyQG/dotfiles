@@ -59,19 +59,19 @@ sbar.add("item", {
   position = "popup." .. media_cover.name,
   icon = { string = icons.media.back },
   label = { drawing = false },
-  click_script = "/opt/homebrew/bin/nowplaying-cli previous",
+  click_script = "/opt/homebrew/bin/media-control previous-track",
 })
 sbar.add("item", {
   position = "popup." .. media_cover.name,
   icon = { string = icons.media.play_pause },
   label = { drawing = false },
-  click_script = "/opt/homebrew/bin/nowplaying-cli togglePlayPause",
+  click_script = "/opt/homebrew/bin/media-control toggle-play-pause",
 })
 sbar.add("item", {
   position = "popup." .. media_cover.name,
   icon = { string = icons.media.forward },
   label = { drawing = false },
-  click_script = "/opt/homebrew/bin/nowplaying-cli next",
+  click_script = "/opt/homebrew/bin/media-control next-track",
 })
 
 local detail_revision = 0

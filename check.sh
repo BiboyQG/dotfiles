@@ -407,7 +407,7 @@ media_cache="$CHECK_WORK_DIR/media-cache"
 mkdir -p "$media_cache"
 media_playing_output="$(
   printf '%s\n' \
-    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"clientBundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
+    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
     | env "${ISOLATED_ENV[@]}" zsh \
       home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 )"
@@ -428,7 +428,7 @@ cp "$media_artwork" "$media_recent"
 touch -t 200001010000 "$media_artwork" "$media_expired"
 media_reused_output="$(
   printf '%s\n' \
-    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"clientBundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
+    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
     | env "${ISOLATED_ENV[@]}" zsh \
       home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 )"
@@ -437,7 +437,7 @@ media_reused_output="$(
 
 media_stopped_output="$(
   printf '%s\n' \
-    '{"title":"Paused","playbackRate":0,"clientBundleIdentifier":"com.spotify.client"}' \
+    '{"title":"Paused","playbackRate":0,"bundleIdentifier":"com.spotify.client"}' \
     | env "${ISOLATED_ENV[@]}" zsh \
       home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 )"
@@ -445,7 +445,7 @@ jq -e '. == {playing:false}' <<<"$media_stopped_output" >/dev/null
 
 media_music_output="$(
   printf '%s\n' \
-    '{"title":"Music Fixture","artist":"Fixture Artist","playbackRate":1,"clientBundleIdentifier":"com.apple.Music"}' \
+    '{"title":"Music Fixture","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.apple.Music"}' \
     | env "${ISOLATED_ENV[@]}" zsh \
       home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 )"
@@ -455,7 +455,7 @@ jq -e \
 
 media_unrelated_output="$(
   printf '%s\n' \
-    '{"title":"Browser Media","playbackRate":1,"clientBundleIdentifier":"com.google.Chrome","isMusicApp":true}' \
+    '{"title":"Browser Media","playbackRate":1,"bundleIdentifier":"com.google.Chrome","isMusicApp":true}' \
     | env "${ISOLATED_ENV[@]}" zsh \
       home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 )"
@@ -470,7 +470,7 @@ jq -e '. == {playing:false}' <<<"$media_malformed_output" >/dev/null
 
 media_invalid_artwork_output="$(
   printf '%s\n' \
-    '{"title":"Bad Art","playbackRate":1,"clientBundleIdentifier":"com.spotify.client","artworkData":"%%%"}' \
+    '{"title":"Bad Art","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"%%%"}' \
     | env "${ISOLATED_ENV[@]}" zsh \
       home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 )"

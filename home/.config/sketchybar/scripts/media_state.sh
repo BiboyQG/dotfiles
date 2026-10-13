@@ -2,7 +2,7 @@
 set -euo pipefail
 
 JQ=/opt/homebrew/bin/jq
-NOWPLAYING=/opt/homebrew/bin/nowplaying-cli
+MEDIA_CONTROL=/opt/homebrew/bin/media-control
 CACHE_DIR="$HOME/Library/Caches/sketchybar"
 
 if [[ "${1:-}" == "--stdin" ]]; then
@@ -13,7 +13,9 @@ if [[ "${1:-}" == "--stdin" ]]; then
   [[ -n "${2:-}" ]] && CACHE_DIR="$2"
   payload="$(/bin/cat)"
 elif (( $# == 0 )); then
-  if ! payload="$($NOWPLAYING get --json title artist playbackRate clientBundleIdentifier artworkData 2>/dev/null)"; then
+  # media-control prints null when nothing is playing; the filter treats that
+  # like any other non-object payload.
+  if ! payload="$($MEDIA_CONTROL get 2>/dev/null)"; then
     payload=null
   fi
 else
@@ -25,8 +27,8 @@ if ! playing="$($JQ -er '
   if type != "object" then false
   else
     ((.playbackRate // 0 | tonumber? // 0) > 0)
-      and (.clientBundleIdentifier == "com.spotify.client"
-        or .clientBundleIdentifier == "com.apple.Music")
+      and (.bundleIdentifier == "com.spotify.client"
+        or .bundleIdentifier == "com.apple.Music")
   end
 ' <<<"$payload" 2>/dev/null)" || [[ "$playing" != "true" ]]; then
   $JQ -cn '{playing:false}'

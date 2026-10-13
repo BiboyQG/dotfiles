@@ -33,7 +33,7 @@ brew "uv"
 brew "terminal-notifier"
 brew "lua"
 brew "switchaudio-osx"
-brew "nowplaying-cli"
+brew "media-control"
 brew "felixkratz/formulae/sketchybar"
 brew "tmux"
 
