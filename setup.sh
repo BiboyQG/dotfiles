@@ -1251,12 +1251,14 @@ restart_sketchybar() {
     return 1
   fi
 
+  # The bar answers --query bar before (or without) loading sketchybarrc;
+  # space.1 exists only once the Lua config has run.
   local attempt
   for attempt in {1..40}; do
-    sketchybar --query bar >/dev/null 2>&1 && return 0
+    sketchybar --query space.1 >/dev/null 2>&1 && return 0
     sleep 0.25
   done
-  skip "SketchyBar service started but is not responding."
+  skip "SketchyBar service started but its Lua configuration did not load."
   return 1
 }
 
