@@ -138,6 +138,10 @@ class ResizeTests(unittest.TestCase):
                     self.assertEqual(state["calls"][-1]["args"],
                                      ["resize", "--window-id", "1", dimension,
                                       "-35" if boundary else "+35"])
+                    restores = [call for call in state["calls"]
+                                if call["args"][:2] == ["focus", "--window-id"]]
+                    self.assertEqual(len(restores), 0 if boundary else 1,
+                                     "focus is restored only after a successful probe")
 
     def test_empty_workspace_and_invalid_direction(self):
         self.set_state(None)
