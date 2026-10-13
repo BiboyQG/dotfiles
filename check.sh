@@ -73,7 +73,7 @@ cleanup() {
     env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
       kill-server >/dev/null 2>&1 || true
   fi
-  rm -r -- "$CHECK_WORK_DIR"
+  rm -rf -- "$CHECK_WORK_DIR"
 }
 trap cleanup EXIT
 
