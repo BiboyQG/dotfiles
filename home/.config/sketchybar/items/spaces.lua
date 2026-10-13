@@ -19,6 +19,8 @@ local window_refresh_revision = 0
 local focus_refresh_scheduled = false
 local cached_workspaces
 local rendered = {}
+local startup_retry_scheduled = false
+local startup_retries = 0
 
 for index, workspace in ipairs(workspace_names) do
   known_workspaces[workspace] = true
@@ -119,7 +121,23 @@ local function parse_windows(rows)
   return icons_by_workspace
 end
 
-local function update_spaces(windows_only)
+local update_spaces
+
+-- At login AeroSpace and the bar start in no defined order, so the first
+-- queries can fail with a refused connection and nothing else would refresh
+-- the bar until the next workspace event. Retry every second until the first
+-- topology query succeeds, bounded so a missing AeroSpace stops costing runs.
+local function schedule_startup_retry()
+  if cached_workspaces ~= nil or startup_retry_scheduled or startup_retries >= 30 then return end
+  startup_retry_scheduled = true
+  startup_retries = startup_retries + 1
+  sbar.delay(1, function()
+    startup_retry_scheduled = false
+    update_spaces()
+  end)
+end
+
+update_spaces = function(windows_only)
   windows_only = windows_only == true and cached_workspaces ~= nil
   if full_refresh_running then
     full_refresh_pending = true
@@ -150,6 +168,7 @@ local function update_spaces(windows_only)
     completed = completed + 1
     if completed ~= 2 then return end
     if not results.workspaces.ok or not results.windows.ok then
+      schedule_startup_retry()
       finish()
       return
     end
@@ -157,6 +176,7 @@ local function update_spaces(windows_only)
     local workspace_displays, queried_focus, display_count = parse_workspaces(results.workspaces.output)
     local icons_by_workspace = parse_windows(results.windows.output)
     if not workspace_displays or not icons_by_workspace then
+      schedule_startup_retry()
       finish()
       return
     end
@@ -356,10 +376,9 @@ space_window_observer:subscribe("space_windows_change", update_space_windows)
 space_window_observer:subscribe("aerospace_workspace_change", update_workspace_focus)
 
 spaces_indicator:subscribe("swap_menus_and_spaces", function(env)
-  local currently_on = spaces_indicator:query().icon.value == icons.switch.on
-  spaces_mode_visible = not currently_on
+  spaces_mode_visible = not spaces_mode_visible
   spaces_indicator:set({
-    icon = currently_on and icons.switch.off or icons.switch.on
+    icon = spaces_mode_visible and icons.switch.on or icons.switch.off
   })
   apply_drawing()
 end)

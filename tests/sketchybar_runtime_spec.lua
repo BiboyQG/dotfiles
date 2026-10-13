@@ -523,6 +523,52 @@ local function test_focus_refresh()
   expect(state.objects["space.1"].properties.display == 2, "display change kept the old mapping")
 end
 
+-- At login AeroSpace may not be listening yet; the bar retries its first
+-- topology query until it succeeds and never retries after that.
+local function test_spaces_startup_retry()
+  load_modules()
+  local sbar, state = fake_sbar()
+  _G.sbar = sbar
+  dofile(sketchybar_root .. "/items/spaces.lua")
+
+  state.emit("forced")
+  complete_full(state, nil, nil, 1, 1)
+  expect(#state.delays == 1 and state.delay_seconds[1] == 1, "failed startup query did not schedule a retry")
+  state.emit("forced")
+  complete_full(state, nil, nil, 1, 1)
+  expect(#state.delays == 1, "overlapping failures scheduled duplicate retries")
+  state.delays[1]()
+  expect(#state.execs == 6, "startup retry did not query AeroSpace")
+  complete_full(state, {}, {})
+  expect(#state.delays == 2, "unparseable startup output did not schedule a retry")
+  state.delays[2]()
+  complete_full(state, workspace_rows(true, "3"), { { workspace = "2", ["app-name"] = "Arc" } })
+  expect(state.objects["space.3"].properties.icon.highlight == true, "startup retry did not apply the topology")
+  expect(state.objects["space.2"].properties.label.string == "A", "startup retry did not apply the windows")
+
+  state.emit("forced")
+  complete_full(state, nil, nil, 1, 1)
+  expect(#state.delays == 2, "failure after the first success scheduled a retry")
+  state.emit("aerospace_windows_change")
+  expect(#state.delays == 3, "window event after startup did not use its own debounce")
+  state.delays[3]()
+  state.execs[#state.execs].callback(nil, 1)
+  expect(#state.delays == 3, "failed cached refresh scheduled a startup retry")
+
+  load_modules()
+  sbar, state = fake_sbar()
+  _G.sbar = sbar
+  dofile(sketchybar_root .. "/items/spaces.lua")
+  state.emit("forced")
+  for attempt = 1, 30 do
+    complete_full(state, nil, nil, 1, 1)
+    expect(#state.delays == attempt, "startup retry " .. attempt .. " was not scheduled")
+    state.delays[attempt]()
+  end
+  complete_full(state, nil, nil, 1, 1)
+  expect(#state.delays == 30, "startup retries did not stop at the cap")
+end
+
 local function test_media()
   load_modules()
   local sbar, state = fake_sbar()
@@ -949,6 +995,7 @@ end
 test_app_icons()
 test_spaces()
 test_space_visibility()
+test_spaces_startup_retry()
 test_menus()
 test_focus_refresh()
 test_media()
