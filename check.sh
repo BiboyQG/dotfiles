@@ -485,8 +485,10 @@ log "Checking tmux attach helper"
 ta_function="$(sed -n '/^function ta {$/,/^}$/p' home/.zshrc)"
 [[ -n "$ta_function" ]]
 TA_FIXTURE_LOG="$CHECK_WORK_DIR/ta-calls.log"
+TA_FIXTURE_STDERR="$CHECK_WORK_DIR/ta-stderr.log"
 # From a plain shell the helper attaches; inside tmux, which refuses nested
-# attach, it switches the client. Bare and option-only calls always attach.
+# attach, it switches the client and rejects attach-only options such as -d.
+# Bare and option-only calls always attach.
 for ta_case in outside inside; do
   : >"$TA_FIXTURE_LOG"
   env "${ISOLATED_ENV[@]}" TA_FIXTURE_LOG="$TA_FIXTURE_LOG" TA_CASE="$ta_case" \
@@ -506,24 +508,34 @@ for ta_case in outside inside; do
       ta 2 -d
       ta spreadsheet-build
       ta missing
-    ' ta-fixture "$ta_function"
+    ' ta-fixture "$ta_function" 2>"$TA_FIXTURE_STDERR"
   case "$ta_case" in
-    outside) ta_command=attach ;;
-    inside) ta_command=switch-client ;;
-  esac
-  ta_expected="tmux attach
+    outside)
+      ta_expected="tmux attach
 tmux attach -d
-tmux $ta_command -t \$3
-tmux $ta_command -t \$7 -d
-tmux $ta_command -t \$7
-tmux $ta_command -t missing"
+tmux attach -t \$3
+tmux attach -t \$7 -d
+tmux attach -t \$7
+tmux attach -t missing"
+      [[ ! -s "$TA_FIXTURE_STDERR" ]]
+      ;;
+    inside)
+      ta_expected="tmux attach
+tmux attach -d
+tmux switch-client -t \$3
+tmux switch-client -t \$7
+tmux switch-client -t missing"
+      grep -Fxq 'ta: attach options are not supported inside tmux: -d' \
+        "$TA_FIXTURE_STDERR"
+      ;;
+  esac
   [[ "$(<"$TA_FIXTURE_LOG")" == "$ta_expected" ]] || {
     printf "ta ran the wrong tmux commands %s tmux:\n" "$ta_case" >&2
     sed 's/^/  /' "$TA_FIXTURE_LOG" >&2
     exit 1
   }
 done
-unset ta_case ta_command ta_expected ta_function
+unset ta_case ta_expected ta_function
 
 log "Checking setup command-line behavior"
 setup_help="$(env "${ISOLATED_ENV[@]}" zsh setup.sh --help)"

@@ -165,8 +165,16 @@ function ta {
 	fi
 
 	# tmux refuses to attach from inside a session; switch the client instead.
+	# switch-client takes none of attach's options, so trailing flags are
+	# rejected there instead of being passed through.
 	local cmd=attach
-	[[ -n "${TMUX:-}" ]] && cmd=switch-client
+	if [[ -n "${TMUX:-}" ]]; then
+		cmd=switch-client
+		if (( $# )); then
+			print -u2 "ta: attach options are not supported inside tmux: $*"
+			return 2
+		fi
+	fi
 	local target=""
 	local sessions
 	sessions="$(tmux list-sessions -F '#{session_id}:::#{session_name}' 2>/dev/null)"
