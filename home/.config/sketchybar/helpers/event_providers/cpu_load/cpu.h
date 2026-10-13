@@ -16,6 +16,10 @@ struct cpu {
   int total_load;
 };
 
+static inline int cpu_percent(uint64_t ticks, uint64_t total_ticks) {
+  return (int)((double)ticks / (double)total_ticks * 100.0 + 0.5);
+}
+
 static inline void cpu_init(struct cpu *cpu) {
   *cpu = (struct cpu){ 0 };
   cpu->host = mach_host_self();
@@ -54,8 +58,10 @@ static inline bool cpu_update(struct cpu *cpu) {
                          + (uint64_t)delta_idle;
   if (!total_ticks) return false;
 
-  cpu->user_load = (int)((double)user_ticks / (double)total_ticks * 100.0);
-  cpu->sys_load = (int)((double)delta_system / (double)total_ticks * 100.0);
-  cpu->total_load = cpu->user_load + cpu->sys_load;
+  // Round every share from the raw ticks; the sum of two truncated shares
+  // read up to two points low around the colour thresholds.
+  cpu->user_load = cpu_percent(user_ticks, total_ticks);
+  cpu->sys_load = cpu_percent((uint64_t)delta_system, total_ticks);
+  cpu->total_load = cpu_percent(user_ticks + (uint64_t)delta_system, total_ticks);
   return true;
 }

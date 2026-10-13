@@ -1,6 +1,4 @@
-CC ?= clang
-CFLAGS ?= -std=c99 -O3 -Wall -Wextra -Wpedantic -Wconversion -Wshadow
-BINDIR ?= bin
+include ../common.mk
 
 $(BINDIR)/menus: menus.c
 	mkdir -p $(BINDIR)

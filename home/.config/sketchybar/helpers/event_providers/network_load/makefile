@@ -1,6 +1,4 @@
-CC ?= clang
-CFLAGS ?= -std=c99 -O3 -Wall -Wextra -Wpedantic -Wconversion -Wshadow
-BINDIR ?= bin
+include ../../common.mk
 
 $(BINDIR)/network_load: network_load.c network.h ../frequency.h ../sketchybar.h
 	mkdir -p $(BINDIR)
