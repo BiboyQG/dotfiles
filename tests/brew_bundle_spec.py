@@ -39,7 +39,7 @@ brew_bundle_report_extras fixture.Brewfile
         env = dict(os.environ, PATH=f"{work}:/usr/bin:/bin", FIXTURE_OUTPUT=output,
                    FIXTURE_ERROR=error, FIXTURE_EXIT=str(code))
         result = subprocess.run(["zsh", "-dfc", script, "brew-fixture", str(ROOT)],
-                                env=env, text=True, capture_output=True)
+                                env=env, text=True, capture_output=True, input="unexpected\n")
         assert result.returncode == expected, (name, result)
         assert ("audit did not complete" in result.stderr) == (expected != 0), (name, result)
     print("Homebrew audit completion and failure fixtures passed.")
