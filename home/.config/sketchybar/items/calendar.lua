@@ -21,7 +21,6 @@ local cal = sbar.add("item", {
     font = { family = settings.font.numbers },
   },
   position = "right",
-  update_freq = 30,
   padding_left = 1,
   padding_right = 1,
   background = {
@@ -35,6 +34,18 @@ local cal = sbar.add("item", {
 layout.double_border(cal.name)
 layout.group_padding()
 
-cal:subscribe({ "forced", "routine", "system_woke" }, function(env)
+-- Tick on the minute boundary instead of polling every 30 s, so the time
+-- never lags behind the clock. A restart on forced/system_woke bumps the
+-- revision so a timer that fires late after sleep ends its own chain.
+local clock_revision = 0
+
+local function tick(revision)
+  if revision ~= clock_revision then return end
   cal:set({ icon = os.date("%a. %d %b."), label = os.date("%H:%M") })
+  sbar.delay(60 - tonumber(os.date("%S")), function() tick(revision) end)
+end
+
+cal:subscribe({ "forced", "system_woke" }, function()
+  clock_revision = clock_revision + 1
+  tick(clock_revision)
 end)
