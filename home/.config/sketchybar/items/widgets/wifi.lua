@@ -197,6 +197,8 @@ wifi_up:subscribe("network_update", function(env)
   end
 end)
 
+local ssid_available = false
+
 local function hide_details()
   wifi_bracket:set({ popup = { drawing = false } })
 end
@@ -212,7 +214,10 @@ local function toggle_details()
       ip:set({ label = result })
     end)
     sbar.exec("ipconfig getsummary " .. wifi_interface .. " | awk -F ' SSID : ' '/ SSID : / {print $2}'", function(result)
-      ssid:set({ label = result })
+      -- Recent macOS releases redact the SSID unless `ipconfig setverbose 1` is set.
+      local value = type(result) == "string" and result:match("^%s*(.-)%s*$") or ""
+      ssid_available = value ~= "" and value ~= "<redacted>"
+      ssid:set({ label = ssid_available and value or "Unavailable" })
     end)
     sbar.exec("networksetup -getinfo Wi-Fi | awk -F 'Subnet mask: ' '/^Subnet mask: / {print $2}'", function(result)
       mask:set({ label = result })
@@ -239,7 +244,9 @@ local function copy_label_to_clipboard(env)
   end)
 end
 
-ssid:subscribe("mouse.clicked", copy_label_to_clipboard)
+ssid:subscribe("mouse.clicked", function(env)
+  if ssid_available then copy_label_to_clipboard(env) end
+end)
 hostname:subscribe("mouse.clicked", copy_label_to_clipboard)
 ip:subscribe("mouse.clicked", copy_label_to_clipboard)
 mask:subscribe("mouse.clicked", copy_label_to_clipboard)
