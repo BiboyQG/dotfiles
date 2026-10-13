@@ -725,6 +725,12 @@ install_homebrew() {
   brew_bin="$(find_homebrew || true)"
 
   if [[ -z "$brew_bin" ]]; then
+    # The non-interactive installer requires a cached sudo credential on macOS.
+    (( CAN_SUDO )) || ensure_sudo
+    if ! (( CAN_SUDO )); then
+      printf "Installing Homebrew needs administrator access; rerun from a terminal that can prompt for sudo.\n" >&2
+      exit 1
+    fi
     local installer
     if ! installer="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
       || [[ -z "$installer" ]]; then
