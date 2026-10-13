@@ -23,52 +23,34 @@ sbar.exec(
 
 local popup_width = 250
 
-local wifi_up = sbar.add("item", "widgets.wifi1", {
-  position = "right",
-  padding_left = -5,
-  width = 0,
-  icon = {
-    padding_right = 0,
-    font = {
-      style = settings.font.style_map["Bold"],
-      size = 9.0,
+local function rate_item(name, icon, color, y_offset, width)
+  return sbar.add("item", name, {
+    position = "right",
+    padding_left = -5,
+    width = width,
+    icon = {
+      padding_right = 0,
+      font = {
+        style = settings.font.style_map["Bold"],
+        size = 9.0,
+      },
+      string = icon,
     },
-    string = icons.wifi.upload,
-  },
-  label = {
-    font = {
-      family = settings.font.numbers,
-      style = settings.font.style_map["Bold"],
-      size = 9.0,
+    label = {
+      font = {
+        family = settings.font.numbers,
+        style = settings.font.style_map["Bold"],
+        size = 9.0,
+      },
+      color = color,
+      string = "??? Bps",
     },
-    color = colors.red,
-    string = "??? Bps",
-  },
-  y_offset = 4,
-})
+    y_offset = y_offset,
+  })
+end
 
-local wifi_down = sbar.add("item", "widgets.wifi2", {
-  position = "right",
-  padding_left = -5,
-  icon = {
-    padding_right = 0,
-    font = {
-      style = settings.font.style_map["Bold"],
-      size = 9.0,
-    },
-    string = icons.wifi.download,
-  },
-  label = {
-    font = {
-      family = settings.font.numbers,
-      style = settings.font.style_map["Bold"],
-      size = 9.0,
-    },
-    color = colors.blue,
-    string = "??? Bps",
-  },
-  y_offset = -4,
-})
+local wifi_up = rate_item("widgets.wifi1", icons.wifi.upload, colors.red, 4, 0)
+local wifi_down = rate_item("widgets.wifi2", icons.wifi.download, colors.blue, -4)
 
 local wifi = sbar.add("item", "widgets.wifi.padding", {
   position = "right",
@@ -110,62 +92,27 @@ local ssid = sbar.add("item", {
   }
 })
 
-local hostname = sbar.add("item", {
-  position = "popup." .. wifi_bracket.name,
-  icon = {
-    align = "left",
-    string = "Hostname:",
-    width = popup_width / 2,
-  },
-  label = {
-    max_chars = 20,
-    string = "????????????",
-    width = popup_width / 2,
-    align = "right",
-  }
-})
+local function info_row(title, placeholder, max_chars)
+  return sbar.add("item", {
+    position = "popup." .. wifi_bracket.name,
+    icon = {
+      align = "left",
+      string = title,
+      width = popup_width / 2,
+    },
+    label = {
+      max_chars = max_chars,
+      string = placeholder,
+      width = popup_width / 2,
+      align = "right",
+    },
+  })
+end
 
-local ip = sbar.add("item", {
-  position = "popup." .. wifi_bracket.name,
-  icon = {
-    align = "left",
-    string = "IP:",
-    width = popup_width / 2,
-  },
-  label = {
-    string = "???.???.???.???",
-    width = popup_width / 2,
-    align = "right",
-  }
-})
-
-local mask = sbar.add("item", {
-  position = "popup." .. wifi_bracket.name,
-  icon = {
-    align = "left",
-    string = "Subnet mask:",
-    width = popup_width / 2,
-  },
-  label = {
-    string = "???.???.???.???",
-    width = popup_width / 2,
-    align = "right",
-  }
-})
-
-local router = sbar.add("item", {
-  position = "popup." .. wifi_bracket.name,
-  icon = {
-    align = "left",
-    string = "Router:",
-    width = popup_width / 2,
-  },
-  label = {
-    string = "???.???.???.???",
-    width = popup_width / 2,
-    align = "right",
-  },
-})
+local hostname = info_row("Hostname:", "????????????", 20)
+local ip = info_row("IP:", "???.???.???.???")
+local mask = info_row("Subnet mask:", "???.???.???.???")
+local router = info_row("Router:", "???.???.???.???")
 
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
@@ -247,7 +194,6 @@ end
 ssid:subscribe("mouse.clicked", function(env)
   if ssid_available then copy_label_to_clipboard(env) end
 end)
-hostname:subscribe("mouse.clicked", copy_label_to_clipboard)
-ip:subscribe("mouse.clicked", copy_label_to_clipboard)
-mask:subscribe("mouse.clicked", copy_label_to_clipboard)
-router:subscribe("mouse.clicked", copy_label_to_clipboard)
+for _, row in ipairs({ hostname, ip, mask, router }) do
+  row:subscribe("mouse.clicked", copy_label_to_clipboard)
+end
