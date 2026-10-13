@@ -230,10 +230,6 @@ def command_move_window_to_session(
     if target_session_id != session_id:
         # A vanished window must fail here instead of falling back to another one.
         run_tmux(["move-window", "-s", window_id, "-t", f"{target_session_id}:"])
-    if client:
-        run_tmux(["refresh-client", "-S", "-t", client], check=False)
-    else:
-        run_tmux(["refresh-client", "-S"], check=False)
 
 
 def main(argv: List[str]) -> None:
