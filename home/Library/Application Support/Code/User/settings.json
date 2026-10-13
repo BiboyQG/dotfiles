@@ -2,7 +2,7 @@
     "security.workspace.trust.untrustedFiles": "open",
     "editor.accessibilitySupport": "off",
     "github.gitProtocol": "ssh",
-    "github.copilot.nextEditSuggestions.enabled": true,
+    "github.copilot.nextEditSuggestions.enabled": false,
     "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
     "python.analysis.typeCheckingMode": "basic",
     "[python]": {
