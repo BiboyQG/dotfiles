@@ -241,14 +241,18 @@ def command_move_window_to_session(
     if index > len(sessions):
         return
     target_session_id = sessions[index - 1]["id"]
+    # Switch first: moving a session's only window destroys that session, and
+    # detach-on-destroy would then detach the client before it could switch.
+    if client:
+        run_tmux(["switch-client", "-c", client, "-t", target_session_id], check=False)
+    else:
+        run_tmux(["switch-client", "-t", target_session_id], check=False)
     if target_session_id != session_id:
         # A vanished window must fail here instead of falling back to another one.
         run_tmux(["move-window", "-s", window_id, "-t", f"{target_session_id}:"])
     if client:
-        run_tmux(["switch-client", "-c", client, "-t", target_session_id], check=False)
         run_tmux(["refresh-client", "-S", "-t", client], check=False)
     else:
-        run_tmux(["switch-client", "-t", target_session_id], check=False)
         run_tmux(["refresh-client", "-S"], check=False)
 
 
