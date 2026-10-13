@@ -1085,18 +1085,28 @@ lua tests/sketchybar_runtime_spec.lua "$ROOT"
 lua tests/treesitter_sync_spec.lua "$ROOT"
 lua tests/neovim_sync_spec.lua "$ROOT"
 
-log "Checking shell runtime regression fixtures"
-python3 tests/shell_syntax_spec.py "$ROOT"
-python3 tests/aerospace_resize_spec.py "$ROOT"
-python3 tests/nvm_runtime_spec.py "$ROOT"
-python3 tests/zsh_completion_spec.py "$ROOT"
-python3 tests/zinit_update_spec.py "$ROOT"
-python3 tests/brew_bundle_spec.py "$ROOT"
-
-log "Checking tmux runtime regression fixtures"
+log "Checking shell and tmux runtime regression fixtures"
 require tmux
-python3 tests/tmux_runtime_spec.py "$ROOT"
-python3 tests/tmux_restore_spec.py "$ROOT"
+# The specs use separate temp dirs, tmux sockets and lock files, so they run
+# in parallel; their output is printed in a fixed order once all have finished.
+RUNTIME_SPECS=(
+  shell_syntax aerospace_resize nvm_runtime zsh_completion zinit_update
+  brew_bundle tmux_runtime tmux_restore
+)
+typeset -A RUNTIME_SPEC_PIDS
+for spec in "${RUNTIME_SPECS[@]}"; do
+  python3 "tests/${spec}_spec.py" "$ROOT" >"$CHECK_WORK_DIR/$spec.log" 2>&1 &
+  RUNTIME_SPEC_PIDS[$spec]="$!"
+done
+runtime_spec_failed=0
+for spec in "${RUNTIME_SPECS[@]}"; do
+  wait "${RUNTIME_SPEC_PIDS[$spec]}" || runtime_spec_failed=1
+  cat "$CHECK_WORK_DIR/$spec.log"
+done
+if (( runtime_spec_failed )); then
+  printf "Runtime regression fixtures failed.\n" >&2
+  exit 1
+fi
 
 log "Checking Python syntax"
 python3 - "$ROOT" <<'PY'
