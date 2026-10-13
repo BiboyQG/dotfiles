@@ -14,7 +14,7 @@ sbar.exec(
     local interface = type(result) == "string" and result:match("^%s*(en%d+)%s*$") or nil
     if interface then wifi_interface = interface end
     sbar.exec(
-      "killall network_load >/dev/null; $HOME/.local/libexec/sketchybar/network_load "
+      "killall network_load >/dev/null 2>&1; $HOME/.local/libexec/sketchybar/network_load "
         .. wifi_interface
         .. " network_update 2.0"
     )
