@@ -44,7 +44,7 @@ window_id="$("$AEROSPACE" list-windows --focused --format '%{window-id}' 2>/dev/
 [[ -n "$window_id" ]] || exit 0
 
 restore_focus=true
-if "$AEROSPACE" focus --boundaries workspace --boundaries-action fail "$direction" >/dev/null 2>&1; then
+if "$AEROSPACE" focus --boundaries workspace --boundaries-action fail --ignore-floating "$direction" >/dev/null 2>&1; then
   delta="+$amount"
 else
   delta="-$amount"
