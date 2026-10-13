@@ -1104,12 +1104,16 @@ log "Checking SbarLua install stamp and cleanup"
 SBARLUA_FIXTURE_HOME="$CHECK_WORK_DIR/sbarlua-home"
 SBARLUA_FIXTURE_TMP="$CHECK_WORK_DIR/sbarlua-clone"
 SBARLUA_FIXTURE_DIR="$SBARLUA_FIXTURE_HOME/.local/share/sketchybar_lua"
+SBARLUA_FIXTURE_LOG="$CHECK_WORK_DIR/sbarlua-git.log"
 sbarlua_commit="$(printf 'a%.0s' {1..40})"
+sbarlua_cloned_commit="$(printf 'b%.0s' {1..40})"
 # A matching stamp costs one ls-remote and no clone; a build installs and
-# stamps the cloned commit; a failed build must still remove its clone.
+# stamps the cloned commit, not the ls-remote tip; a failed build must still
+# remove its clone.
 for sbarlua_case in current install build-failure; do
   rm -rf "$SBARLUA_FIXTURE_HOME" "$SBARLUA_FIXTURE_TMP"
   mkdir -p "$SBARLUA_FIXTURE_HOME"
+  : >"$SBARLUA_FIXTURE_LOG"
   if [[ "$sbarlua_case" == current ]]; then
     mkdir -p "$SBARLUA_FIXTURE_DIR"
     : >"$SBARLUA_FIXTURE_DIR/sketchybar.so"
@@ -1118,7 +1122,8 @@ for sbarlua_case in current install build-failure; do
   sbarlua_exit=0
   env HOME="$SBARLUA_FIXTURE_HOME" PATH=/usr/bin:/bin \
     SBARLUA_FIXTURE_TMP="$SBARLUA_FIXTURE_TMP" SBARLUA_CASE="$sbarlua_case" \
-    SBARLUA_COMMIT="$sbarlua_commit" zsh -fc '
+    SBARLUA_FIXTURE_LOG="$SBARLUA_FIXTURE_LOG" SBARLUA_COMMIT="$sbarlua_commit" \
+    SBARLUA_CLONED_COMMIT="$sbarlua_cloned_commit" zsh -fc '
       setopt FUNCTION_ARGZERO
       source "$1"
       log() { :; }
@@ -1129,10 +1134,11 @@ for sbarlua_case in current install build-failure; do
         print -r -- "$SBARLUA_FIXTURE_TMP"
       }
       git() {
+        print -r -- "$1" >>"$SBARLUA_FIXTURE_LOG"
         case "$1" in
           ls-remote) printf "%s\tHEAD\n" "$SBARLUA_COMMIT" ;;
           clone) : >"${@[-1]}/Makefile" ;;
-          -C) print -r -- "$SBARLUA_COMMIT" ;;
+          -C) print -r -- "$SBARLUA_CLONED_COMMIT" ;;
           *) return 1 ;;
         esac
       }
@@ -1142,10 +1148,11 @@ for sbarlua_case in current install build-failure; do
     || sbarlua_exit=$?
   case "$sbarlua_case" in
     current)
-      (( sbarlua_exit == 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] ;;
+      (( sbarlua_exit == 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] \
+        && [[ "$(<"$SBARLUA_FIXTURE_LOG")" == ls-remote ]] ;;
     install)
       (( sbarlua_exit == 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] \
-        && [[ "$(<"$SBARLUA_FIXTURE_DIR/.dotfiles-ref")" == "$sbarlua_commit" ]] ;;
+        && [[ "$(<"$SBARLUA_FIXTURE_DIR/.dotfiles-ref")" == "$sbarlua_cloned_commit" ]] ;;
     build-failure)
       (( sbarlua_exit != 0 )) && [[ ! -e "$SBARLUA_FIXTURE_TMP" ]] ;;
   esac || {
