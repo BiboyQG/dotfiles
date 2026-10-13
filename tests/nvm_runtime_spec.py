@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-shell-spec-") as directory:
 print loaded >> "$NVM_DIR/load-log"
 nvm() { print v26.5.1; }
 ''')
-    script = nvm_block + '\ncommand -v node\n(( $+functions[nvm] ))\n(( ! $+functions[nvm_ls] ))\n'
+    script = nvm_block + '\ncommand -v node\n(( $+functions[nvm] && ! $+functions[nvm_ls] ))\n'
     for alias in ("v26.5.1", "node", "lts/*", "26"):
         (work / "alias/default").write_text(alias + "\n")
         result = subprocess.run(
