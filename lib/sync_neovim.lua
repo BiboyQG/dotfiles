@@ -26,8 +26,11 @@ local ok, message = xpcall(function()
     end
     return success
   end
+  -- Install the revisions pinned in lazy-lock.json; `setup.sh --update` sets
+  -- DOTFILES_NVIM_UPDATE=1 to move plugins to their upstream tips instead.
+  local lockfile = vim.env.DOTFILES_NVIM_UPDATE ~= "1"
   local synced, sync_error = pcall(function()
-    require("lazy").sync({ wait = true, show = false })
+    require("lazy").sync({ wait = true, show = false, lockfile = lockfile })
   end)
   task.spawn = original_spawn
   assert(synced, sync_error)

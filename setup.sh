@@ -8,6 +8,7 @@ SKIPPED=()
 CAN_SUDO=0
 SUDO_KEEPALIVE_PID=""
 APPLY_SYSTEM_DEFAULTS=1
+UPDATE_LOCKS=0
 NEEDS_XCODE_LICENSE=0
 STOW_IGNORE_PATTERNS=()
 STOW_IGNORE_PATTERNS_LOADED=0
@@ -54,7 +55,8 @@ run_stow() {
 }
 
 usage() {
-  printf "usage: zsh setup.sh [--skip-system-defaults]\n"
+  printf "usage: zsh setup.sh [--skip-system-defaults] [--update]\n"
+  printf "  --update  move the Neovim plugin and Yazi flavor locks to the latest upstream versions\n"
 }
 
 parse_args() {
@@ -62,6 +64,9 @@ parse_args() {
     case "$1" in
       --skip-system-defaults)
         APPLY_SYSTEM_DEFAULTS=0
+        ;;
+      --update)
+        UPDATE_LOCKS=1
         ;;
       -h | --help)
         usage
@@ -938,21 +943,31 @@ install_zsh_plugins() {
 }
 
 install_neovim_plugins() {
-  log "Installing latest Neovim plugins"
+  if (( UPDATE_LOCKS )); then
+    log "Updating Neovim plugins to their latest versions"
+  else
+    log "Installing the Neovim plugins pinned in lazy-lock.json"
+  fi
   NVIM_LOG_FILE=/dev/null DOTFILES_NVIM_SYNC="$DOTFILES_DIR/lib/sync_neovim.lua" \
+    DOTFILES_NVIM_UPDATE="$UPDATE_LOCKS" \
     nvim --headless '+lua dofile(vim.env.DOTFILES_NVIM_SYNC)' +qa
   NVIM_LOG_FILE=/dev/null nvim --headless -u NONE --noplugin -l "$DOTFILES_DIR/lib/sync_treesitter.lua"
 }
 
 install_yazi_flavor() {
-  log "Installing latest Yazi flavor"
-
   local flavor="yazi-rs/flavors:catppuccin-mocha"
   local package_file="$HOME/.config/yazi/package.toml"
 
   if [[ -f "$package_file" ]] && grep -Fq "use = \"$flavor\"" "$package_file"; then
-    ya pkg upgrade "$flavor"
+    if (( UPDATE_LOCKS )); then
+      log "Updating the Yazi flavor to its latest version"
+      ya pkg upgrade "$flavor"
+    else
+      log "Installing the Yazi flavor pinned in package.toml"
+      ya pkg install
+    fi
   else
+    log "Adding the Yazi flavor"
     ya pkg add "$flavor"
   fi
 }
@@ -1241,6 +1256,17 @@ print_summary() {
     for item in "${SKIPPED[@]}"; do
       printf "  - %s\n" "$item"
     done
+  fi
+
+  if (( UPDATE_LOCKS )); then
+    local lock_status
+    lock_status="$(git -C "$DOTFILES_DIR" status --short -- \
+      home/.config/nvim/lazy-lock.json home/.config/yazi/package.toml)"
+    if [[ -n "$lock_status" ]]; then
+      printf "Updated lock files; commit the bump:\n%s\n" "$lock_status"
+    else
+      printf "Lock files are unchanged.\n"
+    fi
   fi
 }
 

@@ -482,6 +482,7 @@ jq -e \
 log "Checking setup command-line behavior"
 setup_help="$(env "${ISOLATED_ENV[@]}" zsh setup.sh --help)"
 grep -Fq 'usage:' <<<"$setup_help"
+grep -Fq -- '--update' <<<"$setup_help"
 if env "${ISOLATED_ENV[@]}" zsh setup.sh --invalid-check-option \
   >"$CHECK_WORK_DIR/setup-invalid.out" 2>&1; then
   printf "setup.sh accepted an invalid option.\n" >&2
@@ -861,6 +862,42 @@ for nvm_previous in v1.0.0 v1.2.3 N/A; do
   fi
 done
 unset nvm_previous
+
+log "Checking setup Yazi flavor install modes"
+YAZI_FIXTURE_HOME="$CHECK_WORK_DIR/yazi-home"
+YAZI_FIXTURE_BIN="$YAZI_FIXTURE_HOME/bin"
+YAZI_FIXTURE_LOG="$YAZI_FIXTURE_HOME/ya-calls.log"
+mkdir -p "$YAZI_FIXTURE_HOME/.config/yazi" "$YAZI_FIXTURE_BIN"
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >>"$YA_FIXTURE_LOG"\n' >"$YAZI_FIXTURE_BIN/ya"
+chmod +x "$YAZI_FIXTURE_BIN/ya"
+# A declared flavor is installed at its pinned revision, moved to the latest
+# release only with --update, and added when package.toml does not list it.
+for yazi_case in pinned update missing; do
+  : >"$YAZI_FIXTURE_LOG"
+  rm -f "$YAZI_FIXTURE_HOME/.config/yazi/package.toml"
+  [[ "$yazi_case" == missing ]] \
+    || cp home/.config/yazi/package.toml "$YAZI_FIXTURE_HOME/.config/yazi/package.toml"
+  env HOME="$YAZI_FIXTURE_HOME" YA_FIXTURE_LOG="$YAZI_FIXTURE_LOG" \
+    PATH="$YAZI_FIXTURE_BIN:/usr/bin:/bin" YAZI_CASE="$yazi_case" zsh -fc '
+      setopt FUNCTION_ARGZERO
+      source "$1"
+      if [[ "$YAZI_CASE" == update ]]; then
+        parse_args --update
+      fi
+      install_yazi_flavor >/dev/null
+    ' setup-yazi "$ROOT/setup.sh"
+  case "$yazi_case" in
+    pinned) yazi_expected="pkg install" ;;
+    update) yazi_expected="pkg upgrade yazi-rs/flavors:catppuccin-mocha" ;;
+    missing) yazi_expected="pkg add yazi-rs/flavors:catppuccin-mocha" ;;
+  esac
+  [[ "$(<"$YAZI_FIXTURE_LOG")" == "$yazi_expected" ]] || {
+    printf "install_yazi_flavor ran the wrong ya command for %s:\n" "$yazi_case" >&2
+    sed 's/^/  /' "$YAZI_FIXTURE_LOG" >&2
+    exit 1
+  }
+done
+unset yazi_case yazi_expected
 
 log "Checking native CLI installation without npm or Homebrew"
 CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"

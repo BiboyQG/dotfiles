@@ -12,6 +12,14 @@ zsh setup.sh --skip-system-defaults
 
 This installs or updates tools, deploys links, and restarts managed services. It skips macOS defaults and NVRAM changes. Run `zsh setup.sh` to include those system preferences.
 
+Neovim plugins and the Yazi flavor are installed at the revisions pinned in [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json) and [`package.toml`](../home/.config/yazi/package.toml), so a fresh machine matches the repository. To move those pins to the latest upstream versions, run:
+
+```sh
+zsh setup.sh --skip-system-defaults --update
+```
+
+The summary then lists the changed lock files; commit that bump.
+
 Review conflicting existing files before replacing them; the installer does not adopt them into the repository. An existing plain `~/.zprofile` is preserved as `~/.zprofile.local` when needed. If both files already contain local changes, merge them before setup.
 
 ## What setup does
@@ -23,8 +31,9 @@ Review conflicting existing files before replacing them; the installer does not 
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
 - Install the latest kitty release with the official installer
 - Install or update [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew
-- Install or update nvm, Node, zinit, SbarLua, the Yazi flavor, and tmux plugins to their latest upstream versions; when Node moves to a new release, its global packages are reinstalled from the previous default, which is then removed
-- Install declared VS Code extensions and pre-install zsh and Neovim plugins
+- Install or update nvm, Node, zinit, SbarLua, and tmux plugins to their latest upstream versions; when Node moves to a new release, its global packages are reinstalled from the previous default, which is then removed
+- Install the Yazi flavor and Neovim plugins at the revisions pinned in `package.toml` and `lazy-lock.json`; `--update` moves both to the latest upstream versions and lists the lock changes to commit
+- Install declared VS Code extensions and pre-install zsh plugins
 - Verify Neovim plugin installation, update, build, and cleanup tasks; fail setup if any task fails
 - Verify zinit update diagnostics and plugin revisions, retaining the log in `~/.local/state/dotfiles/zinit-update.log` (or `$XDG_STATE_HOME/dotfiles/`)
 - Wait for Neovim Tree-sitter parser updates and validate their highlight queries before finishing the editor setup
