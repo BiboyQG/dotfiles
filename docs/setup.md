@@ -39,7 +39,7 @@ Review conflicting existing files before replacing them; the installer does not 
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
 - Install the latest kitty release with the official installer, skipping the download when the installed app already reports the current version
 - Install [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew; an installed Claude Code updates itself with `claude update` instead of downloading the installer again
-- Install or update nvm, Node, zinit, SbarLua, and tmux plugins to their latest upstream versions; when Node moves to a new release, its global packages are reinstalled from the previous default, which is then removed
+- Install or update nvm, Node, zinit, SbarLua, and tmux plugins to their latest upstream versions, removing tmux plugin checkouts that `plugins.conf` no longer declares; when Node moves to a new release, its global packages are reinstalled from the previous default, which is then removed
 - Install the Yazi flavor and Neovim plugins at the revisions pinned in `package.toml` and `lazy-lock.json`; `--update` moves both to the latest upstream versions and lists the lock changes to commit
 - Install declared VS Code extensions and pre-install zsh plugins
 - Verify Neovim plugin installation, update, build, and cleanup tasks; fail setup if any task fails

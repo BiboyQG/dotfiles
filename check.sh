@@ -1592,6 +1592,46 @@ env "${ISOLATED_ENV[@]}" zsh -fc '
   preflight_tmux_plugins >/dev/null
 ' setup-tmux-plugins "$ROOT/setup.sh"
 
+log "Checking tmux plugin install flow"
+TPM_FIXTURE_HOME="$CHECK_WORK_DIR/tpm-home"
+TPM_FIXTURE_LOG="$TPM_FIXTURE_HOME/calls.log"
+tpm_repositories="$(
+  env "${ISOLATED_ENV[@]}" zsh -fc \
+    'setopt FUNCTION_ARGZERO; source "$1"; tmux_plugin_repositories' \
+    setup-tmux-plugins "$ROOT/setup.sh"
+)"
+mkdir -p "$TPM_FIXTURE_HOME/.tmux/plugins/tpm/scripts"
+for tpm_script in install_plugins clean_plugins; do
+  printf '#!/bin/sh\nprintf "%%s\\n" "%s" >>"$TPM_FIXTURE_LOG"\n' "$tpm_script" \
+    >"$TPM_FIXTURE_HOME/.tmux/plugins/tpm/scripts/$tpm_script.sh"
+done
+# TPM is taken straight from the manifest, its install script runs before
+# its clean script, and every other declared plugin is then updated.
+tpm_expected=$'checkout tmux-plugins/tpm.git tpm\ninstall_plugins\nclean_plugins'
+while IFS= read -r repository; do
+  [[ -n "$repository" && "$repository" != tmux-plugins/tpm ]] || continue
+  mkdir -p "$TPM_FIXTURE_HOME/.tmux/plugins/${repository##*/}/.git"
+  tpm_expected+=$'\n'"checkout $repository.git ${repository##*/}"
+done <<<"$tpm_repositories"
+: >"$TPM_FIXTURE_LOG"
+env HOME="$TPM_FIXTURE_HOME" TPM_FIXTURE_LOG="$TPM_FIXTURE_LOG" PATH=/usr/bin:/bin \
+  zsh -fc '
+    setopt FUNCTION_ARGZERO
+    source "$1"
+    log() { :; }
+    ensure_latest_git_checkout() {
+      print -r -- "checkout ${1#https://github.com/} ${2#$HOME/.tmux/plugins/}" \
+        >>"$TPM_FIXTURE_LOG"
+    }
+    install_tmux_plugins
+  ' setup-tmux-install "$ROOT/setup.sh"
+[[ "$(<"$TPM_FIXTURE_LOG")" == "$tpm_expected" ]] || {
+  printf "install_tmux_plugins ran the wrong steps:\n" >&2
+  sed 's/^/  /' "$TPM_FIXTURE_LOG" >&2
+  exit 1
+}
+unset tpm_script tpm_repositories tpm_expected repository
+
 log "Checking explicit Stow folding boundaries"
 manifest_target_dirs="$(python3 - "$FOLDING_MANIFEST" <<'PY'
 import sys

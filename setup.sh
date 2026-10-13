@@ -1089,31 +1089,20 @@ install_sketchybar_assets() {
 install_tmux_plugins() {
   log "Installing latest tmux plugins"
 
-  local output repository plugin plugin_dir tpm_repository=""
+  local output repository plugin plugin_dir tpm_repository
   local -a repositories
   output="$(tmux_plugin_repositories)"
   repositories=("${(@f)output}")
-
-  for repository in "${repositories[@]}"; do
-    if [[ "${repository##*/}" == "tpm" ]]; then
-      tpm_repository="$repository"
-      break
-    fi
-  done
-
-  if [[ -z "$tpm_repository" ]]; then
-    printf "The tmux plugin manifest does not declare TPM.\n" >&2
-    return 1
-  fi
+  # preflight_tmux_plugins already required exactly one TPM entry and
+  # checked the origin of every existing checkout.
+  tpm_repository="${(@M)repositories:#*/tpm}"
 
   local tpm_dir="$HOME/.tmux/plugins/tpm"
-  if [[ -d "$tpm_dir/.git" ]]; then
-    require_github_origin "$tpm_dir" "$tpm_repository" "tmux plugin $tpm_repository"
-  fi
   ensure_latest_git_checkout "https://github.com/$tpm_repository.git" "$tpm_dir"
-  require_github_origin "$tpm_dir" "$tpm_repository" "tmux plugin $tpm_repository"
 
   /bin/bash "$tpm_dir/scripts/install_plugins.sh"
+  # plugins.conf is the manifest; remove checkouts it no longer declares.
+  /bin/bash "$tpm_dir/scripts/clean_plugins.sh"
 
   for repository in "${repositories[@]}"; do
     plugin="${repository##*/}"
@@ -1123,7 +1112,6 @@ install_tmux_plugins() {
       printf "TPM did not install expected plugin: %s\n" "$plugin" >&2
       exit 1
     fi
-    require_github_origin "$plugin_dir" "$repository" "tmux plugin $repository"
     ensure_latest_git_checkout "https://github.com/$repository.git" "$plugin_dir"
   done
 }
