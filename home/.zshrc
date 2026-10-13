@@ -112,12 +112,10 @@ fi
 HISTSIZE=10000
 HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
-setopt appendhistory
 setopt sharehistory
 setopt hist_ignore_space
 setopt hist_ignore_all_dups
 setopt hist_save_no_dups
-setopt hist_ignore_dups
 setopt hist_find_no_dups
 
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
@@ -152,7 +150,6 @@ alias ll="eza -alh --icons=auto --color=always"
 alias s="fastfetch"
 alias l="lazygit"
 alias tn="tmux new -s"
-unalias ta 2>/dev/null || true
 function ta {
 	local query="${1:-}"
 	if (( $# )); then
