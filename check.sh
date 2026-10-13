@@ -2,6 +2,9 @@
 set -euo pipefail
 
 unset GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+# The Python specs check their results with assert, which PYTHONOPTIMIZE
+# strips; run them with the option off whatever the caller's environment.
+unset PYTHONOPTIMIZE
 
 ROOT="${0:A:h}"
 cd "$ROOT"
@@ -150,9 +153,14 @@ write_stow_plan() {
     | LC_ALL=C sort >"$output_file"
 }
 
+# Tracked plus untracked (not ignored) repository files matching the pathspecs.
+repo_files() {
+  git ls-files -co --exclude-standard -- "$@" | LC_ALL=C sort -u
+}
+
 for command in \
   awk bash clang cmp diff find git grep jq json5 ln lua luac magick make plutil \
-  python3 rg ruby sed sort stow tar zsh; do
+  python3 rg ruby sed sort stow tar tmux zsh; do
   require "$command"
 done
 
@@ -405,11 +413,14 @@ unset ip_interpreter
 log "Checking media-state helper behavior"
 media_cache="$CHECK_WORK_DIR/media-cache"
 mkdir -p "$media_cache"
+media_state() {
+  env "${ISOLATED_ENV[@]}" zsh \
+    home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+}
 media_playing_output="$(
   printf '%s\n' \
     '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+    | media_state
 )"
 jq -e \
   --arg cache_prefix "$media_cache/media-artwork-" '
@@ -429,8 +440,7 @@ touch -t 200001010000 "$media_artwork" "$media_expired"
 media_reused_output="$(
   printf '%s\n' \
     '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+    | media_state
 )"
 [[ "$(jq -er '.artwork' <<<"$media_reused_output")" == "$media_artwork" ]]
 [[ -s "$media_artwork" && ! -e "$media_expired" && -s "$media_recent" ]]
@@ -438,16 +448,14 @@ media_reused_output="$(
 media_stopped_output="$(
   printf '%s\n' \
     '{"title":"Paused","playbackRate":0,"bundleIdentifier":"com.spotify.client"}' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+    | media_state
 )"
 jq -e '. == {playing:false}' <<<"$media_stopped_output" >/dev/null
 
 media_music_output="$(
   printf '%s\n' \
     '{"title":"Music Fixture","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.apple.Music"}' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+    | media_state
 )"
 jq -e \
   '.playing == true and .title == "Music Fixture" and .artwork == ""' \
@@ -456,23 +464,17 @@ jq -e \
 media_unrelated_output="$(
   printf '%s\n' \
     '{"title":"Browser Media","playbackRate":1,"bundleIdentifier":"com.google.Chrome","isMusicApp":true}' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+    | media_state
 )"
 jq -e '. == {playing:false}' <<<"$media_unrelated_output" >/dev/null
 
-media_malformed_output="$(
-  printf '{invalid\n' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
-)"
+media_malformed_output="$(printf '{invalid\n' | media_state)"
 jq -e '. == {playing:false}' <<<"$media_malformed_output" >/dev/null
 
 media_invalid_artwork_output="$(
   printf '%s\n' \
     '{"title":"Bad Art","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"%%%"}' \
-    | env "${ISOLATED_ENV[@]}" zsh \
-      home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
+    | media_state
 )"
 jq -e \
   '.playing == true and .title == "Bad Art" and .artwork == ""' \
@@ -976,8 +978,7 @@ for cli in claude codex; do
       CLI_INSTALL_CASE="$install_case" CLI_FIXTURE_LOG="$CLI_FIXTURE_LOG" zsh -fc '
         setopt FUNCTION_ARGZERO
         source "$1"
-        ! command -v npm >/dev/null
-        ! command -v brew >/dev/null
+        (( ! $+commands[npm] && ! $+commands[brew] ))
         curl() {
           print -r -- "curl $2" >>"$CLI_FIXTURE_LOG"
           [[ "$1" == -fsSL ]]
@@ -1337,8 +1338,7 @@ while IFS= read -r file; do
   [[ -f "$file" ]] && luac -p "$file"
 done < <(
   {
-    git ls-files '*.lua'
-    git ls-files --others --exclude-standard -- '*.lua'
+    repo_files '*.lua'
     printf '%s\n' home/.config/sketchybar/sketchybarrc
   } | LC_ALL=C sort -u
 )
@@ -1349,7 +1349,6 @@ lua tests/treesitter_sync_spec.lua "$ROOT"
 lua tests/neovim_sync_spec.lua "$ROOT"
 
 log "Checking shell and tmux runtime regression fixtures"
-require tmux
 # The specs use separate temp dirs, tmux sockets and lock files, so they run
 # in parallel; their output is printed in a fixed order once all have finished.
 RUNTIME_SPECS=(
@@ -1379,13 +1378,10 @@ import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-files = set()
-for command in (
-    ["git", "ls-files", "*.py"],
-    ["git", "ls-files", "--others", "--exclude-standard", "--", "*.py"],
-):
-    files.update(subprocess.check_output(command, cwd=root, text=True).splitlines())
-for name in sorted(files):
+files = subprocess.check_output(
+    ["git", "ls-files", "-co", "--exclude-standard", "--", "*.py"], cwd=root, text=True
+).splitlines()
+for name in sorted(set(files)):
     path = root / name
     if path.is_file():
         ast.parse(path.read_text(), filename=name)
@@ -1458,13 +1454,10 @@ import tomllib
 from pathlib import Path
 
 root = Path(sys.argv[1])
-files = set()
-for command in (
-    ["git", "ls-files", "*.toml"],
-    ["git", "ls-files", "--others", "--exclude-standard", "--", "*.toml"],
-):
-    files.update(subprocess.check_output(command, cwd=root, text=True).splitlines())
-for name in sorted(files):
+files = subprocess.check_output(
+    ["git", "ls-files", "-co", "--exclude-standard", "--", "*.toml"], cwd=root, text=True
+).splitlines()
+for name in sorted(set(files)):
     path = root / name
     if path.is_file():
         with path.open("rb") as handle:
@@ -1474,12 +1467,7 @@ PY
 log "Checking JSON and JSONC"
 while IFS= read -r file; do
   [[ -f "$file" ]] && json5 --validate "$file"
-done < <(
-  {
-    git ls-files '*.json' '*.jsonc'
-    git ls-files --others --exclude-standard -- '*.json' '*.jsonc'
-  } | LC_ALL=C sort -u
-)
+done < <(repo_files '*.json' '*.jsonc')
 jq empty home/.config/nvim/lazyvim.json
 jq empty home/.config/nvim/lazy-lock.json
 rg -Fq 'lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"' \
@@ -1528,33 +1516,27 @@ for provider in codex claude; do
   printf '{invalid\n' >"$fixture_root/malformed/${provider}.json"
 done
 
-object_output="$(env "${ISOLATED_ENV[@]}" \
-  OPENUSAGE_FIXTURE_DIR="$fixture_root/object" AI_USAGE_BAR_DIR="$bar_root" \
-  zsh home/.config/sketchybar/scripts/ai_usage.sh)"
-array_output="$(env "${ISOLATED_ENV[@]}" \
-  OPENUSAGE_FIXTURE_DIR="$fixture_root/array" AI_USAGE_BAR_DIR="$bar_root" \
-  zsh home/.config/sketchybar/scripts/ai_usage.sh)"
-empty_output="$(env "${ISOLATED_ENV[@]}" \
-  OPENUSAGE_FIXTURE_DIR="$fixture_root/empty" AI_USAGE_BAR_DIR="$bar_root" \
-  zsh home/.config/sketchybar/scripts/ai_usage.sh)"
-malformed_output="$(env "${ISOLATED_ENV[@]}" \
-  OPENUSAGE_FIXTURE_DIR="$fixture_root/malformed" AI_USAGE_BAR_DIR="$bar_root" \
-  zsh home/.config/sketchybar/scripts/ai_usage.sh)"
+typeset -A usage_output
+for kind in object array empty malformed; do
+  usage_output[$kind]="$(env "${ISOLATED_ENV[@]}" \
+    OPENUSAGE_FIXTURE_DIR="$fixture_root/$kind" AI_USAGE_BAR_DIR="$bar_root" \
+    zsh home/.config/sketchybar/scripts/ai_usage.sh)"
+done
 
 for provider in codex claude; do
-  assert_line "$object_output" "${provider}_status=ok"
-  assert_line "$object_output" "${provider}_session=75"
-  assert_line "$object_output" "${provider}_weekly=20"
-  assert_line "$array_output" "${provider}_status=ok"
-  assert_line "$array_output" "${provider}_session=60"
-  assert_line "$array_output" "${provider}_weekly=90"
-  assert_line "$empty_output" "${provider}_status=empty"
-  assert_line "$malformed_output" "${provider}_status=parse_error"
-  assert_bar "$object_output" "$provider"
-  assert_bar "$array_output" "$provider"
-  assert_bar "$empty_output" "$provider"
-  assert_bar "$malformed_output" "$provider"
+  assert_line "${usage_output[object]}" "${provider}_status=ok"
+  assert_line "${usage_output[object]}" "${provider}_session=75"
+  assert_line "${usage_output[object]}" "${provider}_weekly=20"
+  assert_line "${usage_output[array]}" "${provider}_status=ok"
+  assert_line "${usage_output[array]}" "${provider}_session=60"
+  assert_line "${usage_output[array]}" "${provider}_weekly=90"
+  assert_line "${usage_output[empty]}" "${provider}_status=empty"
+  assert_line "${usage_output[malformed]}" "${provider}_status=parse_error"
+  for kind in object array empty malformed; do
+    assert_bar "${usage_output[$kind]}" "$provider"
+  done
 done
+unset kind
 
 log "Checking generated-state boundaries"
 [[ ! -e home/.config/tmux/plugins.lock ]]
@@ -1798,7 +1780,7 @@ log "Checking patch whitespace"
 snapshot_git diff --cached --check HEAD -- :/
 
 if (( RUN_LIVE_CHECKS )); then
-  for command in aerospace brew fc-match fc-scan nvim tmux tree-sitter; do
+  for command in aerospace brew fc-match fc-scan nvim tree-sitter; do
     require "$command"
   done
 
@@ -1952,22 +1934,16 @@ end
 LUA
 
   log "Checking live AeroSpace configuration"
-  aerospace_source="$ROOT/home/.config/aerospace/aerospace.toml"
-  if ! active_aerospace_config="$(aerospace config --config-path)"; then
-    printf "AeroSpace server is unavailable or inaccessible.\n" >&2
-    exit 1
-  fi
-  [[ -r "$active_aerospace_config" ]] || {
-    printf "Active AeroSpace config is not readable: %s\n" \
-      "$active_aerospace_config" >&2
+  # setup.sh's preflight already compares the active config with the
+  # repository copy and runs the strict dry-run reload. It defers both when
+  # AeroSpace is not running, which the live check treats as a failure.
+  # The aerospace CLI needs the real user session, so no ISOLATED_ENV here.
+  pgrep -x AeroSpace >/dev/null || {
+    printf "AeroSpace is not running.\n" >&2
     exit 1
   }
-  cmp -s "$aerospace_source" "$active_aerospace_config" || {
-    printf "Active AeroSpace config differs from the repository source: %s\n" \
-      "$active_aerospace_config" >&2
-    exit 1
-  }
-  aerospace reload-config --dry-run --warnings-as-errors --no-gui
+  zsh -fc 'setopt FUNCTION_ARGZERO; source "$1"; preflight_aerospace_config' \
+    setup-aerospace "$ROOT/setup.sh"
 
   log "Checking tmux configuration in an isolated live server"
   installed_tmux_plugins="$HOME/.tmux/plugins"
