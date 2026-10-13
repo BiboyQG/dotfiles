@@ -2,18 +2,12 @@ config-version = 2
 
 start-at-login = true
 
-enable-normalization-flatten-containers = true
-enable-normalization-opposite-orientation-for-nested-containers = true
 accordion-padding = 0
-
-default-root-container-layout = 'tiles'
-default-root-container-orientation = 'auto'
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 on-focus-changed = ['exec-and-forget /opt/homebrew/bin/sketchybar --trigger aerospace_windows_change']
 exec-on-workspace-change = ['/bin/bash', '-c', '/opt/homebrew/bin/sketchybar --trigger aerospace_workspace_change FOCUSED="$AEROSPACE_FOCUSED_WORKSPACE" PREV="$AEROSPACE_PREV_WORKSPACE"']
 
-automatically-unhide-macos-hidden-apps = false
 persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
 [mode.main.binding]
@@ -94,10 +88,6 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
     10 = ['Built-in Liquid Retina XDR Display', 'Built-in Retina Display', 'Color LCD']
 
 [gaps]
-    inner.horizontal = 0
-    inner.vertical = 0
-    outer.left = 0
-    outer.bottom = 0
     outer.top = [
         { monitor."LG ULTRAGEAR\\+" = 40 },
         { monitor."DELL S2725QC" = 40 },
@@ -106,7 +96,6 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
         { monitor."Color LCD" = 8 },
         0,
     ]
-    outer.right = 0
 
 [[on-window-detected]]
     if = 'test %{app-bundle-id} = com.raycast.macos || test %{app-bundle-id} = com.tencent.meeting'
