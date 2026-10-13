@@ -4,13 +4,21 @@
 
 ## Install or update
 
-This setup targets Apple Silicon Macs. From the repository root, run:
+This setup targets Apple Silicon Macs. Install the Xcode Command Line Tools first; setup exits when they are missing:
+
+```sh
+xcode-select --install
+```
+
+From the repository root, run:
 
 ```sh
 zsh setup.sh --skip-system-defaults
 ```
 
 This installs or updates tools, deploys links, and restarts managed services. It skips macOS defaults and NVRAM changes. Run `zsh setup.sh` to include those system preferences.
+
+Setup can still ask for an administrator password with `--skip-system-defaults`: once when Homebrew is not installed yet, and once when a full Xcode installation has a license left to accept.
 
 Neovim plugins and the Yazi flavor are installed at the revisions pinned in [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json) and [`package.toml`](../home/.config/yazi/package.toml), so a fresh machine matches the repository. To move those pins to the latest upstream versions, run:
 
@@ -29,8 +37,8 @@ Review conflicting existing files before replacing them; the installer does not 
 - Preserve an existing untracked `.zprofile` as `.zprofile.local` before linking the managed login profile
 - Install or upgrade the Homebrew bundle and validate trusted taps
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
-- Install the latest kitty release with the official installer
-- Install or update [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew
+- Install the latest kitty release with the official installer, skipping the download when the installed app already reports the current version
+- Install [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew; an installed Claude Code updates itself with `claude update` instead of downloading the installer again
 - Install or update nvm, Node, zinit, SbarLua, and tmux plugins to their latest upstream versions; when Node moves to a new release, its global packages are reinstalled from the previous default, which is then removed
 - Install the Yazi flavor and Neovim plugins at the revisions pinned in `package.toml` and `lazy-lock.json`; `--update` moves both to the latest upstream versions and lists the lock changes to commit
 - Install declared VS Code extensions and pre-install zsh plugins

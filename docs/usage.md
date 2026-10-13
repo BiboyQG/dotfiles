@@ -16,9 +16,29 @@ Some tmux behavior in this repo is optimized for “session slots” (fast switc
   once. The startup wrapper retains Continuum's multiple-server check and
   `~/tmux_no_auto_restore` opt-out; Continuum continues to save automatically.
 
+Keys bound without the prefix (tmux's root table), active in every pane:
+
+- `Ctrl+f` toggles pane zoom, `Ctrl+o` opens a window in the current pane's
+  directory, `Ctrl+q` kills the current window, and `Ctrl+v` enters copy mode
+  (`v` selects, `y` copies to the clipboard)
+- `Ctrl+1..9` select window 1..9 (kitty sends them as CSI u so tmux can tell
+  them apart from plain digits)
+- `F11` moves to the next window and `Shift+F11` detaches the client
+- `Ctrl+h/j/k/l` move between panes and Neovim splits (vim-tmux-navigator)
+
+Only the `Ctrl+h/j/k/l` bindings pass the key on when Neovim has focus. Inside
+tmux, Neovim therefore never receives `Ctrl+f` (page forward), `Ctrl+o` (jump
+back) or `Ctrl+v` (visual block), and readline never receives `Ctrl+o` or
+`Ctrl+q`.
+
+Prefix bindings: `|` and `-` split the pane (`h`, `j`, `k`, `l` split toward
+that side), `r` reloads the configuration, `.` renames the session label, and
+`1..0` move the current window to a session slot.
+
 Shell helpers:
 
-- `ta <label>` attaches by label (example: `ta dot` attaches to `1-dot`)
+- `ta <label>` attaches by label (example: `ta dot` attaches to `1-dot`);
+  inside tmux it switches the client instead
 - `ta <idx>` attaches by slot (example: `ta 1`)
 - `tls` lists sessions
 

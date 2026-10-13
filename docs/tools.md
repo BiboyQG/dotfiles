@@ -11,13 +11,15 @@ The package manifest is [Brewfile](../Brewfile); native installers and plugin up
 | Git                 | `brew`                   | Version control (`git`)                          |
 | Kitty               | official installer       | GPU-based terminal emulator                      |
 | Zsh                 | macOS                    | Shell and interactive environment                |
+| Zinit               | `git`                    | Zsh plugin manager (`zinit`)                     |
+| nvm / Node          | `git`                    | Node version manager and default Node runtime    |
 | Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
 | Tmux                | `brew`                   | Terminal multiplexer                             |
 | Tmux Plugin Manager | `git`                    | Tmux plugin manager (`tpm`)                      |
 | Sketchybar          | `brew`                   | macOS status bar replacement                     |
 | Lua                 | `brew`                   | Runtime for Sketchybar scripting                 |
 | SwitchAudioSource   | `brew`                   | Switch macOS audio devices (`SwitchAudioSource`) |
-| NowPlaying CLI      | `brew`                   | Now Playing metadata (for Sketchybar)            |
+| media-control       | `brew`                   | Now Playing metadata (for Sketchybar)            |
 | SbarLua             | `git`                    | Lua API for Sketchybar                           |
 | AeroSpace           | `brew --cask`            | Tiling window manager for macOS                  |
 | OpenUsage           | `brew --cask`            | Local AI usage API and menu bar app              |
@@ -38,7 +40,7 @@ The package manifest is [Brewfile](../Brewfile); native installers and plugin up
 | Poppler             | `brew`                   | PDF utilities (`pdfinfo`, `pdftotext`, ...)      |
 | Resvg               | `brew`                   | SVG rasterizer (Yazi previews)                   |
 | Fontconfig          | `brew`                   | Font query tools used by `check.sh --live`       |
-| Tree-sitter CLI     | `brew`                   | Parser tooling used by `check.sh --live`         |
+| Tree-sitter CLI     | `brew`                   | Compiles Neovim Tree-sitter parsers during setup and `:TSInstall`; version-checked by `check.sh --live` |
 | Python              | `brew`                   | Runtime for tmux helpers and editor tooling       |
 | Bat                 | `brew`                   | `cat` replacement with syntax highlighting       |
 | Gh                  | `brew`                   | GitHub CLI                                       |
