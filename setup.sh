@@ -1125,6 +1125,23 @@ restart_aerospace() {
       skip "AeroSpace configuration did not pass strict validation."
       return 1
     fi
+    # Quitting AeroSpace drops every window's workspace assignment, so reload
+    # in place unless the binary changed under the running server.
+    local version_output client_version server_version
+    version_output="$(aerospace --version 2>/dev/null)" || version_output=""
+    client_version="$(printf '%s\n' "$version_output" | awk '/CLI client version:/ { print $NF }')"
+    server_version="$(printf '%s\n' "$version_output" | awk '/server version:/ { print $NF }')"
+    if [[ -n "$client_version" && "$client_version" == "$server_version" ]]; then
+      if ! aerospace reload-config --no-gui; then
+        skip "Could not reload AeroSpace config."
+        return 1
+      fi
+      if ! wait_for_aerospace; then
+        skip "AeroSpace config reloaded but its CLI is not ready."
+        return 1
+      fi
+      return 0
+    fi
     if ! osascript -e 'quit app "AeroSpace"'; then
       skip "Could not stop AeroSpace."
       return 1

@@ -979,6 +979,27 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   wait_for_aerospace() { return 1; }
   expect_failure restart_aerospace
 
+  # A running server whose version matches the CLI is reloaded in place; a
+  # version mismatch quits and relaunches it.
+  AEROSPACE_SERVER_VERSION=1.0.0
+  AEROSPACE_QUITS=0
+  pgrep() { [[ "$1" == -x && "$2" == AeroSpace ]]; }
+  aerospace() {
+    [[ "$1" != --version ]] || printf \
+      "aerospace CLI client version: 1.0.0\nAeroSpace.app server version: %s\n" \
+      "$AEROSPACE_SERVER_VERSION"
+  }
+  osascript() { AEROSPACE_QUITS=$(( AEROSPACE_QUITS + 1 )); }
+  wait_for_process_exit() { return 0; }
+  wait_for_aerospace() { return 0; }
+  preflight_aerospace_config() { return 0; }
+  restart_aerospace
+  (( AEROSPACE_QUITS == 0 ))
+  AEROSPACE_SERVER_VERSION=0.9.0
+  restart_aerospace
+  (( AEROSPACE_QUITS == 1 ))
+  unfunction pgrep aerospace osascript wait_for_process_exit preflight_aerospace_config
+
   have() { [[ "$1" == sketchybar ]]; }
   brew() { return 0; }
   sketchybar() { return 1; }
