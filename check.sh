@@ -1763,11 +1763,12 @@ create_stow_target "$ISOLATED_HOME"
 
 log "Building and analyzing SketchyBar helpers"
 helper_bin_dir="$CHECK_WORK_DIR/helpers"
-strict_cflags="-std=c99 -O2 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror"
+# Build with the shared helpers/common.mk flags that setup.sh deploys, plus
+# -Werror, so the flags under test are the flags in use.
 make -C home/.config/sketchybar/helpers/event_providers \
-  CC=clang CFLAGS="$strict_cflags" BINDIR="$helper_bin_dir"
+  EXTRA_CFLAGS=-Werror BINDIR="$helper_bin_dir"
 make -C home/.config/sketchybar/helpers/menus \
-  CC=clang CFLAGS="$strict_cflags" BINDIR="$helper_bin_dir"
+  EXTRA_CFLAGS=-Werror BINDIR="$helper_bin_dir"
 for source in \
   home/.config/sketchybar/helpers/event_providers/cpu_load/cpu_load.c \
   home/.config/sketchybar/helpers/event_providers/network_load/network_load.c \
