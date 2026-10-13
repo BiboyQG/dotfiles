@@ -951,7 +951,7 @@ install_neovim_plugins() {
   NVIM_LOG_FILE=/dev/null DOTFILES_NVIM_SYNC="$DOTFILES_DIR/lib/sync_neovim.lua" \
     DOTFILES_NVIM_UPDATE="$UPDATE_LOCKS" \
     nvim --headless '+lua dofile(vim.env.DOTFILES_NVIM_SYNC)' +qa
-  NVIM_LOG_FILE=/dev/null nvim --headless -u NONE --noplugin -l "$DOTFILES_DIR/lib/sync_treesitter.lua"
+  NVIM_LOG_FILE=/dev/null nvim -l "$DOTFILES_DIR/lib/sync_treesitter.lua"
 }
 
 install_yazi_flavor() {

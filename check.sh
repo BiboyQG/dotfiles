@@ -1751,7 +1751,7 @@ PY
     XDG_DATA_HOME="$INSTALLED_XDG_DATA_HOME" \
     NVIM_TS_ROOT="$treesitter_root" \
     NVIM_LOG_FILE="$CHECK_WORK_DIR/nvim.log" \
-    nvim --headless -u NONE --noplugin -l - <<'LUA'
+    nvim -l - <<'LUA'
 local root = assert(vim.env.NVIM_TS_ROOT)
 vim.opt.runtimepath:append(root .. "/runtime")
 dofile(root .. "/plugin/filetypes.lua")
