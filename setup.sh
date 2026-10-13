@@ -880,6 +880,13 @@ link_dotfiles() {
     printf "Stow found conflicting files. Back them up or remove them, then rerun setup.\n" >&2
     exit 1
   fi
+
+  # Git reads the tracked ~/.config/git/config first and writes
+  # `git config --global` (and gh auth setup-git) into ~/.gitconfig whenever
+  # that file exists, so keeping an untracked one keeps tool-written
+  # settings out of the repository. The restow above has removed any link
+  # left from the formerly tracked ~/.gitconfig; -L guards a leftover one.
+  [[ -e "$HOME/.gitconfig" || -L "$HOME/.gitconfig" ]] || : >"$HOME/.gitconfig"
 }
 
 install_nvm_node() {

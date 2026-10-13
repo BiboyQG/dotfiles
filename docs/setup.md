@@ -33,7 +33,7 @@ Review conflicting existing files before replacing them; the installer does not 
 ## What setup does
 
 - Check Stow, tmux plugin, existing Brew tap, and any running AeroSpace configuration conflicts before changing system settings or installing anything; a stopped AeroSpace instance is validated immediately after launch
-- Symlink the dotfiles without adopting existing files
+- Symlink the dotfiles without adopting existing files, then create an empty untracked `~/.gitconfig` so `git config --global` writes stay out of the repository
 - Preserve an existing untracked `.zprofile` as `.zprofile.local` before linking the managed login profile
 - Install or upgrade the Homebrew bundle and validate trusted taps
 - Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
@@ -65,6 +65,8 @@ Review conflicting existing files before replacing them; the installer does not 
 Powerlevel10k settings, Neovim's plugin lock, and Yazi's package manifest are tracked in [`home/.p10k.zsh`](../home/.p10k.zsh), [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json), and [`package.toml`](../home/.config/yazi/package.toml).
 
 Put machine-specific login-shell additions in untracked `~/.zprofile.local`, which loads after the managed login profile. Generated files are excluded through [`.gitignore`](../.gitignore) and [`home/.stow-local-ignore`](../home/.stow-local-ignore).
+
+Git settings are tracked in [`home/.config/git/config`](../home/.config/git/config), which Git reads before `~/.gitconfig`. Setup creates `~/.gitconfig` empty and untracked; `git config --global` and `gh auth setup-git` write there while the file exists, so machine-local Git settings override the tracked ones and never dirty the repository.
 
 ### Codex global instructions
 
