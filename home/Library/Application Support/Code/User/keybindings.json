@@ -135,11 +135,6 @@
         "when": "editorTextFocus"
     },
     {
-        "key": "] ]",
-        "command": "hideCustomTitleBar",
-        "when": "titleBarVisible"
-    },
-    {
         "key": "shift+cmd+i",
         "command": "workbench.panel.chat",
         "when": "workbench.panel.chat.view.copilot.active"

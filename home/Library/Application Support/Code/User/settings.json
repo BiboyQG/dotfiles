@@ -6,7 +6,6 @@
     "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
     "python.analysis.typeCheckingMode": "basic",
     "[python]": {
-        "editor.formatOnType": true,
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
     "workbench.colorTheme": "Snazzy Operator",
@@ -143,11 +142,9 @@
             }
         ]
     },
-    "editor.lineNumbers": "on",
     "editor.showFoldingControls": "never",
     "workbench.activityBar.location": "top",
     "window.customTitleBarVisibility": "never",
-    "editor.largeFileOptimizations": true,
     "editor.unicodeHighlight.ambiguousCharacters": false,
     "terminal.integrated.enableMultiLinePasteWarning": "never",
     "editor.hover.showLongLineWarning": false,
