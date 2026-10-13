@@ -1,4 +1,5 @@
 """Exercise session routing and clipboard yanks against a disposable tmux server."""
+import json
 import os
 import shlex
 import shutil
@@ -74,18 +75,43 @@ os.execv(real_tmux, [real_tmux, *args])
             assert tmux("display-message", "-p", "-t", "$0", "#{session_name}") == f"1-{label}"
             assert f"$0::1-{label}\n" in manager("list").stdout
 
-        for phase, label in (("temporary", "literal #{session_name}"), ("final", "unicode\u2028separator")):
-            manager("rename", label, "--session", "$0")
-            before = tmux("list-sessions", "-F", "#{session_id}\t#{session_name}")
+        # Only sessions whose name changes are renamed: a single rename touches
+        # one session (temporary name, then final name) and leaves the rest alone.
+        def rename_targets():
+            return [json.loads(line)[2] for line in rename_log.read_text().splitlines()]
+
+        rename_log.unlink(missing_ok=True)
+        manager("rename", "alpha", "--session", "$0", extra_env=rename_env)
+        assert rename_targets() == ["$0", "$0"], rename_targets()
+        assert tmux("list-sessions", "-F", "#{session_id}\t#{session_name}") == "$0\t1-alpha\n$1\t2-beta\n$2\t3-gamma"
+
+        # Shifting slots: $2 now sorts between $0 and $1 (equal indexes keep
+        # tmux's name order) and wants $1's current name, so both pass through
+        # temporary names while $0 is not renamed at all.
+        def shift_slots():
+            tmux("rename-session", "-t", "$2", "1-beta")
+            tmux("rename-session", "-t", "$1", "2-beta")
+            return tmux("list-sessions", "-F", "#{session_id}\t#{session_name}")
+
+        shift_slots()
+        rename_log.unlink()
+        manager("ensure", extra_env=rename_env)
+        assert sorted(rename_targets()) == ["$1", "$1", "$2", "$2"], rename_targets()
+        assert tmux("list-sessions", "-F", "#{session_id}\t#{session_name}") == "$0\t1-alpha\n$2\t2-beta\n$1\t3-beta"
+
+        for phase in ("temporary", "final"):
+            before = shift_slots()
             once.unlink(missing_ok=True)
             failure_env = dict(rename_env, TMUX_TEST_FAIL_TARGET="$1", TMUX_TEST_FAIL_PHASE=phase)
-            result = manager("rename", "must-rollback", "--session", "$0", check=False, extra_env=failure_env)
+            result = manager("ensure", check=False, extra_env=failure_env)
             assert result.returncode != 0 and "injected rename failure" in result.stderr
             assert tmux("list-sessions", "-F", "#{session_id}\t#{session_name}") == before
+        tmux("rename-session", "-t", "$2", "3-gamma")
+        tmux("rename-session", "-t", "$1", "2-beta")
 
-        vanished = tmux("new-session", "-d", "-s", "4-vanishing", "-P", "-F", "#{session_id}", "/bin/sleep 120")
-        once.unlink()
-        manager("rename", "after-vanish", "--session", "$0", extra_env=dict(rename_env, TMUX_TEST_VANISH_ID=vanished))
+        vanished = tmux("new-session", "-d", "-s", "vanishing", "-P", "-F", "#{session_id}", "/bin/sleep 120")
+        once.unlink(missing_ok=True)
+        manager("ensure", extra_env=dict(rename_env, TMUX_TEST_VANISH_ID=vanished))
         assert vanished not in tmux("list-sessions", "-F", "#{session_id}").splitlines()
         assert "__dotfiles_" not in tmux("list-sessions", "-F", "#{session_name}")
 

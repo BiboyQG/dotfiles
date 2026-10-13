@@ -115,18 +115,22 @@ def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
         label = sanitize_label(str(session["label"]))
         planned_names.append((session, f"{position}-{label}"))
 
-    if all(session["name"] == new_name for session, new_name in planned_names):
+    # Planned names are unique per position, so a session that already has its
+    # planned name cannot collide with another session's move. Only the
+    # sessions whose name changes pass through a temporary name.
+    changing = [(session, name) for session, name in planned_names if session["name"] != name]
+    if not changing:
         return
 
     prefix = f"__dotfiles_{os.getpid()}_"
     changed_sessions = []
     try:
-        for session, _ in planned_names:
+        for session, _ in changing:
             session_id = str(session["id"]).lstrip("$")
             temporary_name = f"{prefix}{session_id}"
             if rename_session(session["id"], temporary_name):
                 changed_sessions.append((session, temporary_name))
-        for session, new_name in planned_names:
+        for session, new_name in changing:
             rename_session(session["id"], new_name)
     except subprocess.CalledProcessError:
         # Vacate final names before restoring originals, which may overlap them.
