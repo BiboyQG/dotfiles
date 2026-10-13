@@ -2,6 +2,7 @@
 .claude
 .codex
 .config
+.config/nvim
 .config/yazi
 Library/Application Support/Code/User
 Library/LaunchAgents

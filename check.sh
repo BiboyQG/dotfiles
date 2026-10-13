@@ -562,6 +562,7 @@ mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.claude" \
   "$SETUP_FIXTURE_SOURCE/home/.codex" \
   "$SETUP_FIXTURE_SOURCE/home/.config/kitty" \
+  "$SETUP_FIXTURE_SOURCE/home/.config/nvim" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-ignored" \
