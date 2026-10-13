@@ -11,6 +11,8 @@
   "enableWorkflows": true,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "dark",
-  "skipWorkflowUsageWarning": true
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true
 }
