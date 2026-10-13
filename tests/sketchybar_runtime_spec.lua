@@ -237,6 +237,13 @@ local function workspace_rows(single_display, focused)
   return rows
 end
 
+local function find_object(state, predicate)
+  for _, object in pairs(state.objects) do
+    if predicate(object) then return object end
+  end
+  return nil
+end
+
 local function test_app_icons()
   local app_icons = dofile(sketchybar_root .. "/helpers/app_icons.lua")
   expect(app_icons.Preview == ":preview:", "Preview does not use its dedicated icon")
@@ -680,17 +687,49 @@ local function test_wifi()
 
   state.emit_object("widgets.wifi1", "mouse.clicked", {})
   local popup_ip_lookup = false
+  local info_lookups = 0
+  local lookups = {}
   for _, exec in ipairs(state.execs) do
     if exec.command == "ipconfig getifaddr en1" then popup_ip_lookup = true end
+    if exec.command:find("getinfo Wi-Fi", 1, true) then info_lookups = info_lookups + 1 end
+    for _, key in ipairs({ "getcomputername", "getsummary", "getinfo Wi-Fi" }) do
+      if exec.command:find(key, 1, true) then lookups[key] = exec end
+    end
   end
   expect(popup_ip_lookup, "popup IP lookup does not use the resolved interface")
-end
+  expect(info_lookups == 1 and lookups["getinfo Wi-Fi"].command == "networksetup -getinfo Wi-Fi", "mask and router are not read from one networksetup call")
 
-local function find_object(state, predicate)
-  for _, object in pairs(state.objects) do
-    if predicate(object) then return object end
+  local function row(title)
+    return find_object(state, function(object)
+      return type(object.properties.icon) == "table" and object.properties.icon.string == title
+    end)
   end
-  return nil
+  local hostname, mask, router, ssid = row("Hostname:"), row("Subnet mask:"), row("Router:"), row("ROUTER")
+  expect(hostname and mask and router and ssid, "wifi popup rows are missing")
+  lookups["getinfo Wi-Fi"].callback("DHCP Configuration\nIP address: 10.0.0.2\nSubnet mask: 255.255.255.0\nRouter: 10.0.0.1\nClient ID: \nIPv6: Automatic\nIPv6 Router: fe80::1\nWi-Fi ID: aa:bb\n", 0)
+  expect(mask.properties.label.string == "255.255.255.0", "subnet mask was not parsed")
+  expect(router.properties.label.string == "10.0.0.1", "router was not parsed from its own line")
+  lookups["getcomputername"].callback("host\n", 0)
+  expect(hostname.properties.label.string == "host", "hostname was not trimmed")
+  lookups["getsummary"].callback("<redacted>\n", 0)
+  expect(ssid.properties.label.string == "Unavailable", "redacted SSID is shown")
+  local before_ssid_click = #state.execs
+  state.emit_object(ssid.name, "mouse.clicked", { NAME = ssid.name })
+  expect(#state.execs == before_ssid_click, "unavailable SSID was copied")
+
+  -- A second click within the restore second copies the real value, not the
+  -- glyph, and only the latest restore applies.
+  local delays_before = #state.delays
+  state.emit_object(hostname.name, "mouse.clicked", { NAME = hostname.name })
+  expect(hostname.properties.label.string == "CLIPBOARD", "copy did not show the clipboard glyph")
+  expect(state.execs[#state.execs].command == 'printf %s "host" | pbcopy', "copied value is wrong")
+  state.emit_object(hostname.name, "mouse.clicked", { NAME = hostname.name })
+  expect(state.execs[#state.execs].command == 'printf %s "host" | pbcopy', "second click copied the glyph")
+  expect(#state.delays == delays_before + 2, "copy restores are missing")
+  state.delays[delays_before + 1]()
+  expect(hostname.properties.label.string == "CLIPBOARD", "stale restore replaced the glyph early")
+  state.delays[delays_before + 2]()
+  expect(hostname.properties.label.string == "host" and hostname.properties.label.align == "right", "label was not restored")
 end
 
 local function test_battery()
@@ -831,6 +870,11 @@ local function test_volume()
     state.emit_object("widgets.volume1", "mouse.exited.global", {})
   end
 
+  -- Leaving the bar with nothing open sends no hide or remove commands.
+  local removed_before = #state.removed
+  close_devices()
+  expect(#state.removed == removed_before, "closing an already closed popup sent a remove")
+
   local closed_query = open_devices()
   close_devices()
   local after_close = #state.execs
@@ -857,6 +901,9 @@ local function test_volume()
 
   close_devices()
   expect(state.objects["volume.device.0"] == nil and state.objects["volume.device.1"] == nil, "closing did not remove device items")
+  removed_before = #state.removed
+  close_devices()
+  expect(#state.removed == removed_before, "a second bar exit removed again")
   current_query = open_devices()
   current_query.callback("Speakers", 0)
   state.execs[#state.execs].callback("Speakers\n", 0)
@@ -880,6 +927,29 @@ local function test_volume()
   current_query.callback("Speakers\n", 0)
   state.execs[#state.execs].callback("Error listing devices\n", 1)
   expect(state.objects["volume.device.0"] == nil, "failed device query rendered its error as a device")
+
+  -- Scroll steps keep one osascript in flight; later steps coalesce into the
+  -- latest absolute target, clamped to 0-100.
+  state.emit_object("widgets.volume1", "volume_change", { INFO = "50" })
+  local before_scroll = #state.execs
+  state.emit_object("widgets.volume2", "mouse.scrolled", { INFO = { delta = "1" } })
+  expect(#state.execs == before_scroll + 1, "scroll did not start a volume update")
+  local first_step = state.execs[#state.execs]
+  expect(first_step.command == 'osascript -e "set volume output volume 60"', "scroll target is wrong: " .. first_step.command)
+  state.emit_object("widgets.volume2", "mouse.scrolled", { INFO = { delta = "1" } })
+  state.emit_object("widgets.volume1", "mouse.scrolled", { INFO = { delta = "-1", modifier = "ctrl" } })
+  expect(#state.execs == before_scroll + 1, "scroll steps ran concurrently")
+  first_step.callback("", 0)
+  expect(#state.execs == before_scroll + 2, "coalesced scroll steps were not applied")
+  expect(state.execs[#state.execs].command == 'osascript -e "set volume output volume 69"', "coalesced target is wrong: " .. state.execs[#state.execs].command)
+  state.execs[#state.execs].callback("", 0)
+  expect(#state.execs == before_scroll + 2, "idle scroll chain ran another command")
+  state.emit_object("widgets.volume1", "volume_change", { INFO = "95" })
+  state.emit_object("widgets.volume2", "mouse.scrolled", { INFO = { delta = "3" } })
+  expect(state.execs[#state.execs].command == 'osascript -e "set volume output volume 100"', "scroll target is not clamped")
+  state.execs[#state.execs].callback("", 0)
+  state.emit_object("widgets.volume2", "mouse.scrolled", { INFO = { delta = "-1", modifier = "ctrl" } })
+  expect(state.execs[#state.execs].command == 'osascript -e "set volume output volume 99"', "scroll after a clamp did not continue from the applied level")
 end
 
 local function test_calendar()
@@ -891,9 +961,26 @@ local function test_calendar()
   expect(calendar, "calendar item is missing")
   expect(calendar.properties.icon.string == nil, "calendar rendered before its first update")
 
+  expect(calendar.properties.update_freq == nil and state.subscriptions.routine == nil, "calendar still polls on routine")
+
   state.emit("forced")
   expect(tostring(calendar.properties.icon):match("^%a+%. %d%d %a+%.$") ~= nil, "calendar date format is wrong")
   expect(tostring(calendar.properties.label):match("^%d%d:%d%d$") ~= nil, "calendar time format is wrong")
+
+  -- The clock re-arms itself for the next minute boundary; a restart on wake
+  -- ends the previous chain so a late timer cannot start a second one.
+  expect(#state.delays == 1, "forced did not arm the minute timer")
+  local seconds = state.delay_seconds[1]
+  expect(math.type(seconds) == "integer" and seconds >= 1 and seconds <= 60, "minute timer is not aligned to the boundary")
+  state.delays[1]()
+  expect(#state.delays == 2, "minute tick did not re-arm the timer")
+  state.emit("system_woke")
+  expect(#state.delays == 3, "wake did not restart the clock")
+  local sets = calendar.set_count
+  state.delays[2]()
+  expect(#state.delays == 3 and calendar.set_count == sets, "stale minute timer kept ticking")
+  state.delays[3]()
+  expect(#state.delays == 4 and calendar.set_count == sets + 1, "current minute timer stopped ticking")
 end
 
 local function test_ai_usage()

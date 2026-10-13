@@ -145,7 +145,38 @@ wifi_up:subscribe("network_update", function(env)
   end
 end)
 
-local ssid_available = false
+local function trim(value)
+  return type(value) == "string" and value:match("^%s*(.-)%s*$") or ""
+end
+
+-- Real text of each popup row, kept in Lua so a click copies the value even
+-- while the row shows the clipboard glyph; nil marks a row with nothing to
+-- copy. The revision drops a stale restore from an earlier click.
+local rows = {}
+
+local function set_row(row, value, fallback)
+  value = trim(value)
+  if value == "" then value = nil end
+  local entry = rows[row.name] or { revision = 0 }
+  entry.value = value
+  entry.revision = entry.revision + 1
+  rows[row.name] = entry
+  row:set({ label = { string = value or fallback or "", align = "right" } })
+end
+
+local function copy_row(row)
+  local entry = rows[row.name]
+  if not entry or not entry.value then return end
+  entry.revision = entry.revision + 1
+  local revision = entry.revision
+  local value = entry.value
+  sbar.exec("printf %s " .. shell.quote(value) .. " | pbcopy")
+  row:set({ label = { string = icons.clipboard, align = "center" } })
+  sbar.delay(1, function()
+    if revision ~= entry.revision then return end
+    row:set({ label = { string = value, align = "right" } })
+  end)
+end
 
 local function hide_details()
   wifi_bracket:set({ popup = { drawing = false } })
@@ -153,29 +184,30 @@ end
 
 local function toggle_details()
   local should_draw = wifi_bracket:query().popup.drawing == "off"
-  if should_draw then
-    wifi_bracket:set({ popup = { drawing = true }})
-    sbar.exec("networksetup -getcomputername", function(result)
-      hostname:set({ label = result })
-    end)
-    sbar.exec("ipconfig getifaddr " .. wifi_interface, function(result)
-      ip:set({ label = result })
-    end)
-    sbar.exec("ipconfig getsummary " .. wifi_interface .. " | awk -F ' SSID : ' '/ SSID : / {print $2}'", function(result)
-      -- Recent macOS releases redact the SSID unless `ipconfig setverbose 1` is set.
-      local value = type(result) == "string" and result:match("^%s*(.-)%s*$") or ""
-      ssid_available = value ~= "" and value ~= "<redacted>"
-      ssid:set({ label = ssid_available and value or "Unavailable" })
-    end)
-    sbar.exec("networksetup -getinfo Wi-Fi | awk -F 'Subnet mask: ' '/^Subnet mask: / {print $2}'", function(result)
-      mask:set({ label = result })
-    end)
-    sbar.exec("networksetup -getinfo Wi-Fi | awk -F 'Router: ' '/^Router: / {print $2}'", function(result)
-      router:set({ label = result })
-    end)
-  else
+  if not should_draw then
     hide_details()
+    return
   end
+
+  wifi_bracket:set({ popup = { drawing = true }})
+  sbar.exec("networksetup -getcomputername", function(result)
+    set_row(hostname, result)
+  end)
+  sbar.exec("ipconfig getifaddr " .. wifi_interface, function(result)
+    set_row(ip, result)
+  end)
+  sbar.exec("ipconfig getsummary " .. wifi_interface .. " | awk -F ' SSID : ' '/ SSID : / {print $2}'", function(result)
+    -- Recent macOS releases redact the SSID unless `ipconfig setverbose 1` is set.
+    local value = trim(result)
+    set_row(ssid, value ~= "<redacted>" and value or nil, "Unavailable")
+  end)
+  -- The subnet mask and router come from the same networksetup output; the
+  -- leading newline keeps "IPv6 Router:" from matching.
+  sbar.exec("networksetup -getinfo Wi-Fi", function(result)
+    local info = "\n" .. trim(result)
+    set_row(mask, info:match("\nSubnet mask: ([^\n]*)"))
+    set_row(router, info:match("\nRouter: ([^\n]*)"))
+  end)
 end
 
 wifi_up:subscribe("mouse.clicked", toggle_details)
@@ -183,18 +215,6 @@ wifi_down:subscribe("mouse.clicked", toggle_details)
 wifi:subscribe("mouse.clicked", toggle_details)
 wifi:subscribe("mouse.exited.global", hide_details)
 
-local function copy_label_to_clipboard(env)
-  local label = sbar.query(env.NAME).label.value
-  sbar.exec("printf %s " .. shell.quote(label) .. " | pbcopy")
-  sbar.set(env.NAME, { label = { string = icons.clipboard, align="center" } })
-  sbar.delay(1, function()
-    sbar.set(env.NAME, { label = { string = label, align = "right" } })
-  end)
-end
-
-ssid:subscribe("mouse.clicked", function(env)
-  if ssid_available then copy_label_to_clipboard(env) end
-end)
-for _, row in ipairs({ hostname, ip, mask, router }) do
-  row:subscribe("mouse.clicked", copy_label_to_clipboard)
+for _, row in ipairs({ ssid, hostname, ip, mask, router }) do
+  row:subscribe("mouse.clicked", function() copy_row(row) end)
 end
