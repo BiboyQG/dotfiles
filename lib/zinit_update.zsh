@@ -11,6 +11,9 @@ from pathlib import Path
 
 text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", Path(sys.argv[1]).read_text())
 text = re.sub(r"\{[a-z0-9_-]+\}", "", text)
+# zinit lists each new upstream commit as "<date> <hash> <subject>"; commit
+# subjects such as "Fix error: ..." are not diagnostics.
+text = re.sub(r"(?m)^\d{4}-\d{2}-\d{2} [0-9a-f]{7,}\b.*$", "", text)
 failures = re.compile(
     r"(?im)(?:^|\s)(?:fatal:|error(?:\s*#?\d+)?:|curl:\s*\(\d+\)|"
     r"command not found:|permission denied|clone failed|download failed)|"

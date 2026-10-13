@@ -19,6 +19,13 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-zinit-spec-") as directory:
         ("Updating org/plugin\n\x1b[31mERROR:\x1b[0m Download failed.\n", "1", False),
         ("Updating org/plugin\n{u-warn}ERROR{b-warn}:{rst}No download tool detected\n", "1", False),
         ("Updating org/plugin\nWarning: org/plugin update returned 1\n", "0", False),
+        # Upstream commit subjects printed by zinit's git log are not failures.
+        ("Updating org/plugin\n2025-01-02 abc1234 Fix error: handle nil\n", "0", True),
+        ("Updating org/plugin\n\x1b[32m2025-01-02 abc1234 \x1b[mpermission denied cleanup "
+         "\x1b[31m\x1b[m || Avoid the download failed path\n", "0", True),
+        ("Updating org/plugin\n2025-01-02 abc1234 Fix error: handle nil\n"
+         "fatal: Could not read from remote repository\n", "1", False),
+        ("Updating org/plugin\nabc1234 error: not a dated commit line\n", "0", False),
     ]
     for text, code, expected in cases:
         log.write_text(text)
