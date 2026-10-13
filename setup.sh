@@ -851,10 +851,7 @@ link_dotfiles() {
     printf "GNU Stow is required before dotfiles can be linked.\n" >&2
     return 1
   fi
-  preflight_stow_manifests || return 1
-  preflight_zprofile || return 1
-  preflight_stow_directory "$DOTFILES_DIR/home" "$HOME" || return 1
-  preflight_stow_simulation || return 1
+  preflight_dotfiles || return 1
 
   if [[ -f "$HOME/.zprofile" && ! -L "$HOME/.zprofile" ]]; then
     if cmp -s "$DOTFILES_DIR/home/.zprofile" "$HOME/.zprofile"; then
@@ -876,12 +873,12 @@ link_dotfiles() {
     mkdir -p "$HOME/$container"
   done
 
-  if ! run_stow --dir="$DOTFILES_DIR" --simulate --restow --target="$HOME" home; then
+  # Stow plans every operation first and aborts on a conflict before
+  # changing anything, so no separate --simulate pass is needed.
+  if ! run_stow --dir="$DOTFILES_DIR" --restow --target="$HOME" home; then
     printf "Stow found conflicting files. Back them up or remove them, then rerun setup.\n" >&2
     exit 1
   fi
-
-  run_stow --dir="$DOTFILES_DIR" --restow --target="$HOME" home
 }
 
 install_nvm_node() {
