@@ -149,25 +149,6 @@ def mutation_lock():
         run_tmux(["wait-for", "-U", LOCK_NAME], check=False)
 
 
-def command_switch(index_str: str, client: Optional[str] = None) -> None:
-    try:
-        index = int(index_str)
-    except ValueError:
-        return
-    if index < 1:
-        return
-    sessions = list_sessions()
-    if index > len(sessions):
-        return
-    target_session_id = str(sessions[index - 1]["id"])
-    if client:
-        run_tmux(["switch-client", "-c", client, "-t", target_session_id], check=False)
-        run_tmux(["refresh-client", "-S", "-t", client], check=False)
-    else:
-        run_tmux(["switch-client", "-t", target_session_id], check=False)
-        run_tmux(["refresh-client", "-S"], check=False)
-
-
 def command_rename(label: str, session_id: str) -> None:
     if numbering_suspended():
         return
@@ -259,9 +240,6 @@ def command_move_window_to_session(
 def main(argv: List[str]) -> None:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
-    switch = commands.add_parser("switch")
-    switch.add_argument("index")
-    switch.add_argument("--client")
     rename = commands.add_parser("rename")
     rename.add_argument("label")
     rename.add_argument("--session", required=True)
@@ -282,9 +260,7 @@ def main(argv: List[str]) -> None:
             parser.error(f"--{option} requires a tmux {option} ID")
 
     with mutation_lock():
-        if args.command == "switch":
-            command_switch(args.index, args.client)
-        elif args.command == "rename":
+        if args.command == "rename":
             command_rename(args.label, args.session)
         elif args.command == "ensure":
             command_ensure()
