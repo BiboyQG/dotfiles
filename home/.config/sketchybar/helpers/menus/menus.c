@@ -1,5 +1,7 @@
 #include <Carbon/Carbon.h>
 
+#include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +30,15 @@ static void ax_init(void) {
   bool trusted = AXIsProcessTrustedWithOptions(options);
   CFRelease(options);
   if (!trusted) exit(1);
+
+  // The default messaging timeout is about 6 s per call, so an unresponsive
+  // app would block the bar's menu query; a timeout set on the system-wide
+  // element applies to every element that does not set its own.
+  AXUIElementRef system_wide = AXUIElementCreateSystemWide();
+  if (system_wide) {
+    AXUIElementSetMessagingTimeout(system_wide, 1.0f);
+    CFRelease(system_wide);
+  }
 }
 
 static void ax_perform_click(AXUIElementRef element) {
@@ -50,65 +61,79 @@ static CFStringRef ax_get_title(AXUIElementRef element) {
   return (CFStringRef)title;
 }
 
-static void ax_select_menu_option(AXUIElementRef app, int id) {
+// Returns the visible children of the app's menubar, or NULL. The children
+// hold their own references, so the menubar is released before returning.
+static CFArrayRef ax_copy_menu_items(AXUIElementRef app) {
   AXUIElementRef menubar = NULL;
-  CFArrayRef children = NULL;
+  CFTypeRef children = NULL;
   AXError error = AXUIElementCopyAttributeValue(app,
                                                 kAXMenuBarAttribute,
                                                 (CFTypeRef *)&menubar);
-  if (error == kAXErrorSuccess) {
+  if (error == kAXErrorSuccess && menubar) {
     error = AXUIElementCopyAttributeValue(menubar,
                                           kAXVisibleChildrenAttribute,
-                                          (CFTypeRef *)&children);
+                                          &children);
   }
-
-  if (error == kAXErrorSuccess && id >= 0 && (CFIndex)id < CFArrayGetCount(children)) {
-    AXUIElementRef item = (AXUIElementRef)CFArrayGetValueAtIndex(children,
-                                                                (CFIndex)id);
-    ax_perform_click(item);
-  }
-  if (children) CFRelease(children);
   if (menubar) CFRelease(menubar);
+  if (children
+      && (error != kAXErrorSuccess
+          || CFGetTypeID(children) != CFArrayGetTypeID())) {
+    CFRelease(children);
+    children = NULL;
+  }
+  return (CFArrayRef)children;
+}
+
+static bool ax_select_menu_option(AXUIElementRef app, int id) {
+  CFArrayRef children = ax_copy_menu_items(app);
+  if (!children) return false;
+
+  bool found = (CFIndex)id < CFArrayGetCount(children);
+  if (found) {
+    ax_perform_click((AXUIElementRef)CFArrayGetValueAtIndex(children,
+                                                            (CFIndex)id));
+  }
+  CFRelease(children);
+  return found;
+}
+
+// Prints one line per menubar child so line i always maps to child i, which
+// `-s i` clicks; an untitled or empty title prints a single space because the
+// Lua side skips empty lines.
+static void ax_print_title_line(CFStringRef title) {
+  bool printed = false;
+  if (title) {
+    CFIndex capacity = CFStringGetMaximumSizeForEncoding(
+                           CFStringGetLength(title),
+                           kCFStringEncodingUTF8)
+                       + 1;
+    if (capacity > 0) {
+      char *buffer = malloc((size_t)capacity);
+      if (buffer && CFStringGetCString(title,
+                                       buffer,
+                                       capacity,
+                                       kCFStringEncodingUTF8)
+          && buffer[0] != '\0') {
+        printf("%s\n", buffer);
+        printed = true;
+      }
+      free(buffer);
+    }
+    CFRelease(title);
+  }
+  if (!printed) printf(" \n");
 }
 
 static void ax_print_menu_options(AXUIElementRef app) {
-  AXUIElementRef menubar = NULL;
-  CFArrayRef children = NULL;
-  AXError error = AXUIElementCopyAttributeValue(app,
-                                                kAXMenuBarAttribute,
-                                                (CFTypeRef *)&menubar);
-  if (error == kAXErrorSuccess) {
-    error = AXUIElementCopyAttributeValue(menubar,
-                                          kAXVisibleChildrenAttribute,
-                                          (CFTypeRef *)&children);
-  }
+  CFArrayRef children = ax_copy_menu_items(app);
+  if (!children) return;
 
-  if (error == kAXErrorSuccess) {
-    CFIndex count = CFArrayGetCount(children);
-    for (CFIndex i = 1; i < count; ++i) {
-      AXUIElementRef item = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
-      CFStringRef title = ax_get_title(item);
-      if (!title) continue;
-
-      CFIndex capacity = CFStringGetMaximumSizeForEncoding(
-                             CFStringGetLength(title),
-                             kCFStringEncodingUTF8)
-                         + 1;
-      if (capacity > 0) {
-        char *buffer = malloc((size_t)capacity);
-        if (buffer && CFStringGetCString(title,
-                                         buffer,
-                                         capacity,
-                                         kCFStringEncodingUTF8)) {
-          printf("%s\n", buffer);
-        }
-        free(buffer);
-      }
-      CFRelease(title);
-    }
+  CFIndex count = CFArrayGetCount(children);
+  for (CFIndex i = 1; i < count; ++i) {
+    AXUIElementRef item = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
+    ax_print_title_line(ax_get_title(item));
   }
-  if (children) CFRelease(children);
-  if (menubar) CFRelease(menubar);
+  CFRelease(children);
 }
 
 static AXUIElementRef ax_get_front_app(void) {
@@ -125,25 +150,38 @@ static AXUIElementRef ax_get_front_app(void) {
   return AXUIElementCreateApplication(pid);
 }
 
+static bool parse_menu_index(const char *text, int *id) {
+  char *end = NULL;
+  errno = 0;
+  long value = strtol(text, &end, 10);
+  if (errno != 0 || end == text || *end != '\0' || value < 0
+      || value > INT_MAX) {
+    return false;
+  }
+  *id = (int)value;
+  return true;
+}
+
 int main(int argc, char **argv) {
-  if (argc == 1) {
-    printf("Usage: %s [-l | -s id]\n", argv[0]);
-    return 0;
+  int id = 0;
+  bool list = argc == 2 && strcmp(argv[1], "-l") == 0;
+  bool select = argc == 3 && strcmp(argv[1], "-s") == 0
+                && parse_menu_index(argv[2], &id);
+  if (!list && !select) {
+    fprintf(stderr, "Usage: %s [-l | -s <index>]\n", argv[0]);
+    return 2;
   }
 
   ax_init();
-  if (strcmp(argv[1], "-l") == 0) {
-    AXUIElementRef app = ax_get_front_app();
-    if (!app) return 1;
+  AXUIElementRef app = ax_get_front_app();
+  if (!app) return 1;
+
+  bool ok = true;
+  if (list) {
     ax_print_menu_options(app);
-    CFRelease(app);
-  } else if (argc == 3 && strcmp(argv[1], "-s") == 0) {
-    int id = 0;
-    if (sscanf(argv[2], "%d", &id) != 1) return 1;
-    AXUIElementRef app = ax_get_front_app();
-    if (!app) return 1;
-    ax_select_menu_option(app, id);
-    CFRelease(app);
+  } else {
+    ok = ax_select_menu_option(app, id);
   }
-  return 0;
+  CFRelease(app);
+  return ok ? 0 : 1;
 }
