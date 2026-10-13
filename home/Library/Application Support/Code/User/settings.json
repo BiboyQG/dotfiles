@@ -150,5 +150,6 @@
     "editor.largeFileOptimizations": true,
     "editor.unicodeHighlight.ambiguousCharacters": false,
     "terminal.integrated.enableMultiLinePasteWarning": "never",
-    "editor.hover.showLongLineWarning": false
+    "editor.hover.showLongLineWarning": false,
+    "editor.inlineSuggest.enabled": false
 }
