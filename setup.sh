@@ -1231,16 +1231,10 @@ restart_aerospace() {
     skip "AeroSpace started but its CLI is not ready."
     return 1
   fi
+  # The fresh launch already loaded the config; only the deferred strict
+  # validation is still outstanding.
   if ! preflight_aerospace_config; then
     skip "AeroSpace configuration did not pass strict validation after launch."
-    return 1
-  fi
-  if ! aerospace reload-config --no-gui; then
-    skip "Could not reload AeroSpace config."
-    return 1
-  fi
-  if ! wait_for_aerospace; then
-    skip "AeroSpace config reloaded but its CLI is not ready."
     return 1
   fi
   return 0
