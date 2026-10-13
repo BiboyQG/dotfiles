@@ -914,7 +914,8 @@ install_zsh_plugins() {
   # Source the declared plugin set, prune checkouts it no longer declares (a
   # stale upstream would otherwise fail the update), and retain diagnostics
   # even if zinit exits the child shell before returning to us.
-  zsh -c 'source "$HOME/.zshrc"; zinit delete --clean --yes; zinit update --all --no-pager' </dev/null \
+  # `@zinit-scheduler burst` loads the deferred snippets so --clean keeps them.
+  zsh -c 'source "$HOME/.zshrc"; @zinit-scheduler burst; zinit delete --clean --yes; zinit update --all --no-pager' </dev/null \
     >"$update_log" 2>&1 || exit_code=$?
   cat "$update_log"
   if ! zinit_update_succeeded "$update_log" "$exit_code" \

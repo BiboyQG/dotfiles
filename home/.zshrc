@@ -18,13 +18,20 @@ typeset +x FPATH
 if [[ -r "$ZINIT_HOME/zinit.zsh" ]]; then
 	source "$ZINIT_HOME/zinit.zsh"
 
-	zinit ice depth=1; zinit light romkatv/powerlevel10k
-	zinit ice depth=1; zinit light zsh-users/zsh-syntax-highlighting
-	zinit ice depth=1; zinit light zsh-users/zsh-completions
-	zinit ice depth=1; zinit light zsh-users/zsh-autosuggestions
-	zinit ice depth=1; zinit light Aloxaf/fzf-tab
-	zinit snippet OMZL::git.zsh
-	zinit snippet OMZP::git
+	# zsh-syntax-highlighting wraps no widgets on zsh 5.9, so the rebind that
+	# autosuggestions otherwise repeats before every prompt does nothing.
+	ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+	# The for-syntax keeps light mode, which skips zinit's per-plugin
+	# function, parameter and option diff tracking.
+	zinit light-mode depth=1 for \
+		romkatv/powerlevel10k \
+		zsh-users/zsh-syntax-highlighting \
+		zsh-users/zsh-completions \
+		zsh-users/zsh-autosuggestions \
+		Aloxaf/fzf-tab
+	# OMZP::git forks `git version` on load; defer both snippets past the
+	# first prompt. setup.sh runs `@zinit-scheduler burst` to load them.
+	zinit wait lucid for OMZL::git.zsh OMZP::git
 else
 	print -u2 "zinit is not installed; rerun the dotfiles setup script"
 fi
