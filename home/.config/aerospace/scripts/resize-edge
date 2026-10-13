@@ -46,10 +46,9 @@ window_id="$("$AEROSPACE" list-windows --focused --format '%{window-id}' 2>/dev/
 restore_focus=true
 if "$AEROSPACE" focus --boundaries workspace --boundaries-action fail --ignore-floating "$direction" >/dev/null 2>&1; then
   delta="+$amount"
+  "$AEROSPACE" focus --window-id "$window_id" >/dev/null 2>&1
 else
   delta="-$amount"
 fi
-
-"$AEROSPACE" focus --window-id "$window_id" >/dev/null 2>&1
 restore_focus=false
 "$AEROSPACE" resize --window-id "$window_id" "$dimension" "$delta"
