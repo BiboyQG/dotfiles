@@ -96,7 +96,7 @@ local function add_percent(name, position, y_offset, width)
   })
 end
 
-local function add_scope(name, position, y_offset, width)
+local function add_scope(name, position, y_offset, width, letter)
   return sbar.add("item", name, {
     position = position,
     width = width,
@@ -105,7 +105,8 @@ local function add_scope(name, position, y_offset, width)
     y_offset = y_offset,
     icon = { drawing = false },
     label = {
-      string = "",
+      drawing = false,
+      string = letter,
       width = scope_width,
       align = "center",
       color = colors.grey,
@@ -118,46 +119,38 @@ local function add_scope(name, position, y_offset, width)
   })
 end
 
+-- The parts of one usage view as left-to-right groups. A zero-width "session"
+-- part overlays the "weekly" partner that follows it, so a pair keeps its
+-- order; right-side bar items are laid out right to left, so the bar view
+-- adds the groups in reverse.
+local usage_groups = {
+  { { key = "logo", add = add_logo } },
+  {
+    { key = "session_scope", add = function(name, position) return add_scope(name, position, 5, 0, "S") end },
+    { key = "weekly_scope", add = function(name, position) return add_scope(name, position, -5, scope_width, "W") end },
+  },
+  { { key = "bar", add = function(name, position) return sbar.add("item", name, bar_opts(position)) end } },
+  {
+    { key = "session_percent", add = function(name, position) return add_percent(name, position, 5, 0) end },
+    { key = "weekly_percent", add = function(name, position) return add_percent(name, position, -5, percent_width) end },
+  },
+}
+
 local function add_usage_view(prefix, position, logo_path, main)
-  local logo
-  local bar
-  local session_scope
-  local weekly_scope
-  local session_percent
-  local weekly_percent
-
-  if main then
-    session_percent = add_percent(prefix .. ".session_percent", position, 5, 0)
-    weekly_percent = add_percent(prefix .. ".weekly_percent", position, -5, percent_width)
-    bar = sbar.add("item", prefix .. ".bar", bar_opts(position))
-    session_scope = add_scope(prefix .. ".session_scope", position, 5, 0)
-    weekly_scope = add_scope(prefix .. ".weekly_scope", position, -5, scope_width)
-    logo = add_logo(prefix .. ".logo", position, logo_path)
-  else
-    logo = add_logo(prefix .. ".logo", position, logo_path)
-    session_scope = add_scope(prefix .. ".session_scope", position, 5, 0)
-    weekly_scope = add_scope(prefix .. ".weekly_scope", position, -5, scope_width)
-    bar = sbar.add("item", prefix .. ".bar", bar_opts(position))
-    session_percent = add_percent(prefix .. ".session_percent", position, 5, 0)
-    weekly_percent = add_percent(prefix .. ".weekly_percent", position, -5, percent_width)
+  local view = { parts = {}, items = {} }
+  local count = #usage_groups
+  for step = 1, count do
+    for _, part in ipairs(usage_groups[main and count + 1 - step or step]) do
+      view[part.key] = part.add(prefix .. "." .. part.key, position, logo_path)
+    end
   end
-
-  return {
-    logo = logo,
-    bar = bar,
-    session_scope = session_scope,
-    weekly_scope = weekly_scope,
-    session_percent = session_percent,
-    weekly_percent = weekly_percent,
-    items = {
-      logo.name,
-      session_scope.name,
-      weekly_scope.name,
-      bar.name,
-      session_percent.name,
-      weekly_percent.name,
-    },
-  }
+  for _, group in ipairs(usage_groups) do
+    for _, part in ipairs(group) do
+      table.insert(view.parts, view[part.key])
+      table.insert(view.items, view[part.key].name)
+    end
+  end
+  return view
 end
 
 local function has_value(value)
@@ -187,18 +180,12 @@ local function set_usage(view, usage)
   view.session_scope:set({
     width = has_session and not has_weekly and scope_width or 0,
     y_offset = has_weekly and 5 or 0,
-    label = {
-      drawing = has_session,
-      string = "S",
-    },
+    label = { drawing = has_session },
   })
   view.weekly_scope:set({
     width = has_weekly and scope_width or 0,
     y_offset = has_session and -5 or 0,
-    label = {
-      drawing = has_weekly,
-      string = "W",
-    },
+    label = { drawing = has_weekly },
   })
   view.session_percent:set({
     width = has_session and not has_weekly and percent_width or 0,
@@ -253,8 +240,25 @@ sbar.add("item", "ai_usage.popup.spacer", {
 local popup_claude = add_usage_view("ai_usage.popup.claude", "popup." .. bracket.name, assets .. "/claude.png")
 
 local usage_revision = 0
+local usage_received = false
+local startup_retries = 0
+local update_usage
 
-local function update_usage()
+-- At login OpenUsage starts alongside the bar and answers a few seconds
+-- later, so the first fetch sees a refused connection and the bar would show
+-- "--" until the next routine. Retry while no fetch has ever reached both
+-- providers, bounded so a provider that stays down costs nothing after that.
+local function schedule_startup_retry(usage)
+  if usage_received or startup_retries >= 12 then return end
+  if usage.codex.status ~= "unavailable" and usage.claude.status ~= "unavailable" then
+    usage_received = true
+    return
+  end
+  startup_retries = startup_retries + 1
+  sbar.delay(5, update_usage)
+end
+
+update_usage = function()
   usage_revision = usage_revision + 1
   local revision = usage_revision
   sbar.exec(script, function(output)
@@ -263,6 +267,7 @@ local function update_usage()
     set_usage(codex, usage.codex)
     set_usage(popup_codex, usage.codex)
     set_usage(popup_claude, usage.claude)
+    schedule_startup_retry(usage)
   end)
 end
 
@@ -271,21 +276,15 @@ local function hide_popup()
 end
 
 local function toggle_popup()
-  update_usage()
-  bracket:set({ popup = { drawing = "toggle" } })
+  local opening = bracket:query().popup.drawing == "off"
+  if opening then update_usage() end
+  bracket:set({ popup = { drawing = opening } })
 end
 
-for _, item in ipairs({
-  codex.logo,
-  codex.session_scope,
-  codex.weekly_scope,
-  codex.bar,
-  codex.session_percent,
-  codex.weekly_percent,
-}) do
+for _, item in ipairs(codex.parts) do
   item:subscribe("mouse.clicked", toggle_popup)
-  item:subscribe("mouse.exited.global", hide_popup)
 end
+codex.logo:subscribe("mouse.exited.global", hide_popup)
 
 codex.logo:set({ update_freq = 300 })
 codex.logo:subscribe({ "forced", "routine", "system_woke" }, update_usage)

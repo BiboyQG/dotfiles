@@ -11,23 +11,15 @@ TRACK_COLOR="#414550"
 mkdir -p "$BAR_DIR"
 find "$BAR_DIR" -type f -name 'v*.png' -mtime +7 -delete 2>/dev/null || true
 
+# Sets REPLY to the filled width for a percentage; "--" and other
+# non-numeric values fill nothing.
 bar_fill_width() {
-  local value="$1"
+  local percent="${1%%.*}"
 
-  if [[ "$value" == "--" ]]; then
-    print 0
-    return
-  fi
-
-  local percent="${value%%.*}"
-  if ! [[ "$percent" =~ '^[0-9]+$' ]]; then
-    print 0
-    return
-  fi
-
-  (( percent < 0 )) && percent=0
+  REPLY=0
+  [[ "$percent" =~ '^[0-9]+$' ]] || return 0
   (( percent > 100 )) && percent=100
-  print $(((percent * BAR_WIDTH + 50) / 100))
+  REPLY=$(((percent * BAR_WIDTH + 50) / 100))
 }
 
 generate_bar() {
@@ -37,8 +29,10 @@ generate_bar() {
   local weekly="$4"
   local session_width weekly_width output
 
-  session_width="$(bar_fill_width "$session")"
-  weekly_width="$(bar_fill_width "$weekly")"
+  bar_fill_width "$session"
+  session_width="$REPLY"
+  bar_fill_width "$weekly"
+  weekly_width="$REPLY"
   output="${BAR_DIR}/v${BAR_VERSION}-${provider}-${session}-${weekly}.png"
 
   if [[ -f "$output" ]]; then
@@ -85,12 +79,9 @@ emit_unavailable() {
   local provider_status="${2:-unavailable}"
 
   print -r -- "${provider}_status=${provider_status}"
-  print -r -- "${provider}_name=${provider}"
-  print -r -- "${provider}_plan="
   print -r -- "${provider}_session=--"
   print -r -- "${provider}_weekly=--"
   print -r -- "${provider}_bar=$(generate_bar "$provider" "#7f8490" "--" "--")"
-  print -r -- "${provider}_fetched_at="
 }
 
 emit_provider() {
@@ -132,11 +123,8 @@ emit_provider() {
 
       [
         ($provider + "_status=ok"),
-        ($provider + "_name=" + (.displayName // $provider)),
-        ($provider + "_plan=" + (.plan // "")),
         ($provider + "_session=" + remaining_pct(progress("Session"))),
-        ($provider + "_weekly=" + remaining_pct(progress("Weekly"))),
-        ($provider + "_fetched_at=" + (.fetchedAt // ""))
+        ($provider + "_weekly=" + remaining_pct(progress("Weekly")))
       ][]
     ' <<<"$body" 2>/dev/null
   )" || parsed=""
@@ -148,10 +136,11 @@ emit_provider() {
 
   print -r -- "$parsed"
 
-  local session weekly color
-  session="$(awk -F= -v key="${provider}_session" '$1 == key { print $2; exit }' <<<"$parsed")"
-  weekly="$(awk -F= -v key="${provider}_weekly" '$1 == key { print $2; exit }' <<<"$parsed")"
-  color="#7f8490"
+  local -a lines
+  lines=(${(f)parsed})
+  local session="${lines[(r)${provider}_session=*]#*=}"
+  local weekly="${lines[(r)${provider}_weekly=*]#*=}"
+  local color="#7f8490"
   [[ "$provider" == "codex" ]] && color="#74AA9C"
   [[ "$provider" == "claude" ]] && color="#DE7356"
   print -r -- "${provider}_bar=$(generate_bar "$provider" "$color" "$session" "$weekly")"

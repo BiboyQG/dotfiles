@@ -861,6 +861,89 @@ local function test_ai_usage()
   state.execs[2].callback(usage("99", "99", "99", "99"))
   expect(session.properties.label.string == "50%", "stale usage response overwrote the latest one")
   expect(bar.properties.background.image.string == "/tmp/codex-50.png", "stale bar overwrote the latest one")
+
+  -- Opening the popup refreshes usage; closing it does not, and leaving the
+  -- bar closes it through a single mouse.exited.global subscription.
+  local bracket = state.brackets["ai_usage.codex.logo"]
+  local before_toggle = #state.execs
+  state.emit_object("ai_usage.codex.logo", "mouse.clicked", {})
+  expect(#state.execs == before_toggle + 1, "opening the popup did not refresh usage")
+  expect(bracket.properties.popup.drawing == true, "click did not open the popup")
+  state.emit_object("ai_usage.codex.bar", "mouse.clicked", {})
+  expect(#state.execs == before_toggle + 1, "closing the popup refreshed usage")
+  expect(bracket.properties.popup.drawing == false, "second click did not close the popup")
+  state.emit_object("ai_usage.codex.weekly_percent", "mouse.clicked", {})
+  expect(bracket.properties.popup.drawing == true, "third click did not reopen the popup")
+  expect(#state.subscriptions["mouse.exited.global"] == 1, "more than one usage item subscribes to mouse.exited.global")
+  state.emit("mouse.exited.global")
+  expect(bracket.properties.popup.drawing == false, "leaving the bar did not close the popup")
+end
+
+local function usage_status_output(codex_status, claude_status, codex_session)
+  return table.concat({
+    "codex_status=" .. codex_status,
+    "codex_session=" .. (codex_session or "--"),
+    "codex_weekly=--",
+    "codex_bar=/tmp/codex.png",
+    "claude_status=" .. claude_status,
+    "claude_session=--",
+    "claude_weekly=--",
+    "claude_bar=/tmp/claude.png",
+  }, "\n")
+end
+
+local function load_ai_usage()
+  load_modules()
+  local sbar, state = fake_sbar()
+  _G.sbar = sbar
+  dofile(sketchybar_root .. "/items/ai_usage.lua")
+  return state
+end
+
+-- At login the first fetch can run before OpenUsage listens; the item retries
+-- a refused connection until one fetch reaches both providers.
+local function test_ai_usage_startup_retry()
+  local state = load_ai_usage()
+  local session = state.objects["ai_usage.codex.session_percent"]
+  state.emit("forced")
+  state.execs[1].callback(usage_status_output("unavailable", "unavailable"))
+  expect(#state.delays == 1 and state.delay_seconds[1] == 5, "refused first fetch did not schedule a retry")
+  expect(session.properties.label.drawing == false, "unavailable usage kept a session value")
+  state.delays[1]()
+  expect(#state.execs == 2, "startup retry did not run the usage script")
+  state.emit("routine")
+  state.execs[2].callback(usage_status_output("unavailable", "unavailable"))
+  expect(#state.delays == 1, "stale response scheduled a retry")
+  state.execs[3].callback(usage_status_output("ok", "unavailable", "75"))
+  expect(#state.delays == 2, "half-available response did not retry")
+  expect(session.properties.label.string == "75%", "partial response was not rendered")
+  state.delays[2]()
+  state.execs[4].callback(usage_status_output("ok", "empty", "60"))
+  expect(#state.delays == 2, "response reaching both providers scheduled a retry")
+  state.emit("routine")
+  state.execs[5].callback(usage_status_output("unavailable", "unavailable"))
+  expect(#state.delays == 2, "outage after the first full response scheduled a retry")
+
+  -- A provider that is down for another reason is not a startup race.
+  state = load_ai_usage()
+  state.emit("forced")
+  state.execs[1].callback(usage_status_output("empty", "parse_error"))
+  expect(#state.delays == 0, "empty or unparseable usage scheduled a retry")
+  state.emit("routine")
+  state.execs[2].callback(usage_status_output("unavailable", "unavailable"))
+  expect(#state.delays == 0, "retry started after a response had already arrived")
+
+  -- A provider that never answers stops costing script runs after 12 retries.
+  state = load_ai_usage()
+  state.emit("forced")
+  for attempt = 1, 12 do
+    state.execs[#state.execs].callback(usage_status_output("unavailable", "empty"))
+    expect(#state.delays == attempt, "startup retry " .. attempt .. " was not scheduled")
+    state.delays[attempt]()
+  end
+  state.execs[#state.execs].callback(usage_status_output("unavailable", "empty"))
+  expect(#state.delays == 12, "startup retries did not stop at the cap")
+  expect(#state.execs == 13, "capped retries ran an unexpected number of fetches")
 end
 
 test_app_icons()
@@ -875,4 +958,5 @@ test_cpu()
 test_volume()
 test_calendar()
 test_ai_usage()
+test_ai_usage_startup_retry()
 print("SketchyBar runtime fixtures passed.")
