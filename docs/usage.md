@@ -8,7 +8,7 @@ Some tmux behavior in this repo is optimized for “session slots” (fast switc
 
 - Sessions are auto-renamed to `<index>-<label>` (example: `1-dot`, `2-spreadsheet-build`)
 - Rename the current session label with `<prefix> + .` (the prompt omits the numeric prefix)
-- Create a new session with `Ctrl+s` (keeps numbering contiguous)
+- New sessions (`tn <label>`, or tmux's own `new-session`) are numbered automatically by the session-created hook
 - Switch sessions with `F1..F10` (in Kitty, `⌘1..⌘0` sends `F1..F10` to tmux)
 - Move the current window to session slot with `<prefix> + 1..0`
 - Automatic startup restore keeps saved session names until tmux-resurrect has
@@ -24,7 +24,7 @@ Shell helpers:
 
 ## Zsh
 
-`Ctrl+s` is bound in tmux, so XON/XOFF is disabled in interactive shells to avoid terminal “freezing”.
+XON/XOFF flow control is disabled in interactive shells (`stty -ixon`), so `Ctrl+s` and `Ctrl+q` never freeze the terminal.
 
 ## Editors
 
