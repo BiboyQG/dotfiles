@@ -1,6 +1,6 @@
 local colors = require("colors")
 local icons = require("icons")
-local settings = require("settings")
+local layout = require("helpers.layout")
 
 -- Padding item required because of bracket
 sbar.add("item", { width = 5 })
@@ -23,14 +23,7 @@ local apple = sbar.add("item", {
   click_script = "$HOME/.local/libexec/sketchybar/menus -s 0"
 })
 
--- Double border for apple using a single item bracket
-sbar.add("bracket", { apple.name }, {
-  background = {
-    color = colors.transparent,
-    height = 30,
-    border_color = colors.grey,
-  }
-})
+layout.double_border(apple.name)
 
 -- Padding item required because of bracket
 sbar.add("item", { width = 7 })

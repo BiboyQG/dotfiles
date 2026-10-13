@@ -1,9 +1,9 @@
 local colors = require("colors")
 local settings = require("settings")
+local layout = require("helpers.layout")
 
-local config_dir = os.getenv("CONFIG_DIR") or (os.getenv("HOME") .. "/.config/sketchybar")
-local script = "zsh " .. config_dir .. "/scripts/ai_usage.sh"
-local assets = config_dir .. "/assets"
+local script = "zsh " .. settings.config_dir .. "/scripts/ai_usage.sh"
+local assets = settings.config_dir .. "/assets"
 
 local bar_width = 52
 local scope_width = 14
@@ -220,10 +220,7 @@ local function set_usage(view, usage)
   })
 end
 
-sbar.add("item", "ai_usage.right_padding", {
-  position = "right",
-  width = settings.group_paddings,
-})
+layout.group_padding("ai_usage.right_padding")
 
 local codex = add_usage_view("ai_usage.codex", "right", assets .. "/openai.png", true)
 
@@ -239,10 +236,7 @@ local bracket = sbar.add("bracket", "ai_usage.bracket", codex.items, {
   },
 })
 
-sbar.add("item", "ai_usage.left_padding", {
-  position = "right",
-  width = settings.group_paddings,
-})
+layout.group_padding("ai_usage.left_padding")
 
 local popup_codex = add_usage_view("ai_usage.popup.codex", "popup." .. bracket.name, assets .. "/openai.png")
 sbar.add("item", "ai_usage.popup.spacer", {

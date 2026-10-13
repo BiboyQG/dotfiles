@@ -1,7 +1,8 @@
 local icons = require("icons")
 local colors = require("colors")
+local settings = require("settings")
 
-local media_script = "$HOME/.config/sketchybar/scripts/media_state.sh"
+local media_script = settings.config_dir .. "/scripts/media_state.sh"
 
 sbar.add("event", "spotify_media_change", "com.spotify.client.PlaybackStateChanged")
 sbar.add("event", "music_media_change", "com.apple.Music.playerInfo")

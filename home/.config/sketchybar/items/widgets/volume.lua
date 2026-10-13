@@ -2,6 +2,7 @@ local colors = require("colors")
 local icons = require("icons")
 local settings = require("settings")
 local shell = require("helpers.shell")
+local layout = require("helpers.layout")
 
 local popup_width = 250
 
@@ -46,10 +47,7 @@ local volume_bracket = sbar.add("bracket", "widgets.volume.bracket", {
   popup = { align = "center" }
 })
 
-sbar.add("item", "widgets.volume.padding", {
-  position = "right",
-  width = settings.group_paddings
-})
+layout.group_padding("widgets.volume.padding")
 
 local volume_slider = sbar.add("slider", popup_width, {
   position = "popup." .. volume_bracket.name,

@@ -2,6 +2,7 @@ local icons = require("icons")
 local colors = require("colors")
 local settings = require("settings")
 local shell = require("helpers.shell")
+local layout = require("helpers.layout")
 
 -- The Wi-Fi device is not always en0 (desktop Macs expose Ethernet there), so
 -- resolve it before starting the event provider binary, which fires the
@@ -114,7 +115,7 @@ local ip = info_row("IP:", "???.???.???.???")
 local mask = info_row("Subnet mask:", "???.???.???.???")
 local router = info_row("Router:", "???.???.???.???")
 
-sbar.add("item", { position = "right", width = settings.group_paddings })
+layout.group_padding()
 
 wifi_up:subscribe("network_update", function(env)
   local up_color = (env.upload == "000 Bps") and colors.grey or colors.red

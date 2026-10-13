@@ -165,7 +165,7 @@ local function fake_sbar()
 end
 
 local function load_modules()
-  for _, name in ipairs({ "colors", "icons", "settings", "helpers.app_icons", "helpers.shell" }) do
+  for _, name in ipairs({ "colors", "icons", "settings", "helpers.app_icons", "helpers.shell", "helpers.layout" }) do
     package.loaded[name] = nil
   end
 
@@ -211,6 +211,7 @@ local function load_modules()
       },
       group_paddings = 5,
       paddings = 5,
+      config_dir = "/fake/sketchybar",
     }
   end
   package.preload["helpers.app_icons"] = function()
@@ -218,6 +219,9 @@ local function load_modules()
   end
   package.preload["helpers.shell"] = function()
     return { quote = function(value) return string.format("%q", value) end }
+  end
+  package.preload["helpers.layout"] = function()
+    return dofile(sketchybar_root .. "/helpers/layout.lua")
   end
 end
 

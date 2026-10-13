@@ -1,6 +1,7 @@
 local icons = require("icons")
 local colors = require("colors")
 local settings = require("settings")
+local layout = require("helpers.layout")
 
 local battery = sbar.add("item", "widgets.battery", {
   position = "right",
@@ -33,10 +34,7 @@ local battery_bracket = sbar.add("bracket", "widgets.battery.bracket", { battery
   background = { color = colors.bg1 }
 })
 
-local battery_padding = sbar.add("item", "widgets.battery.padding", {
-  position = "right",
-  width = settings.group_paddings
-})
+local battery_padding = layout.group_padding("widgets.battery.padding")
 
 local function set_battery_visible(visible)
   battery:set({ drawing = visible })
