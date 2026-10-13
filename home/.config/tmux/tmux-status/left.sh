@@ -3,8 +3,7 @@ set -euo pipefail
 
 current_session_id="${1:-}"
 term_width="${2:-100}"
-status_bg="${3:-black}"
-[[ -z "$status_bg" || "$status_bg" == "default" ]] && status_bg=black
+status_bg="${3:-default}"
 
 inactive_bg="#373b41"
 inactive_fg="#c5c8c6"
