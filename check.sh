@@ -957,22 +957,28 @@ unset yazi_case yazi_expected
 
 log "Checking native CLI installation without npm or Homebrew"
 CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"
+CLI_FIXTURE_LOG="$CHECK_WORK_DIR/native-cli-calls.log"
 mkdir -p "$CLI_FIXTURE_HOME"
+# The failure cases run while no binary is installed yet. On a repeat run an
+# installed Claude Code updates itself instead of downloading the installer;
+# Codex has no updater and reruns its installer.
 for cli in claude codex; do
-  for install_case in success repeat download-failure installer-failure; do
+  for install_case in download-failure installer-failure success repeat; do
     expected_exit=0
     case "$install_case" in
       download-failure) expected_exit=22 ;;
       installer-failure) expected_exit=17 ;;
     esac
     actual_exit=0
+    : >"$CLI_FIXTURE_LOG"
     env HOME="$CLI_FIXTURE_HOME" PATH=/usr/bin:/bin \
-      CLI_INSTALL_CASE="$install_case" zsh -fc '
+      CLI_INSTALL_CASE="$install_case" CLI_FIXTURE_LOG="$CLI_FIXTURE_LOG" zsh -fc '
         setopt FUNCTION_ARGZERO
         source "$1"
         ! command -v npm >/dev/null
         ! command -v brew >/dev/null
         curl() {
+          print -r -- "curl $2" >>"$CLI_FIXTURE_LOG"
           [[ "$1" == -fsSL ]]
           [[ "$CLI_INSTALL_CASE" != download-failure ]] || return 22
           if [[ "$CLI_INSTALL_CASE" == installer-failure ]]; then
@@ -995,7 +1001,11 @@ else
   [ "$*" = latest ]
 fi
 mkdir -p "$HOME/.local/bin"
-printf "#!/bin/sh\n[ \"\$1\" = --version ]\n" >"$HOME/.local/bin/$cli"
+cat >"$HOME/.local/bin/$cli" <<BIN
+#!/bin/sh
+printf "%s %s\\n" "$cli" "\$1" >>"$CLI_FIXTURE_LOG"
+[ "\$1" = --version ] || [ "\$1" = update ]
+BIN
 chmod +x "$HOME/.local/bin/$cli"
 SH
         }
@@ -1008,8 +1018,73 @@ SH
         "$cli" "$install_case" "$actual_exit" "$expected_exit" >&2
       exit 1
     fi
+    case "$cli:$install_case" in
+      claude:success)
+        cli_expected=$'curl https://claude.ai/install.sh\nclaude --version' ;;
+      claude:repeat)
+        cli_expected=$'claude update\nclaude --version' ;;
+      claude:*)
+        cli_expected='curl https://claude.ai/install.sh' ;;
+      codex:success | codex:repeat)
+        cli_expected=$'curl https://chatgpt.com/codex/install.sh\ncodex --version' ;;
+      codex:*)
+        cli_expected='curl https://chatgpt.com/codex/install.sh' ;;
+    esac
+    [[ "$(<"$CLI_FIXTURE_LOG")" == "$cli_expected" ]] || {
+      printf 'Unexpected %s %s commands:\n' "$cli" "$install_case" >&2
+      sed 's/^/  /' "$CLI_FIXTURE_LOG" >&2
+      exit 1
+    }
   done
 done
+unset cli install_case cli_expected
+
+log "Checking kitty installer version skip"
+KITTY_FIXTURE_HOME="$CHECK_WORK_DIR/kitty-home"
+KITTY_FIXTURE_LOG="$KITTY_FIXTURE_HOME/calls.log"
+mkdir -p "$KITTY_FIXTURE_HOME/kitty.app/Contents/MacOS"
+printf '#!/bin/sh\nprintf "kitty %%s created by Kovid Goyal\\n" "$KITTY_FIXTURE_VERSION"\n' \
+  >"$KITTY_FIXTURE_HOME/kitty.app/Contents/MacOS/kitty"
+chmod +x "$KITTY_FIXTURE_HOME/kitty.app/Contents/MacOS/kitty"
+# The installer runs only when the app is missing or behind
+# current-version.txt; the ~/.local/bin links are refreshed either way.
+for kitty_case in current outdated missing; do
+  : >"$KITTY_FIXTURE_LOG"
+  rm -f "$KITTY_FIXTURE_HOME/.local/bin/kitty" "$KITTY_FIXTURE_HOME/.local/bin/kitten"
+  env HOME="$KITTY_FIXTURE_HOME" PATH=/usr/bin:/bin KITTY_CASE="$kitty_case" \
+    KITTY_FIXTURE_LOG="$KITTY_FIXTURE_LOG" KITTY_FIXTURE_VERSION=0.48.2 zsh -fc '
+      setopt FUNCTION_ARGZERO
+      source "$1"
+      log() { :; }
+      KITTY_APP_DIR="$HOME/kitty.app"
+      [[ "$KITTY_CASE" != missing ]] || KITTY_APP_DIR="$HOME/missing.app"
+      [[ "$KITTY_CASE" != current ]] || KITTY_FIXTURE_VERSION=0.49.2
+      curl() {
+        [[ "$1" == -fsSL ]]
+        print -r -- "curl ${2##*/}" >>"$KITTY_FIXTURE_LOG"
+        case "$2" in
+          https://sw.kovidgoyal.net/kitty/current-version.txt) print -r -- 0.49.2 ;;
+          https://sw.kovidgoyal.net/kitty/installer.sh)
+            print -r -- "echo \"installer \$*\" >>\"$KITTY_FIXTURE_LOG\"" ;;
+          *) return 1 ;;
+        esac
+      }
+      install_kitty
+      [[ -L "$HOME/.local/bin/kitty" && -L "$HOME/.local/bin/kitten" ]]
+    ' setup-kitty "$ROOT/setup.sh"
+  case "$kitty_case" in
+    current) kitty_expected='curl current-version.txt' ;;
+    outdated)
+      kitty_expected=$'curl current-version.txt\ncurl installer.sh\ninstaller launch=n' ;;
+    missing) kitty_expected=$'curl installer.sh\ninstaller launch=n' ;;
+  esac
+  [[ "$(<"$KITTY_FIXTURE_LOG")" == "$kitty_expected" ]] || {
+    printf 'install_kitty ran the wrong commands for %s:\n' "$kitty_case" >&2
+    sed 's/^/  /' "$KITTY_FIXTURE_LOG" >&2
+    exit 1
+  }
+done
+unset kitty_case kitty_expected
 
 log "Checking Xcode license preflight"
 env zsh -fc '

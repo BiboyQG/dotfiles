@@ -15,6 +15,7 @@ STOW_IGNORE_FULL_PATH=()
 STOW_IGNORE_PATTERNS_LOADED=0
 STOW_CONFIG_CWD="/var/empty"
 STOW_CONFIG_HOME="$STOW_CONFIG_CWD/dotfiles-stow-home"
+KITTY_APP_DIR="/Applications/kitty.app"
 
 log() {
   printf "\n==> %s\n" "$*"
@@ -918,9 +919,16 @@ install_nvm_node() {
 }
 
 install_claude_cli() {
-  log "Installing latest Claude Code with the native installer"
-  curl -fsSL https://claude.ai/install.sh \
-    | PATH="$HOME/.local/bin:$PATH" /bin/bash -s -- latest
+  # The native installer downloads the release on every run; an installed
+  # Claude Code checks its own release metadata and downloads only on a change.
+  if [[ -x "$HOME/.local/bin/claude" ]]; then
+    log "Updating Claude Code with its own updater"
+    "$HOME/.local/bin/claude" update
+  else
+    log "Installing latest Claude Code with the native installer"
+    curl -fsSL https://claude.ai/install.sh \
+      | PATH="$HOME/.local/bin:$PATH" /bin/bash -s -- latest
+  fi
   "$HOME/.local/bin/claude" --version
 }
 
@@ -991,13 +999,27 @@ install_yazi_flavor() {
 }
 
 install_kitty() {
-  log "Installing latest kitty with the official installer"
+  local kitty_bin="$KITTY_APP_DIR/Contents/MacOS/kitty"
+  local installed_version latest_version=""
+
+  # The installer picks its release from current-version.txt; skip the
+  # download when the installed app already reports that version.
+  installed_version="$("$kitty_bin" --version 2>/dev/null)" || installed_version=""
+  installed_version="${${(z)installed_version}[2]}"
+  if [[ -n "$installed_version" ]]; then
+    latest_version="$(curl -fsSL https://sw.kovidgoyal.net/kitty/current-version.txt)" \
+      || latest_version=""
+  fi
+  if [[ -n "$installed_version" && "$installed_version" == "$latest_version" ]]; then
+    log "kitty $installed_version is already the latest release"
+  else
+    log "Installing latest kitty with the official installer"
+    curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n
+  fi
 
   mkdir -p "$HOME/.local/bin"
-  curl -fsSL https://sw.kovidgoyal.net/kitty/installer.sh | sh /dev/stdin launch=n
-
-  ln -sf /Applications/kitty.app/Contents/MacOS/kitty "$HOME/.local/bin/kitty"
-  ln -sf /Applications/kitty.app/Contents/MacOS/kitten "$HOME/.local/bin/kitten"
+  ln -sf "$kitty_bin" "$HOME/.local/bin/kitty"
+  ln -sf "$KITTY_APP_DIR/Contents/MacOS/kitten" "$HOME/.local/bin/kitten"
 }
 
 install_sketchybar_helpers() {
