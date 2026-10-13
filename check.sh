@@ -791,6 +791,19 @@ assert_setup_preflight folded reject \
 rm -- "$SETUP_FIXTURE_HOME/.config/yazi"
 rmdir "$SETUP_FIXTURE_SOURCE/home/.config/yazi/flavors"
 
+# Entries below a folded sub-directory stay reachable through its link, and
+# a Finder .DS_Store is not machine-local data, so neither blocks migration.
+mkdir -p "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins"
+: >"$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins/.gitignore"
+: >"$SETUP_FIXTURE_SOURCE/home/.config/yazi/.DS_Store"
+ln -s "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
+  "$SETUP_FIXTURE_HOME/.config/yazi"
+assert_setup_preflight folded-reachable accept
+rm -- "$SETUP_FIXTURE_HOME/.config/yazi" \
+  "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins/.gitignore" \
+  "$SETUP_FIXTURE_SOURCE/home/.config/yazi/.DS_Store"
+rmdir "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins"
+
 mkdir -p "$SETUP_FIXTURE_HOME/.config/kitty"
 printf 'foreign managed state\n' \
   >"$SETUP_FIXTURE_HOME/.config/kitty/kitty.conf"

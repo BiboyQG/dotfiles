@@ -452,11 +452,27 @@ stow_path_is_ignored() {
 
 preflight_folded_container_payload() {
   local source="$1"
-  local entry relative ignore_status
+  local output entry relative container deepest first ignore_status
+  local -a containers
 
+  output="$(stow_target_directories)" || return 1
+  containers=("${(@f)output}")
+  # After the migration Stow links each entry directly below a manifest
+  # directory and folds deeper directories, so an ignored entry at that level
+  # strands its whole subtree while anything below a linked directory stays
+  # reachable. Finder's .DS_Store is not data worth blocking on.
   for entry in "$source"/**/*(DN); do
     relative="${entry#$DOTFILES_DIR/home/}"
-    if stow_path_is_ignored "$relative"; then
+    [[ "${relative:t}" == .DS_Store ]] && continue
+    deepest=""
+    for container in "${containers[@]}"; do
+      [[ "$relative" == "$container"/* ]] || continue
+      (( ${#container} > ${#deepest} )) && deepest="$container"
+    done
+    first="${relative#$deepest/}"
+    first="${first%%/*}"
+    [[ -n "$deepest" ]] && first="$deepest/$first"
+    if stow_path_is_ignored "$first"; then
       printf "Ignored machine-local data would be stranded by Stow migration: %s\n" \
         "$entry" >&2
       return 1
