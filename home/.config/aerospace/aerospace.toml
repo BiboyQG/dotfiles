@@ -17,8 +17,8 @@ automatically-unhide-macos-hidden-apps = false
 persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
 [mode.main.binding]
-    cmd-enter = '''exec-and-forget /Applications/kitty.app/Contents/MacOS/kitty --single-instance -d "$HOME"'''
-    cmd-shift-enter = '''exec-and-forget osascript -e 'tell application "Arc" to make new window' -e 'tell application "Arc" to activate' '''
+    alt-enter = '''exec-and-forget /Applications/kitty.app/Contents/MacOS/kitty --single-instance -d "$HOME"'''
+    alt-shift-enter = '''exec-and-forget osascript -e 'tell application "Arc" to make new window' -e 'tell application "Arc" to activate' '''
 
     alt-1 = 'workspace 1'
     alt-2 = 'workspace 2'
