@@ -46,27 +46,24 @@ if [[ -d "$HOME/.docker/completions" ]]; then
 fi
 
 autoload -Uz compinit
-zmodload zsh/datetime
 zmodload -F zsh/stat b:zstat
 zcompdump="${ZDOTDIR:-$HOME}/.zcompdump-${ZSH_VERSION}"
 zcompdump_fpath="${zcompdump}.fpath"
 zcompdump_tmp="${zcompdump}.tmp.$$"
-# Rebuild after completion-path changes and periodically rerun compaudit.
+# Rebuild (and rerun compaudit) only when the completion directory set or
+# one of those directories changes; the dump stays valid otherwise.
 typeset -Ua zcompdirs
 typeset -a zcompstat
 zcompdirs=()
 zcompstat=()
 zcompinit_refresh=0
-zcompdump_mtime=0
 for zcompdir in "$fpath[@]"; do
 	[[ -d "$zcompdir" ]] && zcompdirs+=("$zcompdir")
 done
 zcomp_signature="${ZSH_VERSION}"$'\n'"${(F)zcompdirs}"
-[[ -f "$zcompdump" ]] && zcompdump_mtime="$(zstat +mtime -- "$zcompdump" 2>/dev/null)"
 if [[ ! -f "$zcompdump" ]] \
 	|| [[ ! -f "$zcompdump_fpath" ]] \
 	|| [[ "$(<"$zcompdump_fpath")" != "$zcomp_signature" ]] \
-	|| (( EPOCHSECONDS - zcompdump_mtime > 86400 )) \
 	|| ! zstat -A zcompstat +ctime -- "$zcompdump" "$zcompdirs[@]" 2>/dev/null; then
 	zcompinit_refresh=1
 else
@@ -91,7 +88,7 @@ if (( zcompinit_refresh )); then
 else
 	compinit -C -d "$zcompdump"
 fi
-unset zcomp_signature zcompctime zcompdir zcompdirs zcompdump zcompdump_ctime zcompdump_fpath zcompdump_mtime zcompdump_tmp zcompinit_refresh zcompstat
+unset zcomp_signature zcompctime zcompdir zcompdirs zcompdump zcompdump_ctime zcompdump_fpath zcompdump_tmp zcompinit_refresh zcompstat
 
 # Plugins loaded before compinit queue their compdef registrations in Zinit.
 if (( $+functions[zinit] )); then
