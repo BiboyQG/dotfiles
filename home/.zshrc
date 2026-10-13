@@ -123,9 +123,28 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' menu no
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza --color=always --icons=always $realpath'
 
-(( $+commands[zoxide] )) && eval "$(zoxide init --cmd cd zsh)"
-(( $+commands[fzf] )) && eval "$(fzf --zsh)"
-(( $+commands[direnv] )) && eval "$(direnv hook zsh)"
+# Source a tool's cached init script instead of forking the tool on every
+# shell start. The cache is keyed on the resolved binary path, which for
+# Homebrew contains the Cellar version; bottle mtimes do not change on upgrade.
+_cached_init() {
+	local tool="$1"
+	shift
+	local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+	local cache="$cache_dir/$tool-init.zsh"
+	local key="# ${commands[$tool]:A}"
+	local stamp=""
+	[[ -r "$cache" ]] && IFS= read -r stamp <"$cache"
+	if [[ "$stamp" != "$key" ]]; then
+		mkdir -p -- "$cache_dir" \
+			&& { print -r -- "$key"; "$tool" "$@"; } >| "$cache.tmp.$$" \
+			&& mv -f -- "$cache.tmp.$$" "$cache"
+		rm -f -- "$cache.tmp.$$"
+	fi
+	[[ -r "$cache" ]] && source "$cache"
+}
+(( $+commands[zoxide] )) && _cached_init zoxide init --cmd cd zsh
+(( $+commands[fzf] )) && _cached_init fzf --zsh
+(( $+commands[direnv] )) && _cached_init direnv hook zsh
 
 alias ll="eza -alh --icons=auto --color=always"
 alias s="fastfetch"
