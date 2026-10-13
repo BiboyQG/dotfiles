@@ -1,5 +1,4 @@
 **/.DS_Store
-/nvim.log
 
 /home/.codex/*
 !/home/.codex/AGENTS.md
