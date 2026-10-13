@@ -1,10 +1,11 @@
-"""Exercise session routing and clipboard bytes against a disposable tmux server."""
+"""Exercise session routing and clipboard yanks against a disposable tmux server."""
 import os
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(sys.argv[1]).resolve()
@@ -117,16 +118,52 @@ os.execv(real_tmux, [real_tmux, *args])
         clipboard = work / "clipboard"
         (shim / "pbcopy").write_text(f"#!/bin/sh\n/bin/cat > {shlex.quote(str(clipboard))}\n")
         (shim / "pbcopy").chmod(0o755)
-        copy_env = dict(env, PATH=f"{shim}:{env['PATH']}")
-        for data in (b"first\nsecond\n\n", b"first\rsecond\n", b"x" * 2_000_000 + b"\n", b""):
-            subprocess.run(
-                ["/bin/bash", str(ROOT / "home/.config/tmux/scripts/copy_to_clipboard.sh")],
-                input=data, env=copy_env, check=True,
-            )
-            assert clipboard.read_bytes() == data
-            if data:
-                copied = subprocess.run(base + ["save-buffer", "-"], capture_output=True, check=True).stdout
-                assert copied == data
+        # copy-pipe runs its command from the server environment, not the caller's.
+        tmux("set-environment", "-g", "PATH", f"{shim}:{env['PATH']}")
+        tmux("set", "-g", "mode-keys", "vi")
+        tmux("set", "-g", "history-limit", "30000")
+        copy_bindings = work / "copy-mode.conf"
+        copy_bindings.write_text("".join(
+            line for line in (ROOT / "home/.tmux.conf").read_text().splitlines(keepends=True)
+            if line.startswith("bind-key -T copy-mode-vi ")
+        ))
+        tmux("source-file", str(copy_bindings))
+        fillers = (
+            ("mixed", [f"line {index} literal #{{session_name}} 中文 \x1b[1mbold" for index in range(60)]),
+            ("large", ["x" * 100] * 20_000),
+        )
+        for name, lines in fillers:
+            # Both fillers overflow the 50-row pane, so history-bottom lands on
+            # the empty cursor row below the last printed line.
+            assert len(lines) > 50
+            text = work / f"{name}.txt"
+            text.write_text("\n".join(lines) + "\n")
+            tmux("new-session", "-d", "-s", name, "-x", "200", "-y", "50", f"/bin/cat {shlex.quote(str(text))}; /bin/sleep 120")
+            scrolled = str(len(lines) + 1 - 50)
+            deadline = time.monotonic() + 10
+            while tmux("display-message", "-p", "-t", name, "#{history_size}") != scrolled:
+                assert time.monotonic() < deadline, "pane output did not settle"
+                time.sleep(0.05)
+            tmux("copy-mode", "-t", name)
+            tmux("send-keys", "-t", name, "-X", "history-top")
+            tmux("send-keys", "-t", name, "-X", "start-of-line")
+            tmux("send-keys", "-t", name, "v")
+            tmux("send-keys", "-t", name, "-X", "history-bottom")
+            tmux("send-keys", "-t", name, "-X", "cursor-up")
+            tmux("send-keys", "-t", name, "-X", "end-of-line")
+            tmux("delete-buffer", check=False)
+            clipboard.unlink(missing_ok=True)
+            tmux("send-keys", "-t", name, "y")
+            # The pane renders the escape as bold; the copied text keeps only the characters.
+            expected = "\n".join(line.replace("\x1b[1m", "") for line in lines).encode()
+            deadline = time.monotonic() + 10
+            while not clipboard.exists() or clipboard.read_bytes() != expected:
+                assert time.monotonic() < deadline, f"{name}: clipboard never matched"
+                time.sleep(0.05)
+            assert tmux("display-message", "-p", "-t", name, "#{pane_in_mode}") == "0"
+            buffers = tmux("list-buffers", "-F", "#{buffer_size}").splitlines()
+            assert buffers == [str(len(expected))], buffers
+            assert subprocess.run(base + ["save-buffer", "-"], capture_output=True, check=True).stdout == expected
         print("tmux routing, ordering, and clipboard fixtures passed.")
     finally:
         tmux("kill-server", check=False)
