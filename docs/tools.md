@@ -2,57 +2,57 @@
 
 [English README](../README.md) · [中文 README](../README.zh-CN.md)
 
-The package manifest is [Brewfile](../Brewfile); native installers and plugin updates are implemented in [setup.sh](../setup.sh). This inventory summarizes their roles.
+Packages are declared in [Brewfile](../Brewfile); other installers are in [setup.sh](../setup.sh).
 
-| Tool                | Install                  | Description                                      |
-| ------------------- | ------------------------ | ------------------------------------------------ |
-| Homebrew            | `brew`                   | Package manager for macOS                        |
-| GNU Stow            | `brew`                   | Symlink manager for dotfiles                     |
-| Git                 | `brew`                   | Version control (`git`)                          |
-| Kitty               | official installer       | GPU-based terminal emulator                      |
-| Zsh                 | macOS                    | Shell and interactive environment                |
-| Zinit               | `git`                    | Zsh plugin manager (`zinit`)                     |
-| nvm / Node          | `git`                    | Node version manager and default Node runtime    |
-| Neovim              | `brew`                   | Vim-based text editor (`nvim`)                   |
-| Tmux                | `brew`                   | Terminal multiplexer                             |
-| Tmux Plugin Manager | `git`                    | Tmux plugin manager (`tpm`)                      |
-| Sketchybar          | `brew`                   | macOS status bar replacement                     |
-| Lua                 | `brew`                   | Runtime for Sketchybar scripting                 |
-| SwitchAudioSource   | `brew`                   | Switch macOS audio devices (`SwitchAudioSource`) |
-| media-control       | `brew`                   | Now Playing metadata (for Sketchybar)            |
-| SbarLua             | `git`                    | Lua API for Sketchybar                           |
-| AeroSpace           | `brew --cask`            | Tiling window manager for macOS                  |
-| OpenUsage           | `brew --cask`            | Local AI usage API and menu bar app              |
-| Yazi                | `brew`                   | Terminal file manager                            |
-| Lazygit             | `brew`                   | Terminal UI for git operations                   |
-| Eza                 | `brew`                   | Modern `ls` replacement                          |
-| Zoxide              | `brew`                   | Smarter `cd` replacement                         |
-| Direnv              | `brew`                   | Per-directory environment loader                 |
-| Ripgrep             | `brew`                   | Fast text search (`rg`)                          |
-| Fzf                 | `brew`                   | Fuzzy finder                                     |
-| Fd                  | `brew`                   | Fast `find` alternative                          |
-| Jq                  | `brew`                   | JSON processor                                   |
-| Yq                  | `brew`                   | YAML/TOML processor                              |
-| Json5               | `brew`                   | JSON5 validator used by `check.sh`               |
-| 7zip                | `brew`                   | Archive tool (`7zz`)                             |
-| FFmpeg              | `brew`                   | Media toolkit                                    |
-| ImageMagick         | `brew`                   | Image processing tools                           |
-| Poppler             | `brew`                   | PDF utilities (`pdfinfo`, `pdftotext`, ...)      |
-| Resvg               | `brew`                   | SVG rasterizer (Yazi previews)                   |
-| Fontconfig          | `brew`                   | Font query tools used by `check.sh --live`       |
-| Tree-sitter CLI     | `brew`                   | Compiles Neovim Tree-sitter parsers during setup and `:TSInstall`; version-checked by `check.sh --live` |
-| Python              | `brew`                   | Runtime for tmux helpers and editor tooling       |
-| Bat                 | `brew`                   | `cat` replacement with syntax highlighting       |
-| Gh                  | `brew`                   | GitHub CLI                                       |
-| Fastfetch           | `brew`                   | System info summary                              |
-| Dust                | `brew`                   | `du` alternative                                 |
-| hf                  | `brew`                   | Hugging Face Hub CLI                             |
-| Mole                | `brew`                   | Deep clean and optimize macOS                    |
-| Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
-| Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
-| Fonts               | `brew --cask`            | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
-| Uv                  | `brew`                   | Python package/venv manager                      |
-| VS Code             | `brew --cask`            | GUI editor with extensions declared in Brewfile  |
-| Arc                 | `brew --cask`            | Browser used by the AeroSpace shortcut           |
-| Claude Code         | Native installer         | Anthropic coding CLI                             |
-| Codex CLI           | Standalone installer     | OpenAI coding CLI                                |
+| Tool                | Install               | Description                                                                                                         |
+| ------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Homebrew            | official installer    | Package manager for macOS                                                                                           |
+| GNU Stow            | `brew`                | Symlink manager for dotfiles                                                                                        |
+| Git                 | `brew`                | Version control (`git`)                                                                                             |
+| Kitty               | official installer    | GPU-based terminal emulator                                                                                         |
+| Zsh                 | macOS                 | Shell and interactive environment                                                                                   |
+| Zinit               | `git`                 | Zsh plugin manager (`zinit`)                                                                                        |
+| nvm / Node          | `git` / `nvm install` | Node version manager and default Node runtime                                                                       |
+| Neovim              | `brew`                | Vim-based text editor (`nvim`)                                                                                      |
+| Tmux                | `brew`                | Terminal multiplexer                                                                                                |
+| Tmux Plugin Manager | `git`                 | Tmux plugin manager (`tpm`)                                                                                         |
+| Sketchybar          | `brew`                | macOS status bar replacement                                                                                        |
+| Lua                 | `brew`                | Runtime for Sketchybar scripting and `check.sh` Lua checks                                                          |
+| SwitchAudioSource   | `brew`                | Switch macOS audio devices (`SwitchAudioSource`)                                                                    |
+| media-control       | `brew`                | Now Playing metadata (for Sketchybar)                                                                               |
+| SbarLua             | `git`                 | Lua API for Sketchybar                                                                                              |
+| AeroSpace           | `brew --cask`         | Tiling window manager for macOS                                                                                     |
+| OpenUsage           | `brew --cask`         | Local AI usage API and menu bar app                                                                                 |
+| Yazi                | `brew`                | Terminal file manager                                                                                               |
+| Lazygit             | `brew`                | Terminal UI for git operations                                                                                      |
+| Eza                 | `brew`                | Modern `ls` replacement                                                                                             |
+| Zoxide              | `brew`                | Smarter `cd` replacement                                                                                            |
+| Direnv              | `brew`                | Per-directory environment loader                                                                                    |
+| Ripgrep             | `brew`                | Fast text search (`rg`)                                                                                             |
+| Fzf                 | `brew`                | Fuzzy finder                                                                                                        |
+| Fd                  | `brew`                | Fast `find` alternative                                                                                             |
+| Jq                  | `brew`                | JSON processor                                                                                                      |
+| Yq                  | `brew`                | YAML/TOML processor                                                                                                 |
+| Json5               | `brew`                | JSON5 validator used by `check.sh`                                                                                  |
+| 7zip                | `brew`                | Archive tool (`7zz`)                                                                                                |
+| FFmpeg              | `brew`                | Media toolkit                                                                                                       |
+| ImageMagick         | `brew`                | Image processing tools                                                                                              |
+| Poppler             | `brew`                | PDF utilities (`pdfinfo`, `pdftotext`, ...)                                                                         |
+| Resvg               | `brew`                | SVG rasterizer (Yazi previews)                                                                                      |
+| Fontconfig          | `brew`                | Font query tools used by `check.sh --live`                                                                          |
+| Tree-sitter CLI     | `brew`                | Compiles Neovim Tree-sitter parsers during setup and `:TSInstall`; version-checked by `check.sh --live`             |
+| Python              | `brew`                | Runtime for tmux helpers, VS Code, and `check.sh` specs                                                             |
+| Bat                 | `brew`                | `cat` replacement with syntax highlighting                                                                          |
+| Gh                  | `brew`                | GitHub CLI                                                                                                          |
+| Fastfetch           | `brew`                | System info summary                                                                                                 |
+| Dust                | `brew`                | `du` alternative                                                                                                    |
+| hf                  | `brew`                | Hugging Face Hub CLI                                                                                                |
+| Mole                | `brew`                | Deep clean and optimize macOS                                                                                       |
+| Terminal-notifier   | `brew`                | Send macOS notifications from CLI                                                                                   |
+| Pearcleaner         | `brew --cask`         | App uninstaller + leftover cleanup                                                                                  |
+| Fonts               | `brew --cask`         | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
+| Uv                  | `brew`                | Python package/venv manager                                                                                         |
+| VS Code             | `brew --cask`         | GUI editor with extensions declared in Brewfile                                                                     |
+| Arc                 | `brew --cask`         | Browser used by the AeroSpace shortcut                                                                              |
+| Claude Code         | Native installer      | Anthropic coding CLI                                                                                                |
+| Codex CLI           | Standalone installer  | OpenAI coding CLI                                                                                                   |
