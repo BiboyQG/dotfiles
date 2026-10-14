@@ -16,9 +16,9 @@ From the repository root, run:
 zsh setup.sh --skip-system-defaults
 ```
 
-This installs or updates tools, deploys links, and restarts managed services. It skips macOS defaults and NVRAM changes. Run `zsh setup.sh` to include those system preferences.
+This installs or updates tools, deploys links, and restarts or reloads OpenUsage, AeroSpace, and SketchyBar. It skips macOS defaults and NVRAM changes. Run `zsh setup.sh` to include those system preferences.
 
-Setup can still ask for an administrator password with `--skip-system-defaults`: once when Homebrew is not installed yet, once when a full Xcode installation has a license left to accept, and whenever `brew bundle` installs or upgrades a pkg-based cask (SF Symbols, SF Mono, SF Pro).
+With `--skip-system-defaults`, setup asks for an administrator password only to install Homebrew, accept a pending Xcode license, or install or upgrade the pkg-based casks (SF Symbols, SF Mono, SF Pro).
 
 Neovim plugins and the Yazi flavor are installed at the revisions pinned in [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json) and [`package.toml`](../home/.config/yazi/package.toml), so a fresh machine matches the repository. To move those pins to the latest upstream versions, run:
 
@@ -28,67 +28,48 @@ zsh setup.sh --skip-system-defaults --update
 
 The summary then lists the changed lock files; commit that bump.
 
-Review conflicting existing files before replacing them; the installer does not adopt them into the repository. An existing plain `~/.zprofile` is preserved as `~/.zprofile.local` when needed. If both files already contain local changes, merge them before setup.
+Setup stops on a conflicting existing file instead of adopting it; move or merge the reported path, then rerun. A plain `~/.zprofile` that differs from the managed one is moved to `~/.zprofile.local`; if `~/.zprofile.local` already exists, setup refuses until you merge the two.
 
 ## What setup does
 
-- Check Stow, tmux plugin, existing Brew tap, and any running AeroSpace configuration conflicts before changing system settings or installing anything; a stopped AeroSpace instance is validated immediately after launch
-- Symlink the dotfiles without adopting existing files, then create an empty untracked `~/.gitconfig` so `git config --global` writes stay out of the repository
-- Preserve an existing untracked `.zprofile` as `.zprofile.local` before linking the managed login profile
-- Install or upgrade the Homebrew bundle and validate trusted taps
-- Keep existing unmanaged Arc and VS Code apps instead of requiring Homebrew to adopt them
-- Install the latest kitty release with the official installer, skipping the download when the installed app already reports the current version
-- Install [Claude Code](https://code.claude.com/docs/en/setup) and [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) with their official native installers into `~/.local/bin`, independently of npm and Homebrew; an installed Claude Code updates itself with `claude update` instead of downloading the installer again
-- Install or update nvm, Node, zinit, SbarLua, and tmux plugins to their latest upstream versions, removing tmux plugin checkouts that `plugins.conf` no longer declares; when Node moves to a new release, its global packages are reinstalled from the previous default, which is then removed
-- Install the Yazi flavor and Neovim plugins at the revisions pinned in `package.toml` and `lazy-lock.json`; `--update` moves both to the latest upstream versions and lists the lock changes to commit
-- Install declared VS Code extensions and pre-install zsh plugins
-- Verify Neovim plugin installation, update, build, and cleanup tasks; fail setup if any task fails
-- Verify zinit update diagnostics and plugin revisions, retaining the log in `~/.local/state/dotfiles/zinit-update.log` (or `$XDG_STATE_HOME/dotfiles/`)
-- Wait for Neovim Tree-sitter parser updates and validate their highlight queries before finishing the editor setup
-- Deploy VS Code settings and keybindings into `~/Library/Application Support/Code/User` through the Stow package
-- Deploy shared Codex instructions from `home/.codex/AGENTS.md` to `~/.codex/AGENTS.md`; keep other Codex configuration and runtime state machine-local
-- Build SketchyBar helpers into `~/.local/libexec/sketchybar`, then restart OpenUsage and AeroSpace, wait for AeroSpace to become ready, and restart SketchyBar with postflight checks
+1. Preflight before changing anything: Stow conflicts, `~/.zprofile`, the tmux plugin manifest, modified or foreign checkouts of nvm, zinit, Homebrew taps and tmux plugins, and strict validation of a running AeroSpace's configuration (a stopped AeroSpace is validated right after launch).
+2. Apply macOS defaults and NVRAM settings, unless `--skip-system-defaults` is given.
+3. Install Homebrew if missing, tap the [Brewfile](../Brewfile)'s third-party taps and `brew trust` its tap-qualified entries, then install or upgrade the bundle, including its VS Code extensions. Arc and VS Code apps that Homebrew did not install are kept.
+4. Link `home/` with Stow without adopting existing files, and create `~/.gitconfig` empty if it is missing.
+5. Install or update Claude Code and Codex CLI (official installers, `~/.local/bin`), nvm and the latest Node (global packages carried over from the previous default), zinit and the zsh plugins, kitty, SbarLua and the SketchyBar helpers (`~/.local/libexec/sketchybar`), and the tmux plugins; zsh and tmux plugins that are no longer declared are removed.
+6. Install the pinned Yazi flavor and Neovim plugins, then install and update Tree-sitter parsers and check the required parsers' highlight queries.
+7. Restart OpenUsage, reload AeroSpace's config in place (launching or relaunching it only when it is not running or its binary changed), then restart SketchyBar once AeroSpace responds, and check that each service responds.
 
+Setup fails when a Neovim plugin task fails, a zinit update logs an error or leaves a plugin behind its upstream (log: `${XDG_STATE_HOME:-~/.local/state}/dotfiles/zinit-update.log`), or a required Tree-sitter parser fails to install or lacks its highlight query.
 
 ## Configuration layout
 
-| Location | Purpose |
-| --- | --- |
-| [`home/`](../home/) | GNU Stow package deployed into the home directory |
-| [`home/.config/`](../home/.config/) | Application settings and runtime scripts |
-| [`home/bin/`](../home/bin/) | Command helpers |
-| [`home/Library/LaunchAgents/`](../home/Library/LaunchAgents/) | Managed LaunchAgents |
-| [`home/Library/Application Support/Code/User/`](../home/Library/Application%20Support/Code/User/) | VS Code settings and keybindings |
-| [`setup.sh`](../setup.sh), [`check.sh`](../check.sh), [`lib/`](../lib/) | Installation, validation, and shared logic |
-| [`stow-target-dirs.txt`](../stow-target-dirs.txt) | Directories that must stay real instead of becoming directory symlinks |
-
-Powerlevel10k settings, Neovim's plugin lock, and Yazi's package manifest are tracked in [`home/.p10k.zsh`](../home/.p10k.zsh), [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json), and [`package.toml`](../home/.config/yazi/package.toml).
+| Location                                                                                          | Purpose                                                                                               |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [`home/`](../home/)                                                                               | GNU Stow package deployed into the home directory                                                     |
+| [`home/.config/`](../home/.config/)                                                               | Application settings and runtime scripts                                                              |
+| [`home/bin/`](../home/bin/)                                                                       | Command helpers                                                                                       |
+| [`home/Library/LaunchAgents/`](../home/Library/LaunchAgents/)                                     | Managed LaunchAgents                                                                                  |
+| [`home/Library/Application Support/Code/User/`](../home/Library/Application%20Support/Code/User/) | VS Code settings and keybindings                                                                      |
+| [`setup.sh`](../setup.sh), [`check.sh`](../check.sh), [`lib/`](../lib/), [`tests/`](../tests/)    | Installation, validation, shared logic, and check fixtures                                            |
+| [`patches/aerospace/`](../patches/aerospace/)                                                     | Source patch applied by `lib/build_aerospace_patch.zsh`; see [aerospace-patch.md](aerospace-patch.md) |
+| [`stow-target-dirs.txt`](../stow-target-dirs.txt)                                                 | Directories that must stay real instead of becoming directory symlinks                                |
 
 Put machine-specific login-shell additions in untracked `~/.zprofile.local`, which loads after the managed login profile. Generated files are excluded through [`.gitignore`](../.gitignore) and [`home/.stow-local-ignore`](../home/.stow-local-ignore).
 
-Git settings are tracked in [`home/.config/git/config`](../home/.config/git/config), which Git reads before `~/.gitconfig`. Setup creates `~/.gitconfig` empty and untracked; `git config --global` and `gh auth setup-git` write there while the file exists, so machine-local Git settings override the tracked ones and never dirty the repository.
+Git settings are tracked in [`home/.config/git/config`](../home/.config/git/config). Git reads `~/.gitconfig` after that file, and `git config --global` and `gh auth setup-git` write to `~/.gitconfig` while it exists, so setup keeps it present, empty and untracked: machine-local settings override the tracked ones without dirtying the repository.
 
-### Codex global instructions
+### Agent instructions
 
-Edit [`home/.codex/AGENTS.md`](../home/.codex/AGENTS.md) to change shared working preferences. Setup links only that file into the real `~/.codex` directory; other Codex files remain local.
-
-Codex discovers instructions when a run starts. Start a new session after editing the file. A local `~/.codex/AGENTS.override.md` takes precedence; a custom `CODEX_HOME` changes the directory Codex reads. See the [official instruction discovery guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+Setup links [`home/.codex/AGENTS.md`](../home/.codex/AGENTS.md) into a real `~/.codex`, and [`home/.claude/CLAUDE.md`](../home/.claude/CLAUDE.md) and [`home/.claude/settings.json`](../home/.claude/settings.json) into a real `~/.claude`. Other files in those directories stay machine-local. Start a new Codex or Claude Code session after editing them.
 
 ## Validate changes
 
-```sh
-zsh check.sh
-zsh check.sh --live
-```
+`zsh check.sh` runs syntax and manifest checks, the fixtures in `check.sh` and `tests/`, strict C builds with static analysis, and isolated Stow simulations; it never installs or updates tools. `zsh check.sh --live` adds read-only checks of installed fonts, Neovim parsers and queries, AeroSpace, an isolated tmux server, and the Homebrew bundle, and lists undeclared Brew dependencies without removing them. If that listing cannot finish, the run ends with `Required checks passed with warnings` instead of failing.
 
-The default suite runs syntax and manifest checks, deterministic runtime fixtures, strict C compilation and static analysis, and isolated Stow simulations. It covers setup preflight, tmux routing and restore coordination, clipboard content, SketchyBar, shell completion, NVM, zinit, Neovim plugin sync, and Tree-sitter failure handling without installing or updating tools.
+## Troubleshooting
 
-Live mode adds read-only checks of installed fonts, Neovim parsers and queries, AeroSpace, an isolated tmux server, and the Homebrew bundle. The optional Brew cleanup audit reports undeclared dependencies without removing them. If that audit cannot finish, the final summary says `Required checks passed with warnings` and identifies the incomplete audit; mandatory checks still fail with a nonzero exit status.
-
-## Useful diagnostics
-
-- **Setup stops at a file conflict:** inspect the reported path and move or merge the conflicting local file before rerunning setup.
-- **A zinit update fails:** inspect `~/.local/state/dotfiles/zinit-update.log`, or `$XDG_STATE_HOME/dotfiles/zinit-update.log` if configured. Setup checks diagnostics and plugin revisions before accepting an update.
-- **Neovim parser setup fails:** setup waits for Tree-sitter updates and validates highlight queries; inspect the reported parser or query error and rerun setup after resolving it.
-- **AeroSpace or SketchyBar fails to start:** inspect setup's service postflight output; use `zsh check.sh --live` to check the current configuration.
-- **Desktop flashes during AeroSpace workspace switches:** see the [local AeroSpace patch](aerospace-patch.md) for the pinned upstream version, rebuild instructions, and rollback procedure.
+- **Setup stops at a file conflict:** move or merge the reported file, then rerun setup.
+- **A Neovim, Tree-sitter or zinit step fails:** fix the reported error (setup prints the zinit log path on failure) and rerun setup.
+- **AeroSpace or SketchyBar does not start:** read the postflight output, then run `zsh check.sh --live`.
+- **Desktop flashes during AeroSpace workspace switches:** see the [AeroSpace patch](aerospace-patch.md).
