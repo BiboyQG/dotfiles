@@ -50,7 +50,7 @@ The package manifest is [Brewfile](../Brewfile); native installers and plugin up
 | Mole                | `brew`                   | Deep clean and optimize macOS                    |
 | Terminal-notifier   | `brew`                   | Send macOS notifications from CLI                |
 | Pearcleaner         | `brew --cask`            | App uninstaller + leftover cleanup               |
-| Fonts               | `brew --cask`            | JetBrains Mono NF, Monaspace, Maple Mono NF CN, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
+| Fonts               | `brew --cask`            | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
 | Uv                  | `brew`                   | Python package/venv manager                      |
 | VS Code             | `brew --cask`            | GUI editor with extensions declared in Brewfile  |
 | Arc                 | `brew --cask`            | Browser used by the AeroSpace shortcut           |
