@@ -9,14 +9,13 @@ A Zsh, Kitty, tmux, and Neovim environment with AeroSpace window management, Ske
 ## Quick start
 
 ```sh
+xcode-select --install   # once, if the Command Line Tools are missing
 git clone git@github.com:BiboyQG/dotfiles.git
 cd dotfiles
 zsh setup.sh --skip-system-defaults
 ```
 
-Setup installs or updates tools, links configurations, and restarts managed services. To also apply macOS defaults and NVRAM preferences, run `zsh setup.sh`.
-
-Existing conflicting files require attention before setup proceeds. Put machine-specific shell additions in `~/.zprofile.local`.
+Setup installs or updates tools, links configurations, and restarts or reloads OpenUsage, AeroSpace, and SketchyBar. To also apply macOS defaults and NVRAM preferences, run `zsh setup.sh`.
 
 ## Checks
 
@@ -30,4 +29,4 @@ zsh check.sh --live   # Also inspect installed tools and the current machine
 - [Setup and maintenance](docs/setup.md): installation details, configuration layout, local overrides, and troubleshooting.
 - [Everyday usage](docs/usage.md): tmux session slots, keyboard shortcuts, and shell helpers.
 - [Tools](docs/tools.md): package inventory and installation methods.
-- [Codex global instructions](home/.codex/AGENTS.md): shared working preferences, deployed to `~/.codex/AGENTS.md`.
+- Agent configuration: [`home/.claude/`](home/.claude/) (Claude Code `CLAUDE.md` and `settings.json`) and [`home/.codex/AGENTS.md`](home/.codex/AGENTS.md), linked into `~/.claude` and `~/.codex`.
