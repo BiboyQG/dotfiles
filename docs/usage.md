@@ -6,7 +6,7 @@
 
 - `Alt+1..0` switch to workspace 1..10; `Alt+Shift+1..0` move the window there and follow it
 - `Alt+h/j/k/l` focus, `Alt+Shift+h/j/k/l` move, `Ctrl+Alt+h/j/k/l` grow the window toward that side, or shrink it when no window is there
-- `Cmd+Enter` opens kitty, `Cmd+Shift+Enter` a new Arc window
+- `Cmd+Enter` opens kitty, `Cmd+Shift+Enter` a new Phi window
 - `Alt+f` fullscreen, `Alt+z` toggle floating, `Alt+q` close, `Ctrl+Alt+Shift+r` reload the config
 
 The full list is in [`aerospace.toml`](../home/.config/aerospace/aerospace.toml).

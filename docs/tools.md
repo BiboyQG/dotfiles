@@ -54,6 +54,6 @@ Packages are declared in [Brewfile](../Brewfile); other installers are in [setup
 | Fonts               | `brew --cask`         | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
 | Uv                  | `brew`                | Python package/venv manager                                                                                         |
 | VS Code             | `brew --cask`         | GUI editor with extensions declared in Brewfile                                                                     |
-| Arc                 | `brew --cask`         | Browser used by the AeroSpace shortcut                                                                              |
+| Phi                 | `brew --cask`         | Browser used by the AeroSpace shortcut                                                                              |
 | Claude Code         | Native installer      | Anthropic coding CLI                                                                                                |
 | Codex CLI           | Standalone installer  | OpenAI coding CLI                                                                                                   |

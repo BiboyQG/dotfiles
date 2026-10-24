@@ -1503,7 +1503,7 @@ brew_trust_targets="$(
   env "${ISOLATED_ENV[@]}" zsh -c \
     'source "$1"; declared_brew_trust_targets' zsh "$ROOT/setup.sh"
 )"
-[[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace\ncask\tabue-ammar/tinycast/tinycast' ]]
+[[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace\ncask\tabue-ammar/tinycast/tinycast\ncask\tphibrowser/tap/phi' ]]
 if rg -q 'brew trust --tap' setup.sh; then
   printf "Setup must trust declared Brew dependencies, not entire taps.\n" >&2
   exit 1

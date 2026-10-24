@@ -2,7 +2,6 @@ brew_bundle_cask_skip() {
   local skip_value="${HOMEBREW_BUNDLE_CASK_SKIP:-}"
   local pair cask app
   local -a unmanaged_apps=(
-    'arc:/Applications/Arc.app'
     'visual-studio-code:/Applications/Visual Studio Code.app'
   )
 

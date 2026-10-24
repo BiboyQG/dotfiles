@@ -1,6 +1,7 @@
 tap "felixkratz/formulae"
 tap "nikitabobko/tap"
 tap "abue-ammar/tinycast"
+tap "phibrowser/tap"
 
 brew "stow"
 brew "git"
@@ -50,7 +51,7 @@ cask "font-sf-pro"
 cask "nikitabobko/tap/aerospace"
 cask "abue-ammar/tinycast/tinycast"
 cask "openusage"
-cask "arc"
+cask "phibrowser/tap/phi"
 cask "visual-studio-code"
 
 vscode "aaronthomas.vscode-snazzy-operator"
