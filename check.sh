@@ -1253,7 +1253,7 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
     fi
   }
 
-  pgrep() { return 1; }
+  process_running() { return 1; }
   open() { return 1; }
   expect_failure restart_openusage
 
@@ -1266,7 +1266,7 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   # version mismatch quits and relaunches it.
   AEROSPACE_SERVER_VERSION=1.0.0
   AEROSPACE_QUITS=0
-  pgrep() { [[ "$1" == -x && "$2" == AeroSpace ]]; }
+  process_running() { [[ "$1" == AeroSpace ]]; }
   aerospace() {
     [[ "$1" != --version ]] || printf \
       "aerospace CLI client version: 1.0.0\nAeroSpace.app server version: %s\n" \
@@ -1281,7 +1281,7 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   AEROSPACE_SERVER_VERSION=0.9.0
   restart_aerospace
   (( AEROSPACE_QUITS == 1 ))
-  unfunction pgrep aerospace osascript wait_for_process_exit preflight_aerospace_config
+  unfunction process_running aerospace osascript wait_for_process_exit preflight_aerospace_config
 
   have() { [[ "$1" == sketchybar ]]; }
   brew() { return 0; }
@@ -1351,6 +1351,10 @@ aerospace"
     exit 1
   }
 ' setup-services "$ROOT/setup.sh"
+if rg 'pgrep -' setup.sh | rg -vqF 'pgrep -a -x "$1"'; then
+  printf "Setup must check processes with process_running, which includes pgrep's ancestors.\n" >&2
+  exit 1
+fi
 
 log "Checking Lua syntax"
 while IFS= read -r file; do
@@ -1958,7 +1962,8 @@ LUA
   # repository copy and runs the strict dry-run reload. It defers both when
   # AeroSpace is not running, which the live check treats as a failure.
   # The aerospace CLI needs the real user session, so no ISOLATED_ENV here.
-  pgrep -x AeroSpace >/dev/null || {
+  # -a: a kitty window opened by AeroSpace runs this check under AeroSpace.
+  pgrep -a -x AeroSpace >/dev/null || {
     printf "AeroSpace is not running.\n" >&2
     exit 1
   }

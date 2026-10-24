@@ -38,6 +38,12 @@ have() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# -a: pgrep otherwise skips its own ancestors, and a kitty window opened by
+# AeroSpace's cmd-enter runs this script under AeroSpace.
+process_running() {
+  pgrep -a -x "$1" >/dev/null 2>&1
+}
+
 run_stow() {
   if [[ ! -d "$STOW_CONFIG_CWD" \
     || -e "$STOW_CONFIG_CWD/.stowrc" || -L "$STOW_CONFIG_CWD/.stowrc" \
@@ -599,7 +605,7 @@ preflight_dotfiles() {
 
 preflight_aerospace_config() {
   have aerospace || return 0
-  if ! pgrep -x AeroSpace >/dev/null 2>&1; then
+  if ! process_running AeroSpace; then
     info "Deferring AeroSpace validation until its server is running"
     return 0
   fi
@@ -1137,7 +1143,7 @@ wait_for_process_exit() {
   local attempts="${2:-40}"
   local attempt
   for (( attempt = 1; attempt <= attempts; attempt++ )); do
-    pgrep -x "$process" >/dev/null 2>&1 || return 0
+    process_running "$process" || return 0
     sleep 0.25
   done
   return 1
@@ -1149,7 +1155,7 @@ restart_openusage() {
     return 1
   fi
 
-  if pgrep -x OpenUsage >/dev/null 2>&1; then
+  if process_running OpenUsage; then
     if ! osascript -e 'quit app "OpenUsage"' >/dev/null; then
       skip "Could not stop OpenUsage."
       return 1
@@ -1178,7 +1184,7 @@ restart_openusage() {
 }
 
 aerospace_ready() {
-  pgrep -x AeroSpace >/dev/null 2>&1 \
+  process_running AeroSpace \
     && aerospace list-workspaces --all --count >/dev/null 2>&1
 }
 
@@ -1197,7 +1203,7 @@ restart_aerospace() {
     return 1
   fi
 
-  if pgrep -x AeroSpace >/dev/null 2>&1; then
+  if process_running AeroSpace; then
     if ! preflight_aerospace_config; then
       skip "AeroSpace configuration did not pass strict validation."
       return 1
