@@ -23,6 +23,7 @@ Packages are declared in [Brewfile](../Brewfile); other installers are in [setup
 | SbarLua             | `git`                 | Lua API for Sketchybar                                                                                              |
 | AeroSpace           | `brew --cask`         | Tiling window manager for macOS                                                                                     |
 | OpenUsage           | `brew --cask`         | Local AI usage API and menu bar app                                                                                 |
+| Tinycast            | `brew --cask`         | Native app launcher, bound to Command+Space in its settings                                                         |
 | Yazi                | `brew`                | Terminal file manager                                                                                               |
 | Lazygit             | `brew`                | Terminal UI for git operations                                                                                      |
 | Eza                 | `brew`                | Modern `ls` replacement                                                                                             |

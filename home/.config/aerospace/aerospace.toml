@@ -98,7 +98,7 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
     ]
 
 [[on-window-detected]]
-    if = 'test %{app-bundle-id} = com.raycast.macos || test %{app-bundle-id} = com.tencent.meeting'
+    if = 'test %{app-bundle-id} = com.tinycast.app || test %{app-bundle-id} = com.tencent.meeting'
     run = 'layout floating'
 
 [[on-window-detected]]
