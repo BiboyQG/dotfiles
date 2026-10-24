@@ -59,12 +59,17 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-zinit-spec-") as directory:
         result = subprocess.run(
             ["zsh", "-dfc", 'source "$1"; verify_zinit_checkouts "$2" "$3"',
              "zinit-fixture", str(ROOT / "lib/zinit_update.zsh"), str(plugins), str(log)],
-            env=git_env, capture_output=True, text=True,
+            # setup.sh runs in the user's UTF-8 locale, where BSD sed treats
+            # bracket ranges differently than in C.
+            env=dict(git_env, LC_ALL="en_US.UTF-8"), capture_output=True, text=True,
         )
         return result.returncode == 0
 
     log.write_text("Updating org/plugin\n")
     assert verified(), "completed plugin failed postflight"
+    log.write_text("\rUpdating \x1b[1;4m\x1b[38;5;207morg\x1b[0m/"
+                   "\x1b[1;4m\x1b[38;5;39mplugin\x1b[0m\n")
+    assert verified(), "colored plugin name failed postflight"
     log.write_text("Updating org/other\n")
     assert not verified(), "update which exited early passed postflight"
     log.write_text("Updating org/plugin\n")

@@ -28,13 +28,16 @@ PY
 verify_zinit_checkouts() {
   local plugins_dir="$1"
   local update_log="$2"
-  local plugin upstream plugin_id
+  local plugin upstream plugin_id plain_log
   local verified=0
+  # zinit colors plugin names when $TERM has a color terminfo entry. BSD sed
+  # rejects these byte ranges in UTF-8 locales.
+  plain_log="$(LC_ALL=C sed -E $'s,\e\\[[0-?]*[ -/]*[@-~],,g' "$update_log")" || return 1
   for plugin in "$plugins_dir"/*(N/); do
     [[ -d "$plugin/.git" ]] || continue
     plugin_id="${plugin:t}"
     plugin_id="${plugin_id//---//}"
-    if ! grep -Fq "Updating $plugin_id" "$update_log"; then
+    if [[ "$plain_log" != *"Updating $plugin_id"* ]]; then
       printf "Zinit did not reach plugin: %s\n" "$plugin_id" >&2
       return 1
     fi
