@@ -10,6 +10,7 @@ brew_bundle_cask_skip() {
   local pair cask app model
   local -a unmanaged_apps=(
     'visual-studio-code:/Applications/Visual Studio Code.app'
+    'mos:/Applications/Mos.app'
   )
 
   for pair in "${unmanaged_apps[@]}"; do
