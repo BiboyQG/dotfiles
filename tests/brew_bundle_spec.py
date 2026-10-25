@@ -12,8 +12,8 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-brew-spec-") as directory:
     work = Path(directory)
     brew = work / "brew"
     brew.write_text("""#!/bin/zsh
+# Every cask counts as Homebrew-managed, whatever the host has in /Applications.
 [[ "$1 $2" == 'list --cask' ]] && exit 0
-[[ "$HOMEBREW_BUNDLE_CASK_SKIP" == arc ]] || exit 90
 [[ "$*" == 'bundle cleanup --file=fixture.Brewfile --verbose' ]] || exit 91
 read -r unexpected && exit 92
 print -rn -- "$FIXTURE_OUTPUT"
@@ -46,7 +46,6 @@ printf '{"SPHardwareDataType":[{"machine_name":"%s"}]}\\n' "$FIXTURE_MODEL"
         assert result.stdout == (expected_output + "\n" if expected_code == 0 else ""), (name, result)
     script = '''
 source "$1/lib/brew_bundle.zsh"
-brew_bundle_cask_skip() { print arc; }
 brew_bundle_report_extras fixture.Brewfile
 '''
     cases = (

@@ -32,11 +32,11 @@ brew_bundle_cask_skip() {
 
 brew_bundle_report_extras() {
   local brewfile="$1"
-  local skip_value output exit_code=0
-  skip_value="$(brew_bundle_cask_skip)"
+  local output exit_code=0
 
-  output="$(HOMEBREW_BUNDLE_CASK_SKIP="$skip_value" \
-    brew bundle cleanup --file="$brewfile" --verbose </dev/null 2>&1)" || exit_code=$?
+  # Cleanup lists what is installed but not declared; it ignores
+  # HOMEBREW_BUNDLE_CASK_SKIP, so the skip list is not computed here.
+  output="$(brew bundle cleanup --file="$brewfile" --verbose </dev/null 2>&1)" || exit_code=$?
   [[ -z "$output" ]] || print -r -- "$output"
   (( exit_code == 0 )) && return 0
 
