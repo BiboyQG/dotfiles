@@ -12,7 +12,7 @@ local wifi_interface = "en0"
 sbar.exec(
   "networksetup -listallhardwareports | awk '/^Hardware Port: Wi-Fi$/ { getline; print $2; exit }'",
   function(result)
-    local interface = type(result) == "string" and result:match("^%s*(en%d+)%s*$") or nil
+    local interface = result:match("^%s*(en%d+)%s*$")
     if interface then wifi_interface = interface end
     sbar.exec(
       "killall network_load >/dev/null 2>&1; $HOME/.local/libexec/sketchybar/network_load "
@@ -32,7 +32,7 @@ local function rate_item(name, icon, color, y_offset, width)
     icon = {
       padding_right = 0,
       font = {
-        style = settings.font.style_map["Bold"],
+        style = "Bold",
         size = 9.0,
       },
       string = icon,
@@ -40,7 +40,7 @@ local function rate_item(name, icon, color, y_offset, width)
     label = {
       font = {
         family = settings.font.numbers,
-        style = settings.font.style_map["Bold"],
+        style = "Bold",
         size = 9.0,
       },
       color = color,
@@ -58,7 +58,6 @@ local wifi = sbar.add("item", "widgets.wifi.padding", {
   label = { drawing = false },
 })
 
--- Background around the item
 local wifi_bracket = sbar.add("bracket", "widgets.wifi.bracket", {
   wifi.name,
   wifi_up.name,
@@ -72,7 +71,7 @@ local ssid = sbar.add("item", {
   position = "popup." .. wifi_bracket.name,
   icon = {
     font = {
-      style = settings.font.style_map["Bold"]
+      style = "Bold"
     },
     string = icons.wifi.router,
   },
@@ -81,7 +80,7 @@ local ssid = sbar.add("item", {
   label = {
     font = {
       size = 15,
-      style = settings.font.style_map["Bold"]
+      style = "Bold"
     },
     max_chars = 18,
     string = "????????????",
@@ -134,15 +133,13 @@ wifi_up:subscribe("network_update", function(env)
       color = down_color
     }
   })
-  if env.connected == "on" or env.connected == "off" then
-    local connected = env.connected == "on"
-    wifi:set({
-      icon = {
-        string = connected and icons.wifi.connected or icons.wifi.disconnected,
-        color = connected and colors.white or colors.red,
-      },
-    })
-  end
+  local connected = env.connected == "on"
+  wifi:set({
+    icon = {
+      string = connected and icons.wifi.connected or icons.wifi.disconnected,
+      color = connected and colors.white or colors.red,
+    },
+  })
 end)
 
 local function trim(value)

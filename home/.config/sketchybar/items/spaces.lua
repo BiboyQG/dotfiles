@@ -30,10 +30,6 @@ end
 sbar.add("event", "aerospace_workspace_change")
 sbar.add("event", "aerospace_windows_change")
 
-local function app_icon(app)
-  return app_icons[app] or app_icons["Default"]
-end
-
 local function update_workspace_drawing(workspace)
   local drawing = spaces_mode_visible
     and (workspace_available[workspace] or workspace == focused_workspace)
@@ -59,44 +55,30 @@ local function set_selected(workspace, selected)
   update_workspace_drawing(workspace)
 end
 
-local function apply_drawing()
-  for _, workspace in ipairs(workspace_names) do
-    update_workspace_drawing(workspace)
-  end
-end
-
 local function parse_workspaces(rows)
-  if type(rows) ~= "table" then return nil end
-
   local displays = {}
   local display_ids = {}
   local found = 0
   local focused
 
   for _, row in ipairs(rows) do
-    local workspace = type(row) == "table" and tostring(row.workspace or "") or ""
-    local is_focused = type(row) == "table" and row["workspace-is-focused"] or false
-    local display = type(row) == "table" and tonumber(row["monitor-appkit-nsscreen-screens-id"]) or nil
-    if display and display >= 1 and display % 1 == 0 then
-      display_ids[display] = true
-    end
-    if known_workspaces[workspace] and display and display_ids[display] then
+    local workspace = row.workspace
+    local display = row["monitor-appkit-nsscreen-screens-id"]
+    display_ids[display] = true
+    if known_workspaces[workspace] then
       if not displays[workspace] then found = found + 1 end
       displays[workspace] = display
-      if is_focused == true or is_focused == "true" then focused = workspace end
+      if row["workspace-is-focused"] then focused = workspace end
     end
   end
 
   if found ~= #workspace_names or not focused then return nil end
   local display_count = 0
   for _ in pairs(display_ids) do display_count = display_count + 1 end
-  if display_count == 0 then return nil end
   return displays, focused, display_count
 end
 
 local function parse_windows(rows)
-  if type(rows) ~= "table" then return nil end
-
   local icons_by_workspace = {}
   local seen_apps_by_workspace = {}
 
@@ -106,15 +88,11 @@ local function parse_windows(rows)
   end
 
   for _, row in ipairs(rows) do
-    local workspace = type(row) == "table" and tostring(row.workspace or "") or ""
-    local app = type(row) == "table" and row["app-name"] or nil
-    if known_workspaces[workspace]
-      and type(app) == "string"
-      and app ~= ""
-      and not seen_apps_by_workspace[workspace][app]
-    then
+    local workspace = row.workspace
+    local app = row["app-name"]
+    if known_workspaces[workspace] and app ~= "" and not seen_apps_by_workspace[workspace][app] then
       seen_apps_by_workspace[workspace][app] = true
-      table.insert(icons_by_workspace[workspace], app_icon(app))
+      table.insert(icons_by_workspace[workspace], app_icons[app] or app_icons.Default)
     end
   end
 
@@ -182,11 +160,11 @@ update_spaces = function(windows_only)
     end
 
     local selected_workspace = queried_focus
-    if (windows_only or focus_revision ~= current_focus_revision) and known_workspaces[focused_workspace] then
+    if windows_only or focus_revision ~= current_focus_revision then
       selected_workspace = focused_workspace
     end
     focused_workspace = selected_workspace
-    if not windows_only then cached_workspaces = results.workspaces.output end
+    cached_workspaces = results.workspaces.output
 
     for _, workspace in ipairs(workspace_names) do
       local display = workspace_displays[workspace]
@@ -252,17 +230,13 @@ local function schedule_focus_refresh()
   end)
 end
 
-local function schedule_window_refresh()
+local function update_space_windows()
+  update_spaces()
   window_refresh_revision = window_refresh_revision + 1
   local revision = window_refresh_revision
   sbar.delay(0.2, function()
     if revision == window_refresh_revision then update_spaces() end
   end)
-end
-
-local function update_space_windows()
-  update_spaces()
-  schedule_window_refresh()
 end
 
 local function update_workspace_focus(env)
@@ -290,7 +264,6 @@ for index, workspace in ipairs(workspace_names) do
       string = workspace,
       padding_left = 15,
       padding_right = 8,
-      color = colors.white,
       highlight_color = colors.red,
     },
     label = {
@@ -380,7 +353,9 @@ spaces_indicator:subscribe("swap_menus_and_spaces", function(env)
   spaces_indicator:set({
     icon = spaces_mode_visible and icons.switch.on or icons.switch.off
   })
-  apply_drawing()
+  for _, workspace in ipairs(workspace_names) do
+    update_workspace_drawing(workspace)
+  end
 end)
 
 spaces_indicator:subscribe("mouse.entered", function(env)

@@ -1,11 +1,7 @@
 local colors = require("colors")
 local settings = require("settings")
 
-local menu_watcher = sbar.add("item", {
-  drawing = false,
-  updates = false,
-})
-local space_menu_swap = sbar.add("item", {
+local menu_events = sbar.add("item", {
   drawing = false,
   updates = true,
 })
@@ -21,7 +17,7 @@ for i = 1, max_items, 1 do
     icon = { drawing = false },
     label = {
       font = {
-        style = settings.font.style_map[i == 1 and "Heavy" or "Semibold"]
+        style = i == 1 and "Heavy" or "Semibold"
       },
       padding_left = 6,
       padding_right = 6,
@@ -62,12 +58,11 @@ local function update_menus()
   end)
 end
 
-menu_watcher:subscribe("front_app_switched", update_menus)
+menu_events:subscribe("front_app_switched", update_menus)
 
-space_menu_swap:subscribe("swap_menus_and_spaces", function()
+menu_events:subscribe("swap_menus_and_spaces", function()
   menus_visible = not menus_visible
   menu_revision = menu_revision + 1
-  menu_watcher:set({ updates = menus_visible })
   sbar.set("front_app", { drawing = not menus_visible })
   if menus_visible then
     update_menus()
@@ -75,5 +70,3 @@ space_menu_swap:subscribe("swap_menus_and_spaces", function()
     sbar.set("/menu\\..*/", { drawing = false })
   end
 end)
-
-return menu_watcher

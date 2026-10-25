@@ -3,8 +3,6 @@ local colors = require("colors")
 local settings = require("settings")
 local layout = require("helpers.layout")
 
--- Execute the event provider binary which provides the event "cpu_update" for
--- the cpu load data, which is fired every 2.0 seconds.
 sbar.exec("killall cpu_load >/dev/null 2>&1; $HOME/.local/libexec/sketchybar/cpu_load cpu_update 2.0")
 
 local cpu = sbar.add("graph", "widgets.cpu" , 42, {
@@ -21,7 +19,7 @@ local cpu = sbar.add("graph", "widgets.cpu" , 42, {
     string = "cpu ??%",
     font = {
       family = settings.font.numbers,
-      style = settings.font.style_map["Bold"],
+      style = "Bold",
       size = 9.0,
     },
     align = "right",
@@ -57,9 +55,8 @@ cpu:subscribe("mouse.clicked", function(env)
   sbar.exec("open -a 'Activity Monitor'")
 end)
 
--- Background around the cpu item
 sbar.add("bracket", "widgets.cpu.bracket", { cpu.name }, {
   background = { color = colors.bg1 }
 })
 
-layout.group_padding("widgets.cpu.padding")
+layout.group_padding()

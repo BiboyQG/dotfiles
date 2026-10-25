@@ -7,7 +7,7 @@ local battery = sbar.add("item", "widgets.battery", {
   position = "right",
   icon = {
     font = {
-      style = settings.font.style_map["Regular"],
+      style = "Regular",
       size = 19.0,
     }
   },
@@ -93,15 +93,13 @@ battery:subscribe({"forced", "routine", "power_source_change", "system_woke"}, f
       color = colors.red
     end
 
-    local lead = charge < 10 and "0" or ""
-
     set_battery_visible(true)
     battery:set({
       icon = {
         string = icon,
         color = color
       },
-      label = { string = lead .. charge .. "%" },
+      label = { string = string.format("%02d%%", charge) },
     })
     set_remaining_time(info)
   end)

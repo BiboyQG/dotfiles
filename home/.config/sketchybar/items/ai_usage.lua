@@ -9,13 +9,6 @@ local bar_width = 52
 local scope_width = 14
 local percent_width = 34
 
-local function percent_label(value)
-  if not value or value == "" or value == "--" then
-    return "--"
-  end
-  return value .. "%"
-end
-
 local function parse_usage(output)
   local usage = {
     codex = {},
@@ -45,7 +38,6 @@ local function add_logo(name, position, image)
     label = { drawing = false },
     background = {
       color = colors.transparent,
-      border_color = colors.transparent,
       border_width = 0,
       image = {
         string = image,
@@ -55,23 +47,16 @@ local function add_logo(name, position, image)
   })
 end
 
-local function bar_opts(position)
-  return {
+local function add_bar(name, position)
+  return sbar.add("item", name, {
     position = position,
     width = bar_width,
     padding_left = 0,
     padding_right = 0,
     icon = { drawing = false },
     label = { drawing = false },
-    background = {
-      color = colors.transparent,
-      border_color = colors.transparent,
-      border_width = 0,
-      image = {
-        scale = 1,
-      },
-    },
-  }
+    background = { color = colors.transparent, border_width = 0 },
+  })
 end
 
 local function add_percent(name, position, y_offset, width)
@@ -86,10 +71,9 @@ local function add_percent(name, position, y_offset, width)
       string = "--",
       width = percent_width,
       align = "right",
-      color = colors.white,
       font = {
         family = settings.font.numbers,
-        style = settings.font.style_map["Bold"],
+        style = "Bold",
         size = 9.0,
       },
     },
@@ -112,7 +96,7 @@ local function add_scope(name, position, y_offset, width, letter)
       color = colors.grey,
       font = {
         family = settings.font.numbers,
-        style = settings.font.style_map["Bold"],
+        style = "Bold",
         size = 8.0,
       },
     },
@@ -129,7 +113,7 @@ local usage_groups = {
     { key = "session_scope", add = function(name, position) return add_scope(name, position, 5, 0, "S") end },
     { key = "weekly_scope", add = function(name, position) return add_scope(name, position, -5, scope_width, "W") end },
   },
-  { { key = "bar", add = function(name, position) return sbar.add("item", name, bar_opts(position)) end } },
+  { { key = "bar", add = add_bar } },
   {
     { key = "session_percent", add = function(name, position) return add_percent(name, position, 5, 0) end },
     { key = "weekly_percent", add = function(name, position) return add_percent(name, position, -5, percent_width) end },
@@ -154,7 +138,11 @@ local function add_usage_view(prefix, position, logo_path, main)
 end
 
 local function has_value(value)
-  return value and value ~= "" and value ~= "--"
+  return value ~= "" and value ~= "--"
+end
+
+local function percent_label(value)
+  return has_value(value) and value .. "%" or "--"
 end
 
 local function quota_color(value)
@@ -170,13 +158,13 @@ local function quota_color(value)
 end
 
 local function set_usage(view, usage)
-  local session = usage and usage.session or "--"
-  local weekly = usage and usage.weekly or "--"
+  local session = usage.session or "--"
+  local weekly = usage.weekly or "--"
   local has_session = has_value(session)
   local has_weekly = has_value(weekly)
   local show_unavailable = not has_session and not has_weekly
 
-  view.bar:set({ background = { image = { string = usage and usage.bar or "" } } })
+  view.bar:set({ background = { image = { string = usage.bar or "" } } })
   view.session_scope:set({
     width = has_session and not has_weekly and scope_width or 0,
     y_offset = has_weekly and 5 or 0,
@@ -201,13 +189,13 @@ local function set_usage(view, usage)
     y_offset = has_session and -5 or 0,
     label = {
       drawing = has_weekly or show_unavailable,
-      string = has_weekly and percent_label(weekly) or "--",
+      string = percent_label(weekly),
       color = quota_color(weekly),
     },
   })
 end
 
-layout.group_padding("ai_usage.right_padding")
+layout.group_padding()
 
 local codex = add_usage_view("ai_usage.codex", "right", assets .. "/openai.png", true)
 
@@ -223,7 +211,7 @@ local bracket = sbar.add("bracket", "ai_usage.bracket", codex.items, {
   },
 })
 
-layout.group_padding("ai_usage.left_padding")
+layout.group_padding()
 
 local popup_codex = add_usage_view("ai_usage.popup.codex", "popup." .. bracket.name, assets .. "/openai.png")
 sbar.add("item", "ai_usage.popup.spacer", {

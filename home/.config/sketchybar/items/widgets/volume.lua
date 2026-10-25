@@ -25,7 +25,7 @@ local volume_icon = sbar.add("item", "widgets.volume2", {
     align = "left",
     color = colors.grey,
     font = {
-      style = settings.font.style_map["Regular"],
+      style = "Regular",
       size = 14.0,
     },
   },
@@ -33,7 +33,7 @@ local volume_icon = sbar.add("item", "widgets.volume2", {
     width = 25,
     align = "left",
     font = {
-      style = settings.font.style_map["Regular"],
+      style = "Regular",
       size = 14.0,
     },
   },
@@ -47,7 +47,7 @@ local volume_bracket = sbar.add("bracket", "widgets.volume.bracket", {
   popup = { align = "center" }
 })
 
-layout.group_padding("widgets.volume.padding")
+layout.group_padding()
 
 local volume_slider = sbar.add("slider", popup_width, {
   position = "popup." .. volume_bracket.name,
@@ -83,13 +83,8 @@ volume_percent:subscribe("volume_change", function(env)
     icon = icons.volume._10
   end
 
-  local lead = ""
-  if volume < 10 then
-    lead = "0"
-  end
-
   volume_icon:set({ label = icon })
-  volume_percent:set({ label = lead .. volume .. "%" })
+  volume_percent:set({ label = string.format("%02d%%", volume) })
   volume_slider:set({ slider = { percentage = volume } })
 end)
 
@@ -114,7 +109,7 @@ end
 -- the "Regex: No match found" log line the remove produces) when nothing is
 -- open.
 local function volume_hide_details()
-  if popup_open or device_count > 0 then volume_collapse_details() end
+  if popup_open then volume_collapse_details() end
 end
 
 local function volume_toggle_details(env)
@@ -123,27 +118,20 @@ local function volume_toggle_details(env)
     return
   end
 
-  local should_draw = volume_bracket:query().popup.drawing == "off"
-  if not should_draw then
+  if popup_open then
     volume_collapse_details()
     return
   end
 
   device_revision = device_revision + 1
   local revision = device_revision
-  local function is_current()
-    return revision == device_revision and volume_bracket:query().popup.drawing == "on"
-  end
-
-  remove_device_items()
   popup_open = true
   volume_bracket:set({ popup = { drawing = true } })
   sbar.exec("SwitchAudioSource -t output -c", function(result, exit_code)
-    if not is_current() or exit_code ~= 0 or type(result) ~= "string" then return end
+    if revision ~= device_revision or exit_code ~= 0 or type(result) ~= "string" then return end
     local current = result:gsub("[\r\n]+$", "")
     sbar.exec("SwitchAudioSource -a -t output", function(available, list_exit_code)
-      if not is_current() or list_exit_code ~= 0 or type(available) ~= "string" then return end
-      remove_device_items()
+      if revision ~= device_revision or list_exit_code ~= 0 or type(available) ~= "string" then return end
 
       for device in string.gmatch(available, '[^\r\n]+') do
         local color = colors.grey

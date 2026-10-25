@@ -102,23 +102,22 @@ local function hide_media()
 end
 
 local function apply_media_state(state)
-  if type(state) ~= "table" or state.playing ~= true then
+  if not state.playing then
     hide_media()
     return
   end
 
-  local artwork = type(state.artwork) == "string" and state.artwork or ""
-  local has_artwork = artwork ~= ""
+  local has_artwork = state.artwork ~= ""
   local image = { drawing = has_artwork }
-  if has_artwork then image.string = artwork end
+  if has_artwork then image.string = state.artwork end
 
   media_artist:set({
     drawing = true,
-    label = { string = tostring(state.artist or "") },
+    label = { string = state.artist },
   })
   media_title:set({
     drawing = true,
-    label = { string = tostring(state.title or "") },
+    label = { string = state.title },
   })
   media_cover:set({
     drawing = true,
@@ -134,9 +133,7 @@ end
 local media_revision = 0
 local refresh_running = false
 local refresh_pending = false
-local start_refresh
-
-start_refresh = function()
+local function start_refresh()
   refresh_running = true
   local revision = media_revision
   sbar.exec(media_script, function(state, exit_code)
@@ -164,8 +161,7 @@ local function request_refresh()
   end
 end
 
-media_cover:subscribe({ "spotify_media_change", "music_media_change" }, request_refresh)
-media_cover:subscribe({ "forced", "system_woke" }, request_refresh)
+media_cover:subscribe({ "spotify_media_change", "music_media_change", "forced", "system_woke" }, request_refresh)
 
 media_cover:subscribe("mouse.entered", function(env)
   media_hovered = true

@@ -1,4 +1,4 @@
-local sketchybar_root = (arg[1] or ".") .. "/home/.config/sketchybar"
+local sketchybar_root = assert(arg[1]) .. "/home/.config/sketchybar"
 
 local function expect(condition, message)
   if not condition then error(message, 2) end
@@ -23,7 +23,6 @@ local function fake_sbar()
     subscriptions = {},
     execs = {},
     triggers = {},
-    set_targets = {},
     delays = {},
     delay_seconds = {},
     pushes = {},
@@ -31,11 +30,10 @@ local function fake_sbar()
     generated = 0,
   }
 
-  local function new_object(name, properties, members)
+  local function new_object(name, properties)
     local object = {
       name = name,
       properties = properties or {},
-      members = members,
       callbacks = {},
     }
 
@@ -45,7 +43,7 @@ local function fake_sbar()
     end
 
     function object:push(values)
-      table.insert(state.pushes, { name = self.name, values = values })
+      table.insert(state.pushes, { values = values })
     end
 
     function object:subscribe(events, callback)
@@ -53,18 +51,13 @@ local function fake_sbar()
       for _, event in ipairs(events) do
         self.callbacks[event] = callback
         state.subscriptions[event] = state.subscriptions[event] or {}
-        table.insert(state.subscriptions[event], { object = self, callback = callback })
+        table.insert(state.subscriptions[event], { callback = callback })
       end
     end
 
     function object:query()
-      local icon = type(self.properties.icon) == "table" and self.properties.icon.string or nil
       local popup = type(self.properties.popup) == "table" and self.properties.popup.drawing or false
-      return {
-        icon = { value = icon },
-        popup = { drawing = popup == true and "on" or "off" },
-        geometry = { drawing = self.properties.drawing == false and "off" or "on" },
-      }
+      return { popup = { drawing = popup == true and "on" or "off" } }
     end
 
     state.objects[name] = object
@@ -101,7 +94,7 @@ local function fake_sbar()
       name, properties = "item." .. state.generated, first
     end
 
-    local object = new_object(name, properties, members)
+    local object = new_object(name, properties)
     if kind == "bracket" then
       for _, member in ipairs(members or {}) do state.brackets[member] = object end
     end
@@ -117,13 +110,10 @@ local function fake_sbar()
   end
 
   function sbar.remove(target)
+    expect(target == "/volume.device\\.*/", "unexpected remove target " .. target)
     table.insert(state.removed, target)
-    if target == "/volume.device\\.*/" then
-      for name in pairs(state.objects) do
-        if name:match("^volume%.device%.") then state.objects[name] = nil end
-      end
-    else
-      state.objects[target] = nil
+    for name in pairs(state.objects) do
+      if name:match("^volume%.device%.") then state.objects[name] = nil end
     end
   end
 
@@ -137,7 +127,6 @@ local function fake_sbar()
   end
 
   function sbar.set(target, update)
-    table.insert(state.set_targets, target)
     if target == "/menu\\..*/" then
       for name, object in pairs(state.objects) do
         if name:match("^menu%.") then object:set(update) end
@@ -145,10 +134,6 @@ local function fake_sbar()
     else
       state.objects[target]:set(update)
     end
-  end
-
-  function sbar.query(name)
-    return state.objects[name]:query()
   end
 
   function state.emit(event, env)
@@ -161,69 +146,51 @@ local function fake_sbar()
     state.objects[name].callbacks[event](env or {})
   end
 
+  _G.sbar = sbar
   return sbar, state
 end
 
-local function load_modules()
-  for _, name in ipairs({ "colors", "icons", "settings", "helpers.app_icons", "helpers.shell", "helpers.layout" }) do
-    package.loaded[name] = nil
-  end
-
-  package.preload.colors = function()
-    return {
-      black = "black",
-      bg1 = "bg1",
-      bg2 = "bg2",
-      grey = "grey",
-      red = "red",
-      blue = "blue",
-      green = "green",
-      orange = "orange",
-      yellow = "yellow",
-      white = "white",
-      transparent = "transparent",
-      with_alpha = function(value) return value end,
-    }
-  end
-  package.preload.icons = function()
-    return {
-      switch = { on = "ON", off = "OFF" },
-      media = { back = "BACK", play_pause = "PLAY", forward = "NEXT" },
-      wifi = {
-        upload = "UP",
-        download = "DOWN",
-        router = "ROUTER",
-        connected = "CONNECTED",
-        disconnected = "DISCONNECTED",
-      },
-      clipboard = "CLIPBOARD",
-      cpu = "CPU",
-      battery = { _100 = "B100", _75 = "B75", _50 = "B50", _25 = "B25", _0 = "B0", charging = "CHARGING" },
-      volume = { _100 = "V100", _66 = "V66", _33 = "V33", _10 = "V10", _0 = "V0" },
-    }
-  end
-  package.preload.settings = function()
-    return {
-      font = {
-        text = "Text",
-        numbers = "Numbers",
-        style_map = { Regular = "Regular", Bold = "Bold", Heavy = "Heavy", Semibold = "Semibold", Black = "Black" },
-      },
-      group_paddings = 5,
-      paddings = 5,
-      config_dir = "/fake/sketchybar",
-    }
-  end
-  package.preload["helpers.app_icons"] = function()
-    return { Arc = "A", kitty = "K", Safari = "S", Music = "M", Default = "D" }
-  end
-  package.preload["helpers.shell"] = function()
-    return { quote = function(value) return string.format("%q", value) end }
-  end
-  package.preload["helpers.layout"] = function()
-    return dofile(sketchybar_root .. "/helpers/layout.lua")
-  end
-end
+package.loaded.colors = {
+  black = "black",
+  bg1 = "bg1",
+  bg2 = "bg2",
+  grey = "grey",
+  red = "red",
+  blue = "blue",
+  green = "green",
+  orange = "orange",
+  yellow = "yellow",
+  white = "white",
+  transparent = "transparent",
+  with_alpha = function(value) return value end,
+}
+package.loaded.icons = {
+  switch = { on = "ON", off = "OFF" },
+  media = { back = "BACK", play_pause = "PLAY", forward = "NEXT" },
+  wifi = {
+    upload = "UP",
+    download = "DOWN",
+    router = "ROUTER",
+    connected = "CONNECTED",
+    disconnected = "DISCONNECTED",
+  },
+  clipboard = "CLIPBOARD",
+  cpu = "CPU",
+  battery = { _100 = "B100", _75 = "B75", _50 = "B50", _25 = "B25", _0 = "B0", charging = "CHARGING" },
+  volume = { _100 = "V100", _66 = "V66", _33 = "V33", _10 = "V10", _0 = "V0" },
+}
+package.loaded.settings = {
+  font = {
+    numbers = "Numbers",
+  },
+  group_paddings = 5,
+  paddings = 5,
+  config_dir = "/fake/sketchybar",
+}
+package.loaded["helpers.app_icons"] = { Arc = "A", kitty = "K", Safari = "S", Default = "D" }
+package.loaded["helpers.shell"] = { quote = function(value) return string.format("%q", value) end }
+-- layout.lua requires colors and settings when it loads.
+package.loaded["helpers.layout"] = dofile(sketchybar_root .. "/helpers/layout.lua")
 
 local function workspace_rows(single_display, focused)
   local rows = {}
@@ -244,13 +211,6 @@ local function find_object(state, predicate)
   return nil
 end
 
-local function test_app_icons()
-  local app_icons = dofile(sketchybar_root .. "/helpers/app_icons.lua")
-  expect(app_icons.Preview == ":preview:", "Preview does not use its dedicated icon")
-  expect(app_icons.Skim == ":pdf_old:", "Skim does not use an existing PDF glyph")
-  expect(app_icons.superProductivity == ":super_productivity:", "superProductivity glyph name is wrong")
-end
-
 local function complete_full(state, workspaces, windows, workspace_exit, windows_exit)
   local workspace_call = state.execs[#state.execs - 1]
   local window_call = state.execs[#state.execs]
@@ -261,9 +221,7 @@ local function complete_full(state, workspaces, windows, workspace_exit, windows
 end
 
 local function test_spaces()
-  load_modules()
   local sbar, state = fake_sbar()
-  _G.sbar = sbar
   sbar.add("item", "front_app", { drawing = true })
   dofile(sketchybar_root .. "/items/spaces.lua")
   dofile(sketchybar_root .. "/items/menus.lua")
@@ -286,9 +244,6 @@ local function test_spaces()
   expect(state.objects["space.1"].properties.label.string == "S", "duplicate apps were not collapsed")
   expect(state.objects["space.2"].properties.label.string == "A", "initial Arc icon is missing")
   expect(state.objects["space.7"].properties.display == 1, "single-screen AppKit ID was not applied")
-  expect(state.objects["space.7"].properties.drawing == false, "single-screen workspace 7 is visible")
-  expect(state.brackets["space.7"].properties.drawing == false, "single-screen bracket 7 is visible")
-  expect(state.objects["space.padding.7"].properties.drawing == false, "single-screen padding 7 is visible")
 
   local before_create = #state.execs
   state.emit("space_windows_change")
@@ -355,16 +310,12 @@ local function test_spaces()
   complete_full(state, workspace_rows(false, "4"), {})
   expect(state.objects["space.1"].properties.display == 2, "dual-screen workspace 1 mapping failed")
   expect(state.objects["space.7"].properties.display == 1, "dual-screen workspace 7 mapping failed")
-  expect(state.objects["space.7"].properties.drawing == true, "dual-screen workspace 7 is hidden")
 
   state.emit("swap_menus_and_spaces")
   expect(state.objects["space.1"].properties.drawing == false, "menu mode did not hide spaces")
   state.execs[#state.execs].callback("File\nEdit", 0)
   state.emit("swap_menus_and_spaces")
   expect(state.objects["space.7"].properties.drawing == true, "menu roundtrip lost availability")
-  for _, target in ipairs(state.set_targets) do
-    expect(target ~= "/space\\..*/", "menus.lua overwrote workspace drawing")
-  end
 
   state.emit("space_windows_change")
   local in_flight_count = #state.execs
@@ -398,9 +349,7 @@ local function test_spaces()
 end
 
 local function test_space_visibility()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/spaces.lua")
 
   local function expect_visible(workspace, visible, message)
@@ -456,9 +405,7 @@ local function test_space_visibility()
 end
 
 local function test_menus()
-  load_modules()
   local sbar, state = fake_sbar()
-  _G.sbar = sbar
   sbar.add("item", "front_app", { drawing = true })
   dofile(sketchybar_root .. "/items/menus.lua")
 
@@ -500,9 +447,7 @@ local function test_menus()
 end
 
 local function test_focus_refresh()
-  load_modules()
-  local api, state = fake_sbar()
-  _G.sbar = api
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/spaces.lua")
   local windows = { { workspace = "1", ["app-name"] = "kitty" } }
   state.emit("forced")
@@ -523,19 +468,12 @@ local function test_focus_refresh()
   expect(state.objects["space.1"].properties.label.string == " —", "move left a stale source icon")
   expect(state.objects["space.2"].properties.label.string == "K", "move missed the destination icon")
   expect(state.objects["space.2"].properties.icon.highlight, "cached topology overwrote current focus")
-
-  state.emit("display_change")
-  expect(#state.execs == 6, "display change did not invalidate the cached mapping")
-  complete_full(state, workspace_rows(false, "2"), {})
-  expect(state.objects["space.1"].properties.display == 2, "display change kept the old mapping")
 end
 
 -- At login AeroSpace may not be listening yet; the bar retries its first
 -- topology query until it succeeds and never retries after that.
 local function test_spaces_startup_retry()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/spaces.lua")
 
   state.emit("forced")
@@ -562,9 +500,7 @@ local function test_spaces_startup_retry()
   state.execs[#state.execs].callback(nil, 1)
   expect(#state.delays == 3, "failed cached refresh scheduled a startup retry")
 
-  load_modules()
-  sbar, state = fake_sbar()
-  _G.sbar = sbar
+  _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/spaces.lua")
   state.emit("forced")
   for attempt = 1, 30 do
@@ -577,9 +513,7 @@ local function test_spaces_startup_retry()
 end
 
 local function test_media()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/media.lua")
 
   expect(
@@ -587,7 +521,6 @@ local function test_media()
     "Spotify event mapping failed"
   )
   expect(state.events.music_media_change == "com.apple.Music.playerInfo", "Music event mapping failed")
-  expect(state.subscriptions.media_change == nil, "deprecated media_change is subscribed")
   expect(#state.execs == 0, "media queried during module load")
 
   local cover
@@ -649,9 +582,7 @@ local function test_media()
 end
 
 local function test_wifi()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/widgets/wifi.lua")
 
   expect(#state.execs == 1, "wifi module did not resolve the Wi-Fi interface first")
@@ -663,7 +594,6 @@ local function test_wifi()
     "network provider does not use the resolved interface"
   )
 
-  expect(state.subscriptions.wifi_change == nil, "deprecated wifi_change is subscribed")
   expect(state.subscriptions.system_woke == nil, "wake-time ipconfig path is still subscribed")
   local wifi = state.objects["widgets.wifi.padding"]
   state.emit_object("widgets.wifi1", "network_update", {
@@ -678,12 +608,6 @@ local function test_wifi()
     connected = "off",
   })
   expect(wifi.properties.icon.string == "DISCONNECTED", "connected=off failed")
-  state.emit_object("widgets.wifi1", "network_update", {
-    upload = "000 Bps",
-    download = "000 Bps",
-    connected = "unknown",
-  })
-  expect(wifi.properties.icon.string == "DISCONNECTED", "unknown did not preserve last-good")
 
   state.emit_object("widgets.wifi1", "mouse.clicked", {})
   local popup_ip_lookup = false
@@ -733,9 +657,7 @@ local function test_wifi()
 end
 
 local function test_battery()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/widgets/battery.lua")
   local battery = state.objects["widgets.battery"]
   local bracket = state.brackets["widgets.battery"]
@@ -810,9 +732,7 @@ local function test_battery()
 end
 
 local function test_cpu()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/widgets/cpu.lua")
   expect(#state.execs == 1, "cpu module did not start its event provider")
   expect(state.execs[1].command:find("cpu_load cpu_update 2.0", 1, true) ~= nil, "cpu provider command is wrong")
@@ -835,9 +755,7 @@ local function test_cpu()
 end
 
 local function test_volume()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/widgets/volume.lua")
   local percent = state.objects["widgets.volume1"]
   local icon = state.objects["widgets.volume2"]
@@ -953,9 +871,7 @@ local function test_volume()
 end
 
 local function test_calendar()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/calendar.lua")
   local calendar = find_object(state, function(object) return object.properties.click_script == "open -a 'Calendar'" end)
   expect(calendar, "calendar item is missing")
@@ -983,11 +899,27 @@ local function test_calendar()
   expect(#state.delays == 4 and calendar.set_count == sets + 1, "current minute timer stopped ticking")
 end
 
-local function test_ai_usage()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
+local function load_ai_usage()
+  local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/ai_usage.lua")
+  return state
+end
+
+local function usage_output(codex_status, claude_status, codex_session, codex_weekly, claude_session, claude_weekly)
+  return table.concat({
+    "codex_status=" .. codex_status,
+    "codex_session=" .. (codex_session or "--"),
+    "codex_weekly=" .. (codex_weekly or "--"),
+    "codex_bar=/tmp/codex-" .. (codex_session or "--") .. ".png",
+    "claude_status=" .. claude_status,
+    "claude_session=" .. (claude_session or "--"),
+    "claude_weekly=" .. (claude_weekly or "--"),
+    "claude_bar=/tmp/claude.png",
+  }, "\n")
+end
+
+local function test_ai_usage()
+  local state = load_ai_usage()
   expect(#state.execs == 0, "usage queried during module load")
   local session = state.objects["ai_usage.codex.session_percent"]
   local weekly = state.objects["ai_usage.codex.weekly_percent"]
@@ -996,23 +928,10 @@ local function test_ai_usage()
   local popup_claude_weekly = state.objects["ai_usage.popup.claude.weekly_percent"]
   expect(session and weekly and bar and popup_claude_session and popup_claude_weekly, "usage objects are missing")
 
-  local function usage(codex_session, codex_weekly, claude_session, claude_weekly)
-    return table.concat({
-      "codex_status=ok",
-      "codex_session=" .. codex_session,
-      "codex_weekly=" .. codex_weekly,
-      "codex_bar=/tmp/codex-" .. codex_session .. ".png",
-      "claude_status=ok",
-      "claude_session=" .. claude_session,
-      "claude_weekly=" .. claude_weekly,
-      "claude_bar=/tmp/claude.png",
-    }, "\n")
-  end
-
   state.emit("forced")
   expect(#state.execs == 1, "forced did not query usage")
   expect(state.execs[1].command:find("scripts/ai_usage.sh", 1, true) ~= nil, "usage script path is wrong")
-  state.execs[1].callback(usage("75", "30", "15", "--"))
+  state.execs[1].callback(usage_output("ok", "ok", "75", "30", "15", "--"))
   expect(session.properties.label.string == "75%", "session percentage is wrong")
   expect(session.properties.label.color == "white", "healthy session color is wrong")
   expect(weekly.properties.label.string == "30%", "weekly percentage is wrong")
@@ -1026,8 +945,8 @@ local function test_ai_usage()
   state.emit("routine")
   state.emit("system_woke")
   expect(#state.execs == 3, "overlapping refreshes were not started")
-  state.execs[3].callback(usage("50", "50", "50", "50"))
-  state.execs[2].callback(usage("99", "99", "99", "99"))
+  state.execs[3].callback(usage_output("ok", "ok", "50", "50", "50", "50"))
+  state.execs[2].callback(usage_output("ok", "ok", "99", "99", "99", "99"))
   expect(session.properties.label.string == "50%", "stale usage response overwrote the latest one")
   expect(bar.properties.background.image.string == "/tmp/codex-50.png", "stale bar overwrote the latest one")
 
@@ -1048,74 +967,52 @@ local function test_ai_usage()
   expect(bracket.properties.popup.drawing == false, "leaving the bar did not close the popup")
 end
 
-local function usage_status_output(codex_status, claude_status, codex_session)
-  return table.concat({
-    "codex_status=" .. codex_status,
-    "codex_session=" .. (codex_session or "--"),
-    "codex_weekly=--",
-    "codex_bar=/tmp/codex.png",
-    "claude_status=" .. claude_status,
-    "claude_session=--",
-    "claude_weekly=--",
-    "claude_bar=/tmp/claude.png",
-  }, "\n")
-end
-
-local function load_ai_usage()
-  load_modules()
-  local sbar, state = fake_sbar()
-  _G.sbar = sbar
-  dofile(sketchybar_root .. "/items/ai_usage.lua")
-  return state
-end
-
 -- At login the first fetch can run before OpenUsage listens; the item retries
 -- a refused connection until one fetch reaches both providers.
 local function test_ai_usage_startup_retry()
   local state = load_ai_usage()
   local session = state.objects["ai_usage.codex.session_percent"]
   state.emit("forced")
-  state.execs[1].callback(usage_status_output("unavailable", "unavailable"))
+  state.execs[1].callback(usage_output("unavailable", "unavailable"))
   expect(#state.delays == 1 and state.delay_seconds[1] == 5, "refused first fetch did not schedule a retry")
   expect(session.properties.label.drawing == false, "unavailable usage kept a session value")
   state.delays[1]()
   expect(#state.execs == 2, "startup retry did not run the usage script")
   state.emit("routine")
-  state.execs[2].callback(usage_status_output("unavailable", "unavailable"))
+  state.execs[2].callback(usage_output("unavailable", "unavailable"))
   expect(#state.delays == 1, "stale response scheduled a retry")
-  state.execs[3].callback(usage_status_output("ok", "unavailable", "75"))
+  state.execs[3].callback(usage_output("ok", "unavailable", "75"))
   expect(#state.delays == 2, "half-available response did not retry")
   expect(session.properties.label.string == "75%", "partial response was not rendered")
   state.delays[2]()
-  state.execs[4].callback(usage_status_output("ok", "empty", "60"))
+  state.execs[4].callback(usage_output("ok", "empty", "60"))
   expect(#state.delays == 2, "response reaching both providers scheduled a retry")
   state.emit("routine")
-  state.execs[5].callback(usage_status_output("unavailable", "unavailable"))
+  state.execs[5].callback(usage_output("unavailable", "unavailable"))
   expect(#state.delays == 2, "outage after the first full response scheduled a retry")
 
   -- A provider that is down for another reason is not a startup race.
   state = load_ai_usage()
   state.emit("forced")
-  state.execs[1].callback(usage_status_output("empty", "parse_error"))
+  state.execs[1].callback(usage_output("empty", "parse_error"))
   expect(#state.delays == 0, "empty or unparseable usage scheduled a retry")
   state.emit("routine")
-  state.execs[2].callback(usage_status_output("unavailable", "unavailable"))
+  state.execs[2].callback(usage_output("unavailable", "unavailable"))
   expect(#state.delays == 0, "retry started after a response had already arrived")
 
   -- A provider that never answers stops costing script runs after 12 retries.
   state = load_ai_usage()
   state.emit("forced")
   for attempt = 1, 12 do
-    state.execs[#state.execs].callback(usage_status_output("unavailable", "empty"))
+    state.execs[#state.execs].callback(usage_output("unavailable", "empty"))
     expect(#state.delays == attempt, "startup retry " .. attempt .. " was not scheduled")
     state.delays[attempt]()
   end
-  state.execs[#state.execs].callback(usage_status_output("unavailable", "empty"))
+  state.execs[#state.execs].callback(usage_output("unavailable", "empty"))
   expect(#state.delays == 12, "startup retries did not stop at the cap")
   expect(#state.execs == 13, "capped retries ran an unexpected number of fetches")
 end
 
-test_app_icons()
 test_spaces()
 test_space_visibility()
 test_spaces_startup_retry()

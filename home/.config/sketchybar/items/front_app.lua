@@ -1,11 +1,9 @@
-local settings = require("settings")
-
 local front_app = sbar.add("item", "front_app", {
   display = "active",
   icon = { drawing = false },
   label = {
     font = {
-      style = settings.font.style_map["Black"],
+      style = "Black",
       size = 12.0,
     },
   },

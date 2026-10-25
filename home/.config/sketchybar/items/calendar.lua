@@ -6,15 +6,13 @@ layout.group_padding()
 
 local cal = sbar.add("item", {
   icon = {
-    color = colors.white,
     padding_left = 8,
     font = {
-      style = settings.font.style_map["Black"],
+      style = "Black",
       size = 12.0,
     },
   },
   label = {
-    color = colors.white,
     padding_right = 8,
     width = 49,
     align = "right",

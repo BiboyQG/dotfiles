@@ -1,5 +1,5 @@
 #!/usr/bin/env lua
 
--- Load the sketchybar-package and prepare the helper binaries
-require("helpers")
+-- The SbarLua module is installed outside Lua's default cpath
+package.cpath = package.cpath .. ";" .. os.getenv("HOME") .. "/.local/share/sketchybar_lua/?.so"
 require("init")
