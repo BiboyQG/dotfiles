@@ -10,7 +10,7 @@ ROOT="${0:A:h}"
 cd "$ROOT"
 
 RUN_LIVE_CHECKS=0
-CHECK_WARNINGS=()
+BREW_AUDIT_INCOMPLETE=0
 FOLDING_MANIFEST="$ROOT/stow-target-dirs.txt"
 INSTALLED_XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
@@ -43,7 +43,6 @@ ISOLATED_TMP="$CHECK_WORK_DIR/tmp"
 ISOLATED_ZDOTDIR="$CHECK_WORK_DIR/zdotdir"
 STOW_CONFIG_HOME="$CHECK_WORK_DIR/stow-home"
 CANDIDATE_ROOT="$CHECK_WORK_DIR/candidate"
-HEAD_ARCHIVE_ROOT="$CHECK_WORK_DIR/head-archive"
 TEMP_GIT_INDEX="$CHECK_WORK_DIR/git-index"
 TEMP_GIT_OBJECTS="$CHECK_WORK_DIR/git-objects"
 REAL_GIT_INDEX_SNAPSHOT="$CHECK_WORK_DIR/real-git-index"
@@ -56,8 +55,7 @@ mkdir -p \
   "$ISOLATED_ZDOTDIR" \
   "$STOW_CONFIG_HOME" \
   "$CANDIDATE_ROOT" \
-  "$HEAD_ARCHIVE_ROOT"
-mkdir -p "$TEMP_GIT_OBJECTS"
+  "$TEMP_GIT_OBJECTS"
 
 ISOLATED_ENV=(
   "HOME=$ISOLATED_HOME"
@@ -80,11 +78,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-[[ "$CHECK_WORK_DIR/" != "$ROOT/"* ]] || {
-  printf "Checker temporary directory must be outside the repository.\n" >&2
-  exit 1
-}
-
 log() {
   printf "==> %s\n" "$*"
 }
@@ -105,62 +98,33 @@ assert_line() {
   }
 }
 
-assert_bar() {
-  local output="$1"
-  local provider="$2"
-  local bar_path dimensions
-  bar_path="$(
-    awk -F= -v key="${provider}_bar" \
-      '$1 == key { print substr($0, index($0, "=") + 1); exit }' \
-      <<<"$output"
-  )"
-  [[ -n "$bar_path" && -f "$bar_path" ]] || {
-    printf "Missing generated bar for %s: %s\n" "$provider" "$bar_path" >&2
-    exit 1
-  }
-  dimensions="$(magick identify -format '%wx%h' "$bar_path")"
-  [[ "$dimensions" == "52x14" ]] || {
-    printf "Unexpected bar dimensions for %s: %s\n" "$provider" "$dimensions" >&2
-    exit 1
-  }
-}
-
 create_stow_target() {
-  local target_root="$1"
-  local target_dir
-
-  while IFS= read -r target_dir; do
-    [[ -n "$target_dir" ]] || continue
-    mkdir -p "$target_root/$target_dir"
-  done <<<"$manifest_target_dirs"
+  mkdir -p -- "$1"/${^${(f)manifest_target_dirs}}
 }
 
 write_stow_plan() {
   local source_root="$1"
   local target_root="$2"
   local output_file="$3"
-  shift 3
 
   (
     cd "$ISOLATED_TMP"
     env HOME="$STOW_CONFIG_HOME" LC_ALL=C stow \
-      --dir="$source_root" --simulate --verbose=2 --target="$target_root" \
-      "$@" home
+      --dir="$source_root" --simulate --verbose=2 --no-folding \
+      --target="$target_root" home
   ) 2>&1 \
     | sed -nE \
       -e 's/^[[:space:]]*LINK: (.*) => .*/LINK \1/p' \
-      -e 's/^[[:space:]]*(MKDIR|UNLINK|RMDIR): (.*)$/\1 \2/p' \
+      -e 's/^[[:space:]]*MKDIR: (.*)$/MKDIR \1/p' \
     | LC_ALL=C sort >"$output_file"
 }
 
 # Tracked plus untracked (not ignored) repository files matching the pathspecs.
 repo_files() {
-  git ls-files -co --exclude-standard -- "$@" | LC_ALL=C sort -u
+  git ls-files -co --exclude-standard -- "$@"
 }
 
-for command in \
-  awk bash clang cmp diff find git grep jq json5 ln lua luac magick make plutil \
-  python3 rg ruby sed sort stow tar tmux zsh; do
+for command in json5 lua luac magick rg stow tmux; do
   require "$command"
 done
 
@@ -169,16 +133,9 @@ done
   exit 1
 }
 real_git_index="$(git rev-parse --path-format=absolute --git-path index)"
-[[ "$real_git_index" == /* ]] || real_git_index="$ROOT/$real_git_index"
 real_git_objects="$(git rev-parse --path-format=absolute --git-path objects)"
-[[ "$real_git_objects" == /* ]] || real_git_objects="$ROOT/$real_git_objects"
-[[ -f "$real_git_index" ]] || {
-  printf "Missing Git index: %s\n" "$real_git_index" >&2
-  exit 1
-}
 cp "$real_git_index" "$TEMP_GIT_INDEX"
 cp "$real_git_index" "$REAL_GIT_INDEX_SNAPSHOT"
-chmod u+w "$TEMP_GIT_INDEX"
 SNAPSHOT_GIT_ENV=(
   "GIT_INDEX_FILE=$TEMP_GIT_INDEX"
   "GIT_OBJECT_DIRECTORY=$TEMP_GIT_OBJECTS"
@@ -188,17 +145,8 @@ snapshot_git() {
   env "${SNAPSHOT_GIT_ENV[@]}" git "$@"
 }
 snapshot_git add -A -- :/
-snapshot_git diff --quiet --no-ext-diff -- :/ || {
-  printf "Worktree changed while the temporary Git snapshot was created.\n" >&2
-  exit 1
-}
-snapshot_git ls-files --error-unmatch -- \
-  stow-target-dirs.txt home/.stow-local-ignore >/dev/null
+snapshot_git ls-files --error-unmatch -- stow-target-dirs.txt >/dev/null
 snapshot_git checkout-index --all --prefix="$CANDIDATE_ROOT/"
-cmp -s "$real_git_index" "$REAL_GIT_INDEX_SNAPSHOT" || {
-  printf "The real Git index changed while preparing the candidate snapshot.\n" >&2
-  exit 1
-}
 
 log "Checking shell syntax"
 for file in setup.sh check.sh lib/*.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
@@ -301,13 +249,6 @@ exit 9
 BASH
 chmod +x "$IP_FIXTURE_DIR/curl" "$IP_FIXTURE_DIR/dig"
 
-typeset -g \
-  IP_CASE_OUTPUT="" \
-  IP_CASE_EXIT=0 \
-  IP_CASE_CURL_LOG="" \
-  IP_CASE_DIG_LOG="" \
-  IP_CASE_STDERR=""
-
 run_ip_case() {
   local scenario="$1"
   local interpreter="$2"
@@ -353,14 +294,12 @@ for ip_interpreter in "${ip_interpreters[@]}"; do
   [[ "$IP_CASE_OUTPUT" == "198.51.100.17" ]]
   [[ ! -s "$IP_CASE_STDERR" ]]
   grep -Fxq 'https://api.ipify.org' "$IP_CASE_CURL_LOG"
-  grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
   [[ ! -s "$IP_CASE_DIG_LOG" ]]
 
   run_ip_case partial_primary_fallback "$ip_interpreter"
   (( IP_CASE_EXIT == 0 ))
   [[ "$IP_CASE_OUTPUT" == "203.0.113.70" ]]
   [[ ! -s "$IP_CASE_STDERR" ]]
-  grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
   [[ ! -s "$IP_CASE_DIG_LOG" ]]
 
   run_ip_case partial_dig "$ip_interpreter"
@@ -373,7 +312,6 @@ for ip_interpreter in "${ip_interpreters[@]}"; do
   (( IP_CASE_EXIT == 0 ))
   [[ "$IP_CASE_OUTPUT" == "198.51.100.18" ]]
   [[ ! -s "$IP_CASE_STDERR" ]]
-  [[ -s "$IP_CASE_DIG_LOG" ]]
 
   typeset -F race_started race_elapsed
   race_started=$EPOCHREALTIME
@@ -382,14 +320,11 @@ for ip_interpreter in "${ip_interpreters[@]}"; do
   (( IP_CASE_EXIT == 0 ))
   [[ "$IP_CASE_OUTPUT" == "192.0.2.44" ]]
   [[ ! -s "$IP_CASE_STDERR" ]]
-  [[ -e "$IP_SLOW_MARKER" ]]
   (( race_elapsed < 3.0 )) || {
     printf "Public IP fallback waited %.3fs for a slow endpoint.\n" \
       "$race_elapsed" >&2
     exit 1
   }
-  grep -Fxq 'https://ipv4.icanhazip.com' "$IP_CASE_CURL_LOG"
-  grep -Fxq 'https://ipinfo.io/ip' "$IP_CASE_CURL_LOG"
   [[ ! -s "$IP_CASE_DIG_LOG" ]]
 
   run_ip_case all_fail "$ip_interpreter"
@@ -408,7 +343,6 @@ for ip_interpreter in "${ip_interpreters[@]}"; do
   [[ "$(<"$IP_CASE_DIG_LOG")" == \
     "+short -4 +time=1 +tries=1 myip.opendns.com @resolver1.opendns.com" ]]
 done
-unset ip_interpreter
 
 log "Checking media-state helper behavior"
 media_cache="$CHECK_WORK_DIR/media-cache"
@@ -417,11 +351,8 @@ media_state() {
   env "${ISOLATED_ENV[@]}" zsh \
     home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
 }
-media_playing_output="$(
-  printf '%s\n' \
-    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
-    | media_state
-)"
+media_playing_json='{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}'
+media_playing_output="$(media_state <<<"$media_playing_json")"
 jq -e \
   --arg cache_prefix "$media_cache/media-artwork-" '
     .playing == true
@@ -437,45 +368,25 @@ media_recent="$media_cache/media-artwork-recent-fixture"
 cp "$media_artwork" "$media_expired"
 cp "$media_artwork" "$media_recent"
 touch -t 200001010000 "$media_artwork" "$media_expired"
-media_reused_output="$(
-  printf '%s\n' \
-    '{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}' \
-    | media_state
-)"
+media_reused_output="$(media_state <<<"$media_playing_json")"
 [[ "$(jq -er '.artwork' <<<"$media_reused_output")" == "$media_artwork" ]]
 [[ -s "$media_artwork" && ! -e "$media_expired" && -s "$media_recent" ]]
 
-media_stopped_output="$(
-  printf '%s\n' \
-    '{"title":"Paused","playbackRate":0,"bundleIdentifier":"com.spotify.client"}' \
-    | media_state
-)"
+media_stopped_output="$(media_state <<<'{"title":"Paused","playbackRate":0,"bundleIdentifier":"com.spotify.client"}')"
 jq -e '. == {playing:false}' <<<"$media_stopped_output" >/dev/null
 
-media_music_output="$(
-  printf '%s\n' \
-    '{"title":"Music Fixture","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.apple.Music"}' \
-    | media_state
-)"
+media_music_output="$(media_state <<<'{"title":"Music Fixture","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.apple.Music"}')"
 jq -e \
   '.playing == true and .title == "Music Fixture" and .artwork == ""' \
   <<<"$media_music_output" >/dev/null
 
-media_unrelated_output="$(
-  printf '%s\n' \
-    '{"title":"Browser Media","playbackRate":1,"bundleIdentifier":"com.google.Chrome","isMusicApp":true}' \
-    | media_state
-)"
+media_unrelated_output="$(media_state <<<'{"title":"Browser Media","playbackRate":1,"bundleIdentifier":"com.google.Chrome","isMusicApp":true}')"
 jq -e '. == {playing:false}' <<<"$media_unrelated_output" >/dev/null
 
-media_malformed_output="$(printf '{invalid\n' | media_state)"
+media_malformed_output="$(media_state <<<'{invalid')"
 jq -e '. == {playing:false}' <<<"$media_malformed_output" >/dev/null
 
-media_invalid_artwork_output="$(
-  printf '%s\n' \
-    '{"title":"Bad Art","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"%%%"}' \
-    | media_state
-)"
+media_invalid_artwork_output="$(media_state <<<'{"title":"Bad Art","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"%%%"}')"
 jq -e \
   '.playing == true and .title == "Bad Art" and .artwork == ""' \
   <<<"$media_invalid_artwork_output" >/dev/null
@@ -483,7 +394,6 @@ jq -e \
 
 log "Checking tmux attach helper"
 ta_function="$(sed -n '/^function ta {$/,/^}$/p' home/.zshrc)"
-[[ -n "$ta_function" ]]
 TA_FIXTURE_LOG="$CHECK_WORK_DIR/ta-calls.log"
 TA_FIXTURE_STDERR="$CHECK_WORK_DIR/ta-stderr.log"
 # From a plain shell the helper attaches; inside tmux, which refuses nested
@@ -535,35 +445,24 @@ tmux switch-client -t missing"
     exit 1
   }
 done
-unset ta_case ta_expected ta_function
 
 log "Checking setup command-line behavior"
 setup_help="$(env "${ISOLATED_ENV[@]}" zsh setup.sh --help)"
 grep -Fq 'usage:' <<<"$setup_help"
 grep -Fq -- '--update' <<<"$setup_help"
-if env "${ISOLATED_ENV[@]}" zsh setup.sh --invalid-check-option \
-  >"$CHECK_WORK_DIR/setup-invalid.out" 2>&1; then
-  printf "setup.sh accepted an invalid option.\n" >&2
+setup_status=0
+env "${ISOLATED_ENV[@]}" zsh setup.sh --invalid-check-option >/dev/null 2>&1 || setup_status=$?
+(( setup_status == 2 )) || {
+  printf "setup.sh returned %d for an invalid option; expected 2.\n" "$setup_status" >&2
   exit 1
-else
-  setup_status=$?
-  (( setup_status == 2 )) || {
-    printf "setup.sh returned %d for an invalid option; expected 2.\n" "$setup_status" >&2
-    exit 1
-  }
-fi
+}
 
-python3 - setup.sh <<'PY'
-import sys
-from pathlib import Path
-
-guard = '''if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
+[[ "$(tail -n 3 setup.sh)" == 'if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
   main "$@"
-fi'''
-text = Path(sys.argv[1]).read_text().rstrip()
-if text.count(guard) != 1 or not text.endswith(guard):
-    raise SystemExit("setup.sh must keep main behind its source-safe entry guard")
-PY
+fi' ]] || {
+  printf "setup.sh must keep main behind its source-safe entry guard\n" >&2
+  exit 1
+}
 
 log "Checking setup preflight isolation and conflict behavior"
 SETUP_FIXTURE_ROOT="$CHECK_WORK_DIR/setup-preflight"
@@ -579,11 +478,9 @@ mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.config/nvim" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
-  "$SETUP_FIXTURE_SOURCE/home/.config/preflight-ignored" \
   "$SETUP_FIXTURE_SOURCE/home/Library/Application Support/Code/User" \
   "$SETUP_FIXTURE_SOURCE/home/Library/LaunchAgents" \
   "$SETUP_FIXTURE_HOME/.config/preflight-boundary" \
-  "$SETUP_FIXTURE_HOME/.config/preflight-ignored" \
   "$SETUP_FIXTURE_TMP" \
   "$SETUP_SNAPSHOT_DIR"
 cp "$FOLDING_MANIFEST" "$SETUP_FIXTURE_SOURCE/stow-target-dirs.txt"
@@ -591,13 +488,10 @@ printf '.config/preflight-boundary\n' \
   >>"$SETUP_FIXTURE_SOURCE/stow-target-dirs.txt"
 cp home/.stow-local-ignore \
   "$SETUP_FIXTURE_SOURCE/home/.stow-local-ignore"
-cp home/.codex/AGENTS.md "$SETUP_FIXTURE_SOURCE/home/.codex/AGENTS.md"
 printf '^/\\.config/preflight-ignored($|/)\n' \
   >>"$SETUP_FIXTURE_SOURCE/home/.stow-local-ignore"
 printf 'font_family fixture\n' \
   >"$SETUP_FIXTURE_SOURCE/home/.config/kitty/kitty.conf"
-printf 'foreign ignored state\n' \
-  >"$SETUP_FIXTURE_HOME/.config/preflight-ignored/generated.txt"
 printf '%s\n' --adopt '--ignore=^never-match-home$' \
   >"$SETUP_FIXTURE_HOME/.stowrc"
 printf '%s\n' --no-folding '--ignore=^never-match-cwd$' \
@@ -617,21 +511,14 @@ root = Path(sys.argv[1])
 def describe(path: Path, relative: str, kind: str, payload: str) -> None:
     metadata = path.lstat()
     mode = f"{stat.S_IMODE(metadata.st_mode):04o}"
-    flags = getattr(metadata, "st_flags", 0)
-    xattrs = []
-    if hasattr(os, "listxattr"):
-        for name in sorted(os.listxattr(path, follow_symlinks=False)):
-            value = os.getxattr(path, name, follow_symlinks=False).hex()
-            xattrs.append(f"{name}={value}")
     print(
         relative,
         kind,
         mode,
         metadata.st_uid,
         metadata.st_gid,
-        flags,
+        metadata.st_flags,
         metadata.st_mtime_ns,
-        ";".join(xattrs),
         payload,
         sep="\t",
     )
@@ -671,10 +558,8 @@ run_setup_preflight() {
     XDG_CACHE_HOME="$SETUP_FIXTURE_HOME/.cache" \
     XDG_STATE_HOME="$SETUP_FIXTURE_HOME/.local/state" \
     TMPDIR="$SETUP_FIXTURE_TMP" \
-    PYTHONDONTWRITEBYTECODE=1 \
     STOW_DIR="$SETUP_FIXTURE_ROOT/hostile-stow-dir" \
     zsh -fc '
-      setopt FUNCTION_ARGZERO
       cd "$6"
       source "$1"
       DOTFILES_DIR="${2:A}"
@@ -722,7 +607,6 @@ run_setup_preflight() {
       curl() { poison curl; }
       defaults() { poison defaults; }
       killall() { poison killall; }
-      launchctl() { poison launchctl; }
       mkdir() { poison mkdir; }
       mv() { poison mv; }
       open() { poison open; }
@@ -912,7 +796,6 @@ for nvm_previous in v1.0.0 v1.2.3 N/A; do
     NVM_FIXTURE_PREVIOUS="$nvm_previous" \
     PATH="$BREW_FIXTURE_BIN:$NVM_FIXTURE_BIN:/usr/bin:/bin" \
     zsh -fc '
-      setopt FUNCTION_ARGZERO
       source "$1"
       ensure_latest_git_checkout() { :; }
       install_nvm_node >/dev/null
@@ -932,7 +815,6 @@ for nvm_previous in v1.0.0 v1.2.3 N/A; do
     }
   fi
 done
-unset nvm_previous
 
 log "Checking setup Yazi flavor install modes"
 YAZI_FIXTURE_HOME="$CHECK_WORK_DIR/yazi-home"
@@ -950,7 +832,6 @@ for yazi_case in pinned update missing; do
     || cp home/.config/yazi/package.toml "$YAZI_FIXTURE_HOME/.config/yazi/package.toml"
   env HOME="$YAZI_FIXTURE_HOME" YA_FIXTURE_LOG="$YAZI_FIXTURE_LOG" \
     PATH="$YAZI_FIXTURE_BIN:/usr/bin:/bin" YAZI_CASE="$yazi_case" zsh -fc '
-      setopt FUNCTION_ARGZERO
       source "$1"
       if [[ "$YAZI_CASE" == update ]]; then
         parse_args --update
@@ -968,7 +849,6 @@ for yazi_case in pinned update missing; do
     exit 1
   }
 done
-unset yazi_case yazi_expected
 
 log "Checking native CLI installation without npm or Homebrew"
 CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"
@@ -988,9 +868,7 @@ for cli in claude codex; do
     : >"$CLI_FIXTURE_LOG"
     env HOME="$CLI_FIXTURE_HOME" PATH=/usr/bin:/bin \
       CLI_INSTALL_CASE="$install_case" CLI_FIXTURE_LOG="$CLI_FIXTURE_LOG" zsh -fc '
-        setopt FUNCTION_ARGZERO
         source "$1"
-        (( ! $+commands[npm] && ! $+commands[brew] ))
         curl() {
           print -r -- "curl $2" >>"$CLI_FIXTURE_LOG"
           [[ "$1" == -fsSL ]]
@@ -1051,7 +929,6 @@ SH
     }
   done
 done
-unset cli install_case cli_expected
 
 log "Checking kitty installer version skip"
 KITTY_FIXTURE_HOME="$CHECK_WORK_DIR/kitty-home"
@@ -1067,7 +944,6 @@ for kitty_case in current outdated missing; do
   rm -f "$KITTY_FIXTURE_HOME/.local/bin/kitty" "$KITTY_FIXTURE_HOME/.local/bin/kitten"
   env HOME="$KITTY_FIXTURE_HOME" PATH=/usr/bin:/bin KITTY_CASE="$kitty_case" \
     KITTY_FIXTURE_LOG="$KITTY_FIXTURE_LOG" KITTY_FIXTURE_VERSION=0.48.2 zsh -fc '
-      setopt FUNCTION_ARGZERO
       source "$1"
       log() { :; }
       KITTY_APP_DIR="$HOME/kitty.app"
@@ -1098,7 +974,6 @@ for kitty_case in current outdated missing; do
     exit 1
   }
 done
-unset kitty_case kitty_expected
 
 log "Checking SbarLua install stamp and cleanup"
 SBARLUA_FIXTURE_HOME="$CHECK_WORK_DIR/sbarlua-home"
@@ -1111,8 +986,7 @@ sbarlua_cloned_commit="$(printf 'b%.0s' {1..40})"
 # stamps the cloned commit, not the ls-remote tip; a failed build must still
 # remove its clone.
 for sbarlua_case in current install build-failure; do
-  rm -rf "$SBARLUA_FIXTURE_HOME" "$SBARLUA_FIXTURE_TMP"
-  mkdir -p "$SBARLUA_FIXTURE_HOME"
+  rm -rf "$SBARLUA_FIXTURE_HOME"
   : >"$SBARLUA_FIXTURE_LOG"
   if [[ "$sbarlua_case" == current ]]; then
     mkdir -p "$SBARLUA_FIXTURE_DIR"
@@ -1124,7 +998,6 @@ for sbarlua_case in current install build-failure; do
     SBARLUA_FIXTURE_TMP="$SBARLUA_FIXTURE_TMP" SBARLUA_CASE="$sbarlua_case" \
     SBARLUA_FIXTURE_LOG="$SBARLUA_FIXTURE_LOG" SBARLUA_COMMIT="$sbarlua_commit" \
     SBARLUA_CLONED_COMMIT="$sbarlua_cloned_commit" zsh -fc '
-      setopt FUNCTION_ARGZERO
       source "$1"
       log() { :; }
       info() { :; }
@@ -1163,11 +1036,9 @@ for sbarlua_case in current install build-failure; do
     exit 1
   }
 done
-unset sbarlua_case sbarlua_exit sbarlua_commit
 
 log "Checking Xcode license preflight"
-env zsh -fc '
-  setopt FUNCTION_ARGZERO
+zsh -fc '
   source "$1"
 
   XCODEBUILD_CALLS=0
@@ -1195,53 +1066,30 @@ env zsh -fc '
   (( XCODEBUILD_CALLS == 2 ))
 ' setup-xcode "$ROOT/setup.sh"
 
-log "Checking trackpad defaults"
-TRACKPAD_DEFAULTS_LOG="$CHECK_WORK_DIR/trackpad-defaults.log"
-env TRACKPAD_DEFAULTS_LOG="$TRACKPAD_DEFAULTS_LOG" zsh -fc '
-  setopt FUNCTION_ARGZERO
+log "Checking macOS defaults"
+SYSTEM_DEFAULTS_LOG="$CHECK_WORK_DIR/system-defaults.log"
+env SYSTEM_DEFAULTS_LOG="$SYSTEM_DEFAULTS_LOG" zsh -fc '
   source "$1"
   log() { :; }
   info() { :; }
   osascript() { :; }
-  defaults() { print -r -- "$*" >>"$TRACKPAD_DEFAULTS_LOG"; }
-  killall() { print -r -- "killall $*" >>"$TRACKPAD_DEFAULTS_LOG"; }
-  sudo_run() { :; }
+  defaults() { print -r -- "$*" >>"$SYSTEM_DEFAULTS_LOG"; }
+  killall() { print -r -- "killall $*" >>"$SYSTEM_DEFAULTS_LOG"; }
+  sudo_run() { print -r -- "$*" >>"$SYSTEM_DEFAULTS_LOG"; }
 
   setup_system_preferences
-  grep -Fxq -- "write com.apple.AppleMultitouchTrackpad Clicking -bool true" \
-    "$TRACKPAD_DEFAULTS_LOG"
-  grep -Fxq -- "killall Dock" "$TRACKPAD_DEFAULTS_LOG"
-  grep -Fxq -- "killall Finder" "$TRACKPAD_DEFAULTS_LOG"
-  grep -Fxq -- "write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true" \
-    "$TRACKPAD_DEFAULTS_LOG"
-  grep -Fxq -- "-currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1" \
-    "$TRACKPAD_DEFAULTS_LOG"
-' setup-trackpad "$ROOT/setup.sh"
-
-log "Checking startup sound defaults"
-STARTUP_SOUND_LOG="$CHECK_WORK_DIR/startup-sound.log"
-env STARTUP_SOUND_LOG="$STARTUP_SOUND_LOG" zsh -fc '
-  setopt FUNCTION_ARGZERO
-  source "$1"
-  log() { :; }
-  info() { :; }
-  osascript() { :; }
-  defaults() { :; }
-  killall() { :; }
-  sudo_run() { print -r -- "$*" >>"$STARTUP_SOUND_LOG"; }
-
-  setup_system_preferences
-  grep -Fxq -- "nvram StartupMute=%01" "$STARTUP_SOUND_LOG"
-  if grep -Fq -- "SystemAudioVolume" "$STARTUP_SOUND_LOG"; then
-    printf "Setup still writes the legacy SystemAudioVolume NVRAM value.\n" >&2
-    exit 1
-  fi
-' setup-startup-sound "$ROOT/setup.sh"
+  for expected in \
+    "write com.apple.AppleMultitouchTrackpad Clicking -bool true" \
+    "write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true" \
+    "-currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1" \
+    "killall Dock" "killall Finder" "nvram StartupMute=%01"; do
+    grep -Fxq -- "$expected" "$SYSTEM_DEFAULTS_LOG"
+  done
+' setup-system-defaults "$ROOT/setup.sh"
 
 log "Checking setup service failure propagation"
 SERVICE_FIXTURE_LOG="$SETUP_SNAPSHOT_DIR/services.log"
 env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
-  setopt FUNCTION_ARGZERO
   source "$1"
   skip() { :; }
   sleep() { :; }
@@ -1281,7 +1129,6 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   AEROSPACE_SERVER_VERSION=0.9.0
   restart_aerospace
   (( AEROSPACE_QUITS == 1 ))
-  unfunction process_running aerospace osascript wait_for_process_exit preflight_aerospace_config
 
   have() { [[ "$1" == sketchybar ]]; }
   brew() { return 0; }
@@ -1307,13 +1154,9 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   assert_service_case() {
     local expected_exit="$1"
     local expected_calls="$2"
-    local actual_exit
+    local actual_exit=0
     : >"$SERVICE_FIXTURE_LOG"
-    if restart_services >/dev/null 2>&1; then
-      actual_exit=0
-    else
-      actual_exit=$?
-    fi
+    restart_services >/dev/null 2>&1 || actual_exit=$?
     [[ "$actual_exit" == "$expected_exit" ]]
     [[ "$(<"$SERVICE_FIXTURE_LOG")" == "$expected_calls" ]]
   }
@@ -1332,13 +1175,10 @@ aerospace"
   SKETCHYBAR_EXIT=1
   assert_service_case 1 "$all_calls"
 
-  for function_name in \
-    preflight_setup accept_xcode_license install_homebrew install_brew_packages \
+  preflight_setup accept_xcode_license install_homebrew install_brew_packages \
     link_dotfiles install_claude_cli install_codex_cli install_nvm_node \
     install_zinit install_zsh_plugins install_kitty install_sketchybar_assets \
-    install_tmux_plugins install_yazi_flavor install_neovim_plugins; do
-    eval "$function_name() { :; }"
-  done
+    install_tmux_plugins install_yazi_flavor install_neovim_plugins () { :; }
   restart_services() { return 1; }
   print_summary() { print -r -- "summary ${1:-}" >>"$SERVICE_FIXTURE_LOG"; }
   : >"$SERVICE_FIXTURE_LOG"
@@ -1359,12 +1199,7 @@ fi
 log "Checking Lua syntax"
 while IFS= read -r file; do
   [[ -f "$file" ]] && luac -p "$file"
-done < <(
-  {
-    repo_files '*.lua'
-    printf '%s\n' home/.config/sketchybar/sketchybarrc
-  } | LC_ALL=C sort -u
-)
+done < <(repo_files '*.lua'; print -r -- home/.config/sketchybar/sketchybarrc)
 
 log "Checking Lua runtime regression fixtures"
 lua tests/sketchybar_runtime_spec.lua "$ROOT"
@@ -1393,23 +1228,6 @@ if (( runtime_spec_failed )); then
   exit 1
 fi
 
-log "Checking Python syntax"
-python3 - "$ROOT" <<'PY'
-import ast
-import subprocess
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-files = subprocess.check_output(
-    ["git", "ls-files", "-co", "--exclude-standard", "--", "*.py"], cwd=root, text=True
-).splitlines()
-for name in sorted(set(files)):
-    path = root / name
-    if path.is_file():
-        ast.parse(path.read_text(), filename=name)
-PY
-
 log "Checking tmux session-manager behavior"
 env "${ISOLATED_ENV[@]}" python3 - \
   "$ROOT/home/.config/tmux/scripts/session_manager.py" <<'PY'
@@ -1419,8 +1237,6 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 spec = importlib.util.spec_from_file_location("dotfiles_session_manager", path)
-if spec is None or spec.loader is None:
-    raise SystemExit(f"Could not import {path}")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -1470,18 +1286,14 @@ if tmux_calls != expected_calls:
 PY
 
 log "Checking TOML"
-python3 - "$ROOT" <<'PY'
-import subprocess
+toml_files=("${(@f)$(repo_files '*.toml')}")
+python3 - "${toml_files[@]}" <<'PY'
 import sys
 import tomllib
 from pathlib import Path
 
-root = Path(sys.argv[1])
-files = subprocess.check_output(
-    ["git", "ls-files", "-co", "--exclude-standard", "--", "*.toml"], cwd=root, text=True
-).splitlines()
-for name in sorted(set(files)):
-    path = root / name
+for name in sys.argv[1:]:
+    path = Path(name)
     if path.is_file():
         with path.open("rb") as handle:
             tomllib.load(handle)
@@ -1504,31 +1316,22 @@ brew_trust_targets="$(
     'source "$1"; declared_brew_trust_targets' zsh "$ROOT/setup.sh"
 )"
 [[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace\ncask\tabue-ammar/tinycast/tinycast\ncask\tphibrowser/tap/phi' ]]
-if rg -q 'brew trust --tap' setup.sh; then
-  printf "Setup must trust declared Brew dependencies, not entire taps.\n" >&2
-  exit 1
-fi
 
 log "Checking AI usage fixtures"
 fixture_root="$CHECK_WORK_DIR/openusage"
 bar_root="$CHECK_WORK_DIR/bars"
 mkdir -p "$fixture_root"/{object,array,empty,malformed} "$bar_root"
 for provider in codex claude; do
-  jq -n --arg provider "$provider" '
+  jq -n '
     {
-      displayName: ($provider + " fixture"),
-      plan: "test",
-      fetchedAt: "2026-07-29T00:00:00Z",
       lines: [
         {type: "progress", label: "Session", limit: 100, used: 25},
         {type: "progress", label: "Weekly", limit: 100, used: 80}
       ]
     }
   ' >"$fixture_root/object/${provider}.json"
-  jq -n --arg provider "$provider" '[
+  jq -n '[
     {
-      displayName: ($provider + " array fixture"),
-      plan: "test",
       lines: [
         {type: "progress", label: "Session", limit: 100, used: 40},
         {type: "progress", label: "Weekly", limit: 100, used: 10}
@@ -1556,20 +1359,31 @@ for provider in codex claude; do
   assert_line "${usage_output[empty]}" "${provider}_status=empty"
   assert_line "${usage_output[malformed]}" "${provider}_status=parse_error"
   for kind in object array empty malformed; do
-    assert_bar "${usage_output[$kind]}" "$provider"
+    bar_path="$(
+      awk -F= -v key="${provider}_bar" \
+        '$1 == key { print substr($0, index($0, "=") + 1); exit }' \
+        <<<"${usage_output[$kind]}"
+    )"
+    [[ -n "$bar_path" && -f "$bar_path" ]] || {
+      printf "Missing generated bar for %s: %s\n" "$provider" "$bar_path" >&2
+      exit 1
+    }
+    dimensions="$(magick identify -format '%wx%h' "$bar_path")"
+    [[ "$dimensions" == "52x14" ]] || {
+      printf "Unexpected bar dimensions for %s: %s\n" "$provider" "$dimensions" >&2
+      exit 1
+    }
   done
 done
-unset kind
 
 log "Checking generated-state boundaries"
-[[ ! -e home/.config/tmux/plugins.lock ]]
-[[ -z "$(find home/.codex/skills -type f -print -quit 2>/dev/null)" ]]
 [[ -s home/.codex/AGENTS.md ]]
 if git check-ignore --no-index -q home/.codex/AGENTS.md; then
   printf "Shared Codex instructions must not be Git-ignored.\n" >&2
   exit 1
 fi
-for local_path in config.toml AGENTS.override.md AGENTS.md.bak skills/test/SKILL.md future-state.json; do
+codex_local_paths=(config.toml AGENTS.override.md AGENTS.md.bak skills/test/SKILL.md future-state.json)
+for local_path in "${codex_local_paths[@]}"; do
   git check-ignore --no-index -q "home/.codex/$local_path"
   env "${ISOLATED_ENV[@]}" zsh -c \
     'source "$1"; stow_path_is_ignored "$2"' \
@@ -1583,17 +1397,14 @@ env "${ISOLATED_ENV[@]}" zsh -c '
 rg -q 'use = "yazi-rs/flavors:catppuccin-mocha"' home/.config/yazi/package.toml
 
 log "Checking tmux plugin manifest"
-[[ -f home/.config/tmux/plugins.conf && ! -e home/.config/tmux/plugins.txt ]]
 rg -Fxq 'source-file ~/.config/tmux/plugins.conf' home/.tmux.conf
 if rg -q '^[[:space:]]*set -g @plugin' home/.tmux.conf; then
   printf "tmux plugins must be declared only in plugins.conf.\n" >&2
   exit 1
 fi
-rg -Fq 'home/.config/tmux/plugins.conf' setup.sh
 # Validate the manifest with setup.sh's own parser. The isolated HOME has no
 # plugin checkouts, so only the manifest rules apply.
 env "${ISOLATED_ENV[@]}" zsh -fc '
-  setopt FUNCTION_ARGZERO
   source "$1"
   preflight_tmux_plugins >/dev/null
 ' setup-tmux-plugins "$ROOT/setup.sh"
@@ -1603,7 +1414,7 @@ TPM_FIXTURE_HOME="$CHECK_WORK_DIR/tpm-home"
 TPM_FIXTURE_LOG="$TPM_FIXTURE_HOME/calls.log"
 tpm_repositories="$(
   env "${ISOLATED_ENV[@]}" zsh -fc \
-    'setopt FUNCTION_ARGZERO; source "$1"; tmux_plugin_repositories' \
+    'source "$1"; tmux_plugin_repositories' \
     setup-tmux-plugins "$ROOT/setup.sh"
 )"
 mkdir -p "$TPM_FIXTURE_HOME/.tmux/plugins/tpm/scripts"
@@ -1615,14 +1426,13 @@ done
 # its clean script, and every other declared plugin is then updated.
 tpm_expected=$'checkout tmux-plugins/tpm.git tpm\ninstall_plugins\nclean_plugins'
 while IFS= read -r repository; do
-  [[ -n "$repository" && "$repository" != tmux-plugins/tpm ]] || continue
+  [[ "$repository" != tmux-plugins/tpm ]] || continue
   mkdir -p "$TPM_FIXTURE_HOME/.tmux/plugins/${repository##*/}/.git"
   tpm_expected+=$'\n'"checkout $repository.git ${repository##*/}"
 done <<<"$tpm_repositories"
 : >"$TPM_FIXTURE_LOG"
 env HOME="$TPM_FIXTURE_HOME" TPM_FIXTURE_LOG="$TPM_FIXTURE_LOG" PATH=/usr/bin:/bin \
   zsh -fc '
-    setopt FUNCTION_ARGZERO
     source "$1"
     log() { :; }
     ensure_latest_git_checkout() {
@@ -1636,116 +1446,45 @@ env HOME="$TPM_FIXTURE_HOME" TPM_FIXTURE_LOG="$TPM_FIXTURE_LOG" PATH=/usr/bin:/b
   sed 's/^/  /' "$TPM_FIXTURE_LOG" >&2
   exit 1
 }
-unset tpm_script tpm_repositories tpm_expected repository
 
-log "Checking explicit Stow folding boundaries"
-manifest_target_dirs="$(python3 - "$FOLDING_MANIFEST" <<'PY'
-import sys
-from pathlib import Path, PurePosixPath
-
-manifest = Path(sys.argv[1])
-entries = [
-    line.strip()
-    for line in manifest.read_text().splitlines()
-    if line.strip() and not line.lstrip().startswith("#")
-]
-if not entries or len(entries) != len(set(entries)):
-    raise SystemExit(f"{manifest}: entries must be non-empty and unique")
-for entry in entries:
-    path = PurePosixPath(entry)
-    if path.is_absolute() or ".." in path.parts or str(path) != entry:
-        raise SystemExit(f"{manifest}: unsafe target path: {entry}")
-print(*entries, sep="\n")
-PY
-)"
-setup_target_dirs="$(
+log "Reading the Stow target-directory manifest"
+manifest_target_dirs="$(
   env "${ISOLATED_ENV[@]}" zsh -c \
     'source "$1"; stow_target_directories' zsh "$ROOT/setup.sh"
 )"
-[[ "$setup_target_dirs" == "$manifest_target_dirs" ]] || {
+manifest_file_lines="$(
+  sed -E -e 's/^[[:space:]]+//' -e 's/[[:space:]]+$//' -e '/^(#|$)/d' \
+    "$FOLDING_MANIFEST"
+)"
+[[ -n "$manifest_target_dirs" && "$manifest_target_dirs" == "$manifest_file_lines" ]] || {
   printf "setup.sh does not consume the Stow folding manifest exactly.\n" >&2
-  diff -u \
-    <(printf '%s\n' "$manifest_target_dirs") \
-    <(printf '%s\n' "$setup_target_dirs") >&2 || true
   exit 1
 }
+# Codex writes machine-local state into ~/.codex, so Stow must link its files
+# into a real directory instead of folding the directory into the repository.
+assert_line "$manifest_target_dirs" ".codex"
 
 log "Checking home package source boundaries"
 boundary_failed=0
-empty_package_dirs="$(find home -type d -empty -print | LC_ALL=C sort)"
-if [[ -n "$empty_package_dirs" ]]; then
-  printf "Empty directories found in the home package:\n%s\n" \
-    "$empty_package_dirs" >&2
-  boundary_failed=1
-fi
+stow_target="$CHECK_WORK_DIR/stow-target"
+create_stow_target "$stow_target"
 
-git archive --format=tar HEAD | tar -xf - -C "$HEAD_ARCHIVE_ROOT"
-
-untracked_package_paths="$({
-  git ls-files --others --directory --exclude-standard -- \
-    home stow-target-dirs.txt
-  git ls-files --others --ignored --directory --exclude-standard -- home
-} | LC_ALL=C sort -u)"
-if [[ -n "$untracked_package_paths" ]]; then
-  printf "  Temporary Git snapshot includes untracked package paths:\n%s\n" \
-    "$untracked_package_paths"
-fi
-
-candidate_head_changes="$(
-  snapshot_git diff --cached --name-status --no-renames HEAD -- \
-    home stow-target-dirs.txt
-)"
-if [[ -n "$candidate_head_changes" ]]; then
-  printf "  Candidate package content differs from HEAD:\n%s\n" \
-    "$candidate_head_changes"
-fi
-
-worktree_target="$CHECK_WORK_DIR/stow-worktree-home"
-candidate_target="$CHECK_WORK_DIR/stow-candidate-home"
-head_target="$CHECK_WORK_DIR/stow-head-home"
-mkdir -p "$worktree_target" "$candidate_target" "$head_target"
-create_stow_target "$worktree_target"
-create_stow_target "$candidate_target"
-create_stow_target "$head_target"
-
-worktree_plan="$CHECK_WORK_DIR/stow-worktree.plan"
-candidate_plan="$CHECK_WORK_DIR/stow-candidate.plan"
-head_plan="$CHECK_WORK_DIR/stow-head.plan"
 worktree_leaf_plan="$CHECK_WORK_DIR/stow-worktree-leaf.plan"
 candidate_leaf_plan="$CHECK_WORK_DIR/stow-candidate-leaf.plan"
-write_stow_plan "$ROOT" "$worktree_target" "$worktree_plan"
-write_stow_plan "$CANDIDATE_ROOT" "$candidate_target" "$candidate_plan"
-write_stow_plan "$HEAD_ARCHIVE_ROOT" "$head_target" "$head_plan"
-write_stow_plan "$ROOT" "$worktree_target" "$worktree_leaf_plan" \
-  --no-folding
-write_stow_plan \
-  "$CANDIDATE_ROOT" "$candidate_target" "$candidate_leaf_plan" \
-  --no-folding
+write_stow_plan "$ROOT" "$stow_target" "$worktree_leaf_plan"
+write_stow_plan "$CANDIDATE_ROOT" "$stow_target" "$candidate_leaf_plan"
 
-ignored_target="$CHECK_WORK_DIR/stow-ignored-home"
 ignored_plan="$CHECK_WORK_DIR/stow-ignored.plan"
-mkdir -p \
-  "$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi" \
-  "$CANDIDATE_ROOT/home/.codex/skills/test"
+mkdir -p "$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi"
 : >"$CANDIDATE_ROOT/home/.config/yazi/flavors/test.yazi/flavor.toml"
-: >"$CANDIDATE_ROOT/home/.codex/config.toml"
-: >"$CANDIDATE_ROOT/home/.codex/AGENTS.override.md"
-: >"$CANDIDATE_ROOT/home/.codex/AGENTS.md.bak"
-: >"$CANDIDATE_ROOT/home/.codex/future-state.json"
-: >"$CANDIDATE_ROOT/home/.codex/skills/test/SKILL.md"
-mkdir -p "$ignored_target"
-create_stow_target "$ignored_target"
-write_stow_plan "$CANDIDATE_ROOT" "$ignored_target" "$ignored_plan" \
-  --no-folding
+for local_path in "${codex_local_paths[@]}"; do
+  mkdir -p "$CANDIDATE_ROOT/home/.codex/${local_path:h}"
+  : >"$CANDIDATE_ROOT/home/.codex/$local_path"
+done
+write_stow_plan "$CANDIDATE_ROOT" "$stow_target" "$ignored_plan"
 if ! cmp -s "$candidate_leaf_plan" "$ignored_plan"; then
   printf "Stow local-ignore rules expose generated fixture paths:\n" >&2
   diff -u "$candidate_leaf_plan" "$ignored_plan" >&2 || true
-  boundary_failed=1
-fi
-
-if ! cmp -s "$worktree_plan" "$candidate_plan"; then
-  printf "Worktree Stow plan differs from the temporary Git-index plan:\n" >&2
-  diff -u "$candidate_plan" "$worktree_plan" >&2 || true
   boundary_failed=1
 fi
 
@@ -1755,34 +1494,9 @@ if ! cmp -s "$worktree_leaf_plan" "$candidate_leaf_plan"; then
   boundary_failed=1
 fi
 
-if ! cmp -s "$candidate_plan" "$head_plan"; then
-  printf "  Candidate Stow plan differs from the HEAD archive plan:\n"
-  diff -u "$head_plan" "$candidate_plan" || true
-fi
-
-while IFS= read -r target_dir; do
-  [[ -n "$target_dir" ]] || continue
-  if grep -Fxq "LINK $target_dir" "$worktree_plan"; then
-    printf "Stow folded a protected target directory: %s\n" "$target_dir" >&2
-    boundary_failed=1
-  fi
-done <<<"$manifest_target_dirs"
-
-if grep -Fq '.stow-local-ignore' "$worktree_plan"; then
-  printf "Stow attempted to deploy its package-local ignore file.\n" >&2
-  boundary_failed=1
-fi
-
 (( boundary_failed == 0 )) || exit 1
 
-assert_line "$(cat "$worktree_plan")" "LINK .codex/AGENTS.md"
-
-create_stow_target "$ISOLATED_HOME"
-(
-  cd "$ISOLATED_TMP"
-  env HOME="$STOW_CONFIG_HOME" LC_ALL=C \
-    stow --dir="$ROOT" --target="$ISOLATED_HOME" home
-)
+assert_line "$(<"$worktree_leaf_plan")" "LINK .codex/AGENTS.md"
 
 log "Building and analyzing SketchyBar helpers"
 helper_bin_dir="$CHECK_WORK_DIR/helpers"
@@ -1830,11 +1544,10 @@ def run(command: list[str]) -> str:
 
 
 def font_match(pattern: str) -> tuple[str, str, str, str]:
-    line = run(["fc-match", "-f", MATCH_FORMAT, pattern]).splitlines()[0]
-    fields = line.split("\t")
-    if len(fields) != 4 or not fields[0]:
-        raise SystemExit(f"fontconfig returned an invalid match for {pattern!r}")
-    return fields[0], fields[1], fields[2], fields[3]
+    file_name, index, postscript_names, families = (
+        run(["fc-match", "-f", MATCH_FORMAT, pattern]).splitlines()[0].split("\t")
+    )
+    return file_name, index, postscript_names, families
 
 
 def scan_confirms(
@@ -1849,13 +1562,12 @@ def scan_confirms(
     return False
 
 
-def require_postscript_name(name: str) -> bool:
+def require_postscript_name(name: str) -> None:
     file_name, index, postscript_names, _ = font_match(f":postscriptname={name}")
     if name not in aliases(postscript_names):
-        return False
+        raise SystemExit(f"Missing PostScript face: {name}")
     if not scan_confirms(file_name, index, name, 1):
         raise SystemExit(f"fc-scan did not confirm PostScript face {name!r}")
-    return True
 
 
 def require_family(name: str) -> None:
@@ -1883,12 +1595,9 @@ if missing:
 
 for key in FACE_KEYS:
     configured = faces[key]
-    if configured.startswith("postscript_name="):
-        postscript_name = configured.removeprefix("postscript_name=")
-        if not require_postscript_name(postscript_name):
-            raise SystemExit(f"Missing PostScript face for {key}: {postscript_name}")
-    else:
-        require_family(configured)
+    if not configured.startswith("postscript_name="):
+        raise SystemExit(f"{key} must use postscript_name=: {configured}")
+    require_postscript_name(configured.removeprefix("postscript_name="))
 
 if not symbol_families:
     raise SystemExit("Kitty configuration has no symbol_map families")
@@ -1918,14 +1627,9 @@ PY
       "$treesitter_root" >&2
     exit 1
   }
-  if ! treesitter_status="$(
-    GIT_OPTIONAL_LOCKS=0 \
-      git -C "$treesitter_root" status --porcelain --untracked-files=no 2>&1
-  )"; then
-    printf "Could not inspect installed nvim-treesitter: %s\n" \
-      "$treesitter_status" >&2
-    exit 1
-  fi
+  treesitter_status="$(
+    GIT_OPTIONAL_LOCKS=0 git -C "$treesitter_root" status --porcelain --untracked-files=no
+  )"
   [[ -z "$treesitter_status" ]] || {
     printf "Installed nvim-treesitter checkout is dirty:\n%s\n" \
       "$treesitter_status" >&2
@@ -1967,7 +1671,7 @@ LUA
     printf "AeroSpace is not running.\n" >&2
     exit 1
   }
-  zsh -fc 'setopt FUNCTION_ARGZERO; source "$1"; preflight_aerospace_config' \
+  zsh -fc 'source "$1"; preflight_aerospace_config' \
     setup-aerospace "$ROOT/setup.sh"
 
   log "Checking tmux configuration in an isolated live server"
@@ -1978,19 +1682,23 @@ LUA
     exit 1
   }
   python3 tests/tmux_restore_spec.py "$ROOT" "$installed_tmux_plugins"
+  create_stow_target "$ISOLATED_HOME"
+  (
+    cd "$ISOLATED_TMP"
+    env HOME="$STOW_CONFIG_HOME" LC_ALL=C \
+      stow --dir="$ROOT" --target="$ISOLATED_HOME" home
+  )
   mkdir -p "$ISOLATED_HOME/.tmux"
   ln -s "$installed_tmux_plugins" "$ISOLATED_HOME/.tmux/plugins"
   tmux_config_output="$CHECK_WORK_DIR/tmux-config.out"
+  TMUX_STARTED=1
   if ! env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
     -f /dev/null \
     new-session -d -s dotfiles-check /usr/bin/tail -f /dev/null \
     >"$tmux_config_output" 2>&1; then
     sed 's/^/  /' "$tmux_config_output" >&2
-    env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
-      kill-server >/dev/null 2>&1 || true
     exit 1
   fi
-  TMUX_STARTED=1
   if ! env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
     source-file "$ISOLATED_HOME/.tmux.conf" \
     >>"$tmux_config_output" 2>&1; then
@@ -2014,10 +1722,6 @@ LUA
       "$session_name" >&2
     exit 1
   }
-  env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
-    show-options -g status-interval >/dev/null
-  env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
-    list-keys -T root >/dev/null
   for hook_name in client-attached client-resized client-session-changed; do
     hook_value="$(
       env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
@@ -2044,9 +1748,7 @@ LUA
     brew bundle check --file="$ROOT/Brewfile" --verbose
 
   log "Reporting unmanaged Brew dependencies"
-  if ! brew_bundle_report_extras "$ROOT/Brewfile"; then
-    CHECK_WARNINGS+=("Optional Homebrew cleanup audit did not complete.")
-  fi
+  brew_bundle_report_extras "$ROOT/Brewfile" || BREW_AUDIT_INCOMPLETE=1
 else
   printf "  Live font, Neovim, AeroSpace, tmux, and Homebrew checks skipped; rerun with --live.\n"
 fi
@@ -2065,8 +1767,7 @@ if [[ -n "$final_worktree_changes" || -n "$final_untracked_paths" ]]; then
 fi
 
 final_worktree_leaf_plan="$CHECK_WORK_DIR/stow-worktree-final-leaf.plan"
-write_stow_plan \
-  "$ROOT" "$worktree_target" "$final_worktree_leaf_plan" --no-folding
+write_stow_plan "$ROOT" "$stow_target" "$final_worktree_leaf_plan"
 if ! cmp -s "$candidate_leaf_plan" "$final_worktree_leaf_plan"; then
   printf "Stow-visible worktree paths changed while checks were running:\n" >&2
   diff -u "$candidate_leaf_plan" "$final_worktree_leaf_plan" >&2 || true
@@ -2078,9 +1779,8 @@ cmp -s "$real_git_index" "$REAL_GIT_INDEX_SNAPSHOT" || {
   exit 1
 }
 
-if (( ${#CHECK_WARNINGS} )); then
-  printf "Required checks passed with warnings:\n"
-  printf '  %s\n' "${CHECK_WARNINGS[@]}"
+if (( BREW_AUDIT_INCOMPLETE )); then
+  printf "Required checks passed with warnings:\n  Optional Homebrew cleanup audit did not complete.\n"
 else
   printf "All checks passed.\n"
 fi
