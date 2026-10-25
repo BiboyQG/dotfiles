@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 LOCK_NAME = "dotfiles-session-manager"
@@ -16,16 +16,10 @@ RESTORING_OPTION = "@dotfiles-session-restoring"
 
 
 def run_tmux(args: List[str], check: bool = True, capture: bool = False) -> str:
-    kwargs = {
-        "check": check,
-    }
-    if capture:
-        kwargs["stdout"] = subprocess.PIPE
-        kwargs["text"] = True
-    result = subprocess.run(["tmux", *args], **kwargs)
-    if capture:
-        return result.stdout.rstrip("\n")
-    return ""
+    result = subprocess.run(
+        ["tmux", *args], check=check, stdout=subprocess.PIPE if capture else None, text=True
+    )
+    return result.stdout.rstrip("\n") if capture else ""
 
 
 def list_sessions() -> List[Dict[str, object]]:
@@ -69,14 +63,12 @@ def refresh_clients() -> None:
         ["list-clients", "-F", "#{client_name}"], check=False, capture=True
     )
     for client in output.splitlines():
-        if client:
-            run_tmux(["refresh-client", "-S", "-t", client], check=False)
+        run_tmux(["refresh-client", "-S", "-t", client], check=False)
 
 
 def sanitize_label(label: str) -> str:
     if re.search(r"[\x00-\x1f\x7f]", label):
         raise ValueError("session labels cannot contain ASCII control characters")
-    label.encode("utf-8")
     stripped = label.strip()
     return stripped or "session"
 
@@ -96,14 +88,14 @@ def numbering_suspended() -> bool:
     )
 
 
-def rename_session(session_id: object, name: str) -> bool:
+def rename_session(session_id: str, name: str) -> bool:
     # The session may have been killed between listing and renaming.
     try:
         # tmux expands this argument as a format, even when passed without a shell.
-        run_tmux(["rename-session", "-t", str(session_id), name.replace("#", "##")])
+        run_tmux(["rename-session", "-t", session_id, name.replace("#", "##")])
     except subprocess.CalledProcessError:
         live_ids = run_tmux(["list-sessions", "-F", "#{session_id}"], capture=True)
-        if str(session_id) in live_ids.split("\n"):
+        if session_id in live_ids.split("\n"):
             raise
         return False
     return True
@@ -112,7 +104,7 @@ def rename_session(session_id: object, name: str) -> bool:
 def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
     planned_names = []
     for position, session in enumerate(ordered_sessions, start=1):
-        label = sanitize_label(str(session["label"]))
+        label = sanitize_label(session["label"])
         planned_names.append((session, f"{position}-{label}"))
 
     # Planned names are unique per position, so a session that already has its
@@ -126,7 +118,7 @@ def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
     changed_sessions = []
     try:
         for session, _ in changing:
-            session_id = str(session["id"]).lstrip("$")
+            session_id = session["id"].lstrip("$")
             temporary_name = f"{prefix}{session_id}"
             if rename_session(session["id"], temporary_name):
                 changed_sessions.append((session, temporary_name))
@@ -136,7 +128,7 @@ def apply_order(ordered_sessions: List[Dict[str, object]]) -> None:
         # Vacate final names before restoring originals, which may overlap them.
         for restore_originals in (False, True):
             for session, temporary_name in changed_sessions:
-                name = str(session["name"]) if restore_originals else temporary_name
+                name = session["name"] if restore_originals else temporary_name
                 try:
                     rename_session(session["id"], name)
                 except subprocess.CalledProcessError as error:
@@ -171,9 +163,7 @@ def command_rename(label: str, session_id: str) -> None:
 def command_ensure() -> None:
     if numbering_suspended():
         return
-    sessions = list_sessions()
-    if sessions:
-        apply_order(sessions)
+    apply_order(list_sessions())
     refresh_clients()
 
 
@@ -209,46 +199,37 @@ def command_restore_end() -> None:
 
 
 def command_move_window_to_session(
-    index_str: str, session_id: str, window_id: str, client: Optional[str] = None
+    index: int, session_id: str, window_id: str, client: str
 ) -> None:
-    try:
-        index = int(index_str)
-    except ValueError:
-        return
-    if index < 1:
-        return
     sessions = list_sessions()
     if index > len(sessions):
         return
     target_session_id = sessions[index - 1]["id"]
     # Switch first: moving a session's only window destroys that session, and
     # detach-on-destroy would then detach the client before it could switch.
-    if client:
-        run_tmux(["switch-client", "-c", client, "-t", target_session_id], check=False)
-    else:
-        run_tmux(["switch-client", "-t", target_session_id], check=False)
+    run_tmux(["switch-client", "-c", client, "-t", target_session_id], check=False)
     if target_session_id != session_id:
         # A vanished window must fail here instead of falling back to another one.
         run_tmux(["move-window", "-s", window_id, "-t", f"{target_session_id}:"])
 
 
-def main(argv: List[str]) -> None:
+def main() -> None:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
     rename = commands.add_parser("rename")
     rename.add_argument("label")
     rename.add_argument("--session", required=True)
     move = commands.add_parser("move-window-to")
-    move.add_argument("index")
+    move.add_argument("index", type=int, choices=range(1, 11))
     move.add_argument("--session", required=True)
     move.add_argument("--window", required=True)
-    move.add_argument("--client")
+    move.add_argument("--client", required=True)
     for command in (
-        "ensure", "list", "startup-prepare", "startup-claim",
+        "ensure", "startup-prepare", "startup-claim",
         "startup-finish", "restore-begin", "restore-end",
     ):
         commands.add_parser(command)
-    args = parser.parse_args(argv[1:])
+    args = parser.parse_args()
     for option, pattern in (("session", r"\$\d+"), ("window", r"@\d+")):
         value = getattr(args, option, None)
         if value is not None and not re.fullmatch(pattern, value):
@@ -271,14 +252,11 @@ def main(argv: List[str]) -> None:
             command_restore_end()
         elif args.command == "move-window-to":
             command_move_window_to_session(args.index, args.session, args.window, args.client)
-        elif args.command == "list":
-            for session in list_sessions():
-                print(f"{session['id']}::{session['name']}")
 
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        main()
     except (ValueError, subprocess.CalledProcessError) as error:
         print(f"session_manager: {error}", file=sys.stderr)
         sys.exit(1)

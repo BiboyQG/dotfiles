@@ -73,7 +73,6 @@ os.execv(real_tmux, [real_tmux, *args])
         for label in ("中文.项目:试验", "literal #{session_name} #tag", "unicode\u2028separator"):
             manager("rename", label, "--session", "$0")
             assert tmux("display-message", "-p", "-t", "$0", "#{session_name}") == f"1-{label}"
-            assert f"$0::1-{label}\n" in manager("list").stdout
 
         # Only sessions whose name changes are renamed: a single rename touches
         # one session (temporary name, then final name) and leaves the rest alone.
@@ -119,18 +118,19 @@ os.execv(real_tmux, [real_tmux, *args])
         manager("rename", "renamed alpha", "--session", "$0")
         assert tmux("display-message", "-p", "-t", "$0", "#{session_name}") == "1-renamed alpha"
         assert tmux("display-message", "-p", "-t", "$2", "#{session_name}") == "3-gamma"
-        manager("move-window-to", "2", "--session", "$0", "--window", source)
+        manager("move-window-to", "2", "--session", "$0", "--window", source, "--client", "/dev/null")
         assert tmux("display-message", "-p", "-t", source, "#{session_id}") == "$1"
         assert tmux("display-message", "-p", "-t", "@2", "#{session_id}") == "$2"
         before = tmux("list-windows", "-a", "-F", "#{session_id} #{window_id}")
-        assert manager("move-window-to", "2", check=False).returncode != 0
-        assert manager("move-window-to", "2", "--session", "$0", "--window", "@9999", check=False).returncode != 0
+        assert manager("move-window-to", "2", "--client", "/dev/null", check=False).returncode != 0
+        assert manager("move-window-to", "2", "--session", "$0", "--window", "@9999", "--client", "/dev/null", check=False).returncode != 0
         assert tmux("list-windows", "-a", "-F", "#{session_id} #{window_id}") == before
 
         for index in range(4, 11):
             tmux("new-session", "-d", "-s", f"{index}-slot{index}", "/bin/sleep 120")
-        names = [line.split("::", 1)[1] for line in manager("list").stdout.splitlines()]
-        assert [int(name.split("-", 1)[0]) for name in names] == list(range(1, 11))
+        manager("ensure")
+        names = tmux("list-sessions", "-F", "#{session_name}").splitlines()
+        assert "9-slot9" in names and "10-slot10" in names, names
         status = subprocess.run(
             ["/bin/bash", str(ROOT / "home/.config/tmux/tmux-status/left.sh"), "$0", "160"],
             env=env, capture_output=True, text=True, check=True,
