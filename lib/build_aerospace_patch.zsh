@@ -17,8 +17,8 @@ fi
   printf 'This build supports Apple Silicon only.\n' >&2
   exit 1
 }
-[[ -f "$PATCH_FILE" && -x /opt/homebrew/bin/bash ]] || {
-  printf 'The patch file and Homebrew Bash 5 are required.\n' >&2
+[[ -x /opt/homebrew/bin/bash ]] || {
+  printf 'Homebrew Bash 5 is required.\n' >&2
   exit 1
 }
 

@@ -13,7 +13,6 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-zinit-spec-") as directory:
         ("Updating org/plugin\nThe update took 1 seconds\n", "0", True),
         ("Updating org/plugin\n", "1", True),
         ("Updating org/plugin\nThe update took 1 seconds\n", "2", False),
-        ("Updating plugin\n", "0", False),
         ("Updating org/plugin\nfatal: Could not read from remote repository\n", "1", False),
         ("Updating org/plugin\ncurl: (28) Connection timed out\n", "0", False),
         ("Updating org/plugin\n\x1b[31mERROR:\x1b[0m Download failed.\n", "1", False),

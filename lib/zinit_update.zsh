@@ -20,8 +20,7 @@ failures = re.compile(
     r"warning:.*(?:update|hook).*returned|could not resolve|unable to access|"
     r"not possible to fast-forward|failed to (?:connect|download|fetch|update)"
 )
-started = re.search(r"(?m)^Updating [^\s]+/[^\s]+", text)
-sys.exit(0 if started and not failures.search(text) else 1)
+sys.exit(1 if failures.search(text) else 0)
 PY
 }
 

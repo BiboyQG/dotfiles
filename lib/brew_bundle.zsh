@@ -1,13 +1,6 @@
-# The marketing name ("Mac Studio", "MacBook Pro"); hw.model would need the
-# model identifier of every generation.
-mac_model_name() {
-  system_profiler SPHardwareDataType -json \
-    | plutil -extract 'SPHardwareDataType.0.machine_name' raw -o - -
-}
-
 brew_bundle_cask_skip() {
-  local skip_value="${HOMEBREW_BUNDLE_CASK_SKIP:-}"
-  local pair cask app model
+  local -aU skip=(${=HOMEBREW_BUNDLE_CASK_SKIP:-})
+  local pair cask model
   local -a unmanaged_apps=(
     'visual-studio-code:/Applications/Visual Studio Code.app'
     'mos:/Applications/Mos.app'
@@ -15,23 +8,23 @@ brew_bundle_cask_skip() {
 
   for pair in "${unmanaged_apps[@]}"; do
     cask="${pair%%:*}"
-    app="${pair#*:}"
-    if [[ -d "$app" ]] && ! brew list --cask "$cask" >/dev/null 2>&1 \
-      && [[ " $skip_value " != *" $cask "* ]]; then
-      skip_value+="${skip_value:+ }$cask"
+    if [[ -d "${pair#*:}" ]] && ! brew list --cask "$cask" >/dev/null 2>&1; then
+      skip+=("$cask")
     fi
   done
 
   # Mos smooths the mouse wheel on the Mac Studio; the MacBook Pro has no
-  # mouse and scrolls with Homerow.
-  if ! model="$(mac_model_name)" || [[ -z "$model" ]]; then
+  # mouse and scrolls with Homerow. The marketing name ("Mac Studio",
+  # "MacBook Pro") is used because hw.model would need the model identifier
+  # of every generation.
+  if ! model="$(system_profiler SPHardwareDataType -json \
+    | plutil -extract 'SPHardwareDataType.0.machine_name' raw -o - -)" \
+    || [[ -z "$model" ]]; then
     printf 'Could not read the Mac model name for the Mos cask skip.\n' >&2
     return 1
   fi
-  if [[ "$model" != "Mac Studio" && " $skip_value " != *" mos "* ]]; then
-    skip_value+="${skip_value:+ }mos"
-  fi
-  print -r -- "$skip_value"
+  [[ "$model" == "Mac Studio" ]] || skip+=(mos)
+  print -r -- "${skip[*]}"
 }
 
 brew_bundle_report_extras() {

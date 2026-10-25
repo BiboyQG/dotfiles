@@ -12,7 +12,6 @@ UPDATE_LOCKS=0
 NEEDS_XCODE_LICENSE=0
 STOW_IGNORE_REGEXES=()
 STOW_IGNORE_FULL_PATH=()
-STOW_IGNORE_PATTERNS_LOADED=0
 STOW_CONFIG_CWD="/var/empty"
 STOW_CONFIG_HOME="$STOW_CONFIG_CWD/dotfiles-stow-home"
 KITTY_APP_DIR="/Applications/kitty.app"
@@ -45,18 +44,8 @@ process_running() {
 }
 
 run_stow() {
-  if [[ ! -d "$STOW_CONFIG_CWD" \
-    || -e "$STOW_CONFIG_CWD/.stowrc" || -L "$STOW_CONFIG_CWD/.stowrc" \
-    || -e "$STOW_CONFIG_HOME/.stowrc" || -L "$STOW_CONFIG_HOME/.stowrc" ]]; then
-    printf "Stow isolation directory is unavailable or contains a resource file: %s\n" \
-      "$STOW_CONFIG_CWD" >&2
-    return 1
-  fi
-
   (
-    unset STOW_DIR
     export HOME="$STOW_CONFIG_HOME"
-    export XDG_CONFIG_HOME="$STOW_CONFIG_HOME/.config"
     cd "$STOW_CONFIG_CWD"
     stow "$@"
   )
@@ -90,80 +79,22 @@ parse_args() {
   done
 }
 
-find_homebrew() {
-  if have brew; then
-    command -v brew
-    return 0
-  fi
-
-  if [[ -x /opt/homebrew/bin/brew ]]; then
-    printf "/opt/homebrew/bin/brew\n"
-    return 0
-  fi
-
-  return 1
-}
-
-checkout_latest_release() {
-  local destination="$1"
-  local release
-
-  git -C "$destination" fetch --quiet --depth=1 origin 'refs/tags/*:refs/tags/*'
-  release="$(git -C "$destination" tag --list 'v[0-9]*' --sort=-version:refname | head -n 1)"
-  if [[ -z "$release" ]]; then
-    printf "Could not resolve a release tag in %s\n" "$destination" >&2
-    exit 1
-  fi
-  git -C "$destination" checkout --quiet "refs/tags/$release"
-}
-
-# Usage: ensure_latest_git_checkout <repository> <destination> [--release]
-# --release pins the checkout to the newest v* tag instead of the branch tip.
 ensure_latest_git_checkout() {
   local repository="$1"
   local destination="$2"
-  local mode="${3:-}"
 
   if [[ ! -d "$destination/.git" ]]; then
-    mkdir -p "${destination:h}"
     git clone --filter=blob:none --depth=1 "$repository" "$destination"
-    [[ "$mode" == --release ]] && checkout_latest_release "$destination"
-    return 0
-  fi
-
-  if [[ -n "$(git -C "$destination" status --porcelain)" ]]; then
-    printf "Refusing to update modified Git checkout: %s\n" "$destination" >&2
-    exit 1
-  fi
-
-  if [[ "$mode" == --release ]]; then
-    checkout_latest_release "$destination"
     return 0
   fi
 
   git -C "$destination" fetch --prune origin
 
-  local default_ref branch
-  default_ref="$(git -C "$destination" symbolic-ref --quiet --short refs/remotes/origin/HEAD || true)"
-  if [[ -z "$default_ref" ]]; then
-    for default_ref in origin/main origin/master; do
-      git -C "$destination" show-ref --verify --quiet "refs/remotes/$default_ref" && break
-      default_ref=""
-    done
-  fi
-
-  if [[ -z "$default_ref" ]]; then
-    printf "Could not resolve the default branch for %s\n" "$repository" >&2
-    exit 1
-  fi
-
-  branch="${default_ref#origin/}"
-  if git -C "$destination" show-ref --verify --quiet "refs/heads/$branch"; then
-    git -C "$destination" checkout --quiet "$branch"
-  else
-    git -C "$destination" checkout --quiet --track -b "$branch" "$default_ref"
-  fi
-  git -C "$destination" merge --ff-only "$default_ref"
+  local branch
+  branch="$(git -C "$destination" symbolic-ref --short refs/remotes/origin/HEAD)"
+  branch="${branch#origin/}"
+  git -C "$destination" checkout --quiet "$branch"
+  git -C "$destination" merge --ff-only "origin/$branch"
 }
 
 ensure_sudo() {
@@ -228,10 +159,8 @@ require_supported_platform() {
 
 preflight_xcode_license() {
   NEEDS_XCODE_LICENSE=0
-  local developer_dir
-  developer_dir="$(xcode-select -p 2>/dev/null || true)"
-  if [[ "$developer_dir" != "/Library/Developer/CommandLineTools" ]] \
-    && have xcodebuild && ! xcodebuild -license check >/dev/null 2>&1; then
+  if [[ "$(xcode-select -p)" != /Library/Developer/CommandLineTools ]] \
+    && ! xcodebuild -license check >/dev/null 2>&1; then
     NEEDS_XCODE_LICENSE=1
   fi
 }
@@ -239,8 +168,6 @@ preflight_xcode_license() {
 preflight_git_checkout() {
   local checkout="$1"
   local status_output
-
-  [[ -e "$checkout" || -L "$checkout" ]] || return 0
   if [[ ! -d "$checkout/.git" ]]; then
     printf "Expected an existing Git checkout: %s\n" "$checkout" >&2
     return 1
@@ -258,51 +185,23 @@ preflight_git_checkout() {
   fi
 }
 
-github_repository_from_remote() {
-  local remote="${1%.git}"
-  case "$remote" in
-    https://github.com/*)
-      print -r -- "${remote#https://github.com/}"
-      ;;
-    https://git::@github.com/*)
-      print -r -- "${remote#https://git::@github.com/}"
-      ;;
-    git@github.com:*)
-      print -r -- "${remote#git@github.com:}"
-      ;;
-    ssh://git@github.com/*)
-      print -r -- "${remote#ssh://git@github.com/}"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-# Usage: require_github_origin <checkout> <owner/repo> <description>
 # GitHub owner and repository names are case-insensitive.
-require_github_origin() {
-  local checkout="$1"
-  local repository="$2"
-  local description="$3"
-  local remote actual_repository
-
-  remote="$(git -C "$checkout" remote get-url origin 2>/dev/null || true)"
-  actual_repository="$(github_repository_from_remote "$remote" 2>/dev/null || true)"
-  if [[ "${(L)actual_repository}" != "${(L)repository}" ]]; then
-    printf "Unexpected origin for %s: %s\n" "$description" "${remote:-missing}" >&2
-    return 1
-  fi
-}
-
 preflight_github_checkout() {
   local repository="$1"
   local checkout="$2"
+  local remote actual_repository
 
   [[ -e "$checkout" || -L "$checkout" ]] || return 0
   preflight_git_checkout "$checkout" || return 1
-  require_github_origin "$checkout" "$repository" \
-    "Git checkout $repository at $checkout" || return 1
+  remote="$(git -C "$checkout" remote get-url origin 2>/dev/null || true)"
+  # TPM clones from https://git::@github.com/<owner>/<repo>; a url.insteadOf
+  # in ~/.gitconfig makes get-url print the git@github.com: or ssh:// form.
+  actual_repository="${${remote%.git}#(https://(git::@|)github.com/|git@github.com:|ssh://git@github.com/)}"
+  if [[ "${(L)actual_repository}" != "${(L)repository}" ]]; then
+    printf "Unexpected origin for Git checkout %s at %s: %s\n" \
+      "$repository" "$checkout" "${remote:-missing}" >&2
+    return 1
+  fi
 }
 
 preflight_existing_git_checkouts() {
@@ -313,28 +212,22 @@ preflight_existing_git_checkouts() {
 }
 
 declared_brew_taps() {
-  local brew_bin="$1"
   HOMEBREW_NO_AUTO_UPDATE=1 \
-    "$brew_bin" bundle list --tap --file="$DOTFILES_DIR/Brewfile"
+    /opt/homebrew/bin/brew bundle list --tap --file="$DOTFILES_DIR/Brewfile"
 }
 
 preflight_brew_taps() {
-  local brew_bin
-  brew_bin="$(find_homebrew || true)"
-  [[ -n "$brew_bin" ]] || return 0
+  [[ -x /opt/homebrew/bin/brew ]] || return 0
 
   log "Checking existing Homebrew taps"
   local output tap tap_dir
   local -a taps
-  output="$(declared_brew_taps "$brew_bin")" || return 1
+  output="$(declared_brew_taps)" || return 1
   taps=("${(@f)output}")
   for tap in "${taps[@]}"; do
     [[ -n "$tap" ]] || continue
-    tap_dir="$("$brew_bin" --repository "$tap" 2>/dev/null || true)"
-    [[ -e "$tap_dir" || -L "$tap_dir" ]] || continue
-    preflight_git_checkout "$tap_dir" || return 1
-    require_github_origin "$tap_dir" "${tap%%/*}/homebrew-${tap#*/}" \
-      "Homebrew tap $tap" || return 1
+    tap_dir="$(/opt/homebrew/bin/brew --repository "$tap")" || return 1
+    preflight_github_checkout "${tap%%/*}/homebrew-${tap#*/}" "$tap_dir" || return 1
   done
 }
 
@@ -348,12 +241,11 @@ preflight_zprofile() {
   fi
 }
 
-# Print a manifest's content lines: trimmed, without CRs, blanks or comments.
+# Print a manifest's content lines: trimmed, without blanks or comments.
 manifest_lines() {
   local line
 
   while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%$'\r'}"
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
     [[ -n "$line" && "$line" != \#* ]] || continue
@@ -398,13 +290,10 @@ stow_target_directories() {
 }
 
 load_stow_ignore_patterns() {
-  # Stow uses Perl regexes; keep preflight compatible with lookahead rules.
-  setopt local_options rematch_pcre
   local manifest="$DOTFILES_DIR/home/.stow-local-ignore"
-  local line regex regex_status full_path
+  local line regex full_path
   local -a lines
 
-  (( STOW_IGNORE_PATTERNS_LOADED )) && return 0
   if [[ ! -r "$manifest" ]]; then
     printf "Missing Stow ignore manifest: %s\n" "$manifest" >&2
     return 1
@@ -424,28 +313,18 @@ load_stow_ignore_patterns() {
       regex="^(${line})$"
       full_path=0
     fi
-    if [[ "" =~ $regex ]]; then
-      regex_status=0
-    else
-      regex_status=$?
-    fi
-    if (( regex_status > 1 )); then
-      printf "Invalid pattern in Stow ignore manifest: %s\n" "$line" >&2
-      return 1
-    fi
     STOW_IGNORE_REGEXES+=("$regex")
     STOW_IGNORE_FULL_PATH+=("$full_path")
   done
-  STOW_IGNORE_PATTERNS_LOADED=1
 }
 
 stow_path_is_ignored() {
+  # Stow uses Perl regexes; keep preflight compatible with lookahead rules.
   setopt local_options rematch_pcre
   local relative="$1"
   local index subject
 
   [[ "$relative" == ".stow-local-ignore" ]] && return 0
-  load_stow_ignore_patterns || return 2
   for (( index = 1; index <= ${#STOW_IGNORE_REGEXES[@]}; index++ )); do
     if (( STOW_IGNORE_FULL_PATH[index] )); then
       subject="/$relative"
@@ -459,7 +338,7 @@ stow_path_is_ignored() {
 
 preflight_folded_container_payload() {
   local source="$1"
-  local output entry relative container deepest first ignore_status
+  local output entry relative container deepest first
   local -a containers
 
   output="$(stow_target_directories)" || return 1
@@ -478,14 +357,11 @@ preflight_folded_container_payload() {
     done
     first="${relative#$deepest/}"
     first="${first%%/*}"
-    [[ -n "$deepest" ]] && first="$deepest/$first"
+    first="$deepest/$first"
     if stow_path_is_ignored "$first"; then
       printf "Ignored machine-local data would be stranded by Stow migration: %s\n" \
         "$entry" >&2
       return 1
-    else
-      ignore_status=$?
-      (( ignore_status == 1 )) || return 1
     fi
   done
 }
@@ -510,14 +386,9 @@ preflight_stow_manifests() {
     fi
     if [[ -L "$target" ]]; then
       resolved="$(realpath "$target" 2>/dev/null || true)"
-      if [[ "$resolved" != "$source" ]]; then
-        printf "Stow target directory is an unmanaged link: %s\n" "$target" >&2
-        return 1
+      if [[ "$resolved" == "$source" ]]; then
+        preflight_folded_container_payload "$source" || return 1
       fi
-      preflight_folded_container_payload "$source" || return 1
-    elif [[ -e "$target" && ! -d "$target" ]]; then
-      printf "Stow target directory is not a directory: %s\n" "$target" >&2
-      return 1
     fi
   done
 }
@@ -525,16 +396,10 @@ preflight_stow_manifests() {
 preflight_stow_directory() {
   local source_dir="$1"
   local target_dir="$2"
-  local source target resolved relative ignore_status
+  local source target resolved
 
   for source in "$source_dir"/*(DN); do
-    relative="${source#$DOTFILES_DIR/home/}"
-    if stow_path_is_ignored "$relative"; then
-      continue
-    else
-      ignore_status=$?
-      (( ignore_status == 1 )) || return 1
-    fi
+    stow_path_is_ignored "${source#$DOTFILES_DIR/home/}" && continue
     target="$target_dir/${source:t}"
 
     if [[ "$source" == "$DOTFILES_DIR/home/.zprofile" \
@@ -632,7 +497,7 @@ preflight_aerospace_config() {
 
 tmux_plugin_repositories() {
   local manifest="$DOTFILES_DIR/home/.config/tmux/plugins.conf"
-  local line repository owner name
+  local line repository
   local -a lines
 
   if [[ ! -r "$manifest" ]]; then
@@ -643,16 +508,11 @@ tmux_plugin_repositories() {
   lines=("${(@f)$(manifest_lines "$manifest")}")
   for line in "${lines[@]}"; do
     [[ -n "$line" ]] || continue
-    repository="${line#*\'}"
-    repository="${repository%\'}"
-    owner="${repository%%/*}"
-    name="${repository#*/}"
-    if [[ "$line" != "set -g @plugin '$repository'" \
-      || "$repository" != */* || -z "$owner" || -z "$name" || "$name" == */* \
-      || "$repository" == *[!A-Za-z0-9._/-]* ]]; then
+    if [[ ! "$line" =~ "^set -g @plugin '([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)'\$" ]]; then
       printf "Invalid tmux plugin manifest line: %s\n" "$line" >&2
       return 1
     fi
+    repository="${match[1]}"
     print -r -- "$repository"
   done
 }
@@ -660,7 +520,7 @@ tmux_plugin_repositories() {
 preflight_tmux_plugins() {
   log "Checking tmux plugin manifest"
 
-  local output repository plugin plugin_dir
+  local output repository plugin
   local tpm_count=0
   local -a repositories
   local -A seen_plugins
@@ -676,16 +536,7 @@ preflight_tmux_plugins() {
     seen_plugins[$plugin]=1
     [[ "$repository" == "tmux-plugins/tpm" ]] && (( tpm_count += 1 ))
 
-    plugin_dir="$HOME/.tmux/plugins/$plugin"
-    if [[ ( -e "$plugin_dir" || -L "$plugin_dir" ) && ! -d "$plugin_dir/.git" ]]; then
-      printf "Refusing to replace non-Git tmux plugin directory: %s\n" "$plugin_dir" >&2
-      return 1
-    fi
-    if [[ -d "$plugin_dir/.git" ]]; then
-      require_github_origin "$plugin_dir" "$repository" \
-        "tmux plugin $repository" || return 1
-      preflight_git_checkout "$plugin_dir" || return 1
-    fi
+    preflight_github_checkout "$repository" "$HOME/.tmux/plugins/$plugin" || return 1
   done
 
   if (( tpm_count != 1 )); then
@@ -695,8 +546,8 @@ preflight_tmux_plugins() {
 }
 
 preflight_setup() {
-  require_supported_platform || return 1
-  require_command_line_tools || return 1
+  require_supported_platform
+  require_command_line_tools
   preflight_xcode_license
   preflight_brew_taps || return 1
   preflight_existing_git_checkouts || return 1
@@ -709,7 +560,6 @@ setup_system_preferences() {
   log "Applying macOS defaults"
 
   osascript -e 'tell application "System Settings" to quit' >/dev/null 2>&1 || true
-  osascript -e 'tell application "System Preferences" to quit' >/dev/null 2>&1 || true
 
   defaults write com.apple.AppleMultitouchTrackpad Clicking -bool true
   defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true
@@ -759,10 +609,7 @@ setup_system_preferences() {
 install_homebrew() {
   log "Checking Homebrew"
 
-  local brew_bin
-  brew_bin="$(find_homebrew || true)"
-
-  if [[ -z "$brew_bin" ]]; then
+  if [[ ! -x /opt/homebrew/bin/brew ]]; then
     # The non-interactive installer requires a cached sudo credential on macOS.
     (( CAN_SUDO )) || ensure_sudo
     if ! (( CAN_SUDO )); then
@@ -770,21 +617,19 @@ install_homebrew() {
       exit 1
     fi
     local installer
-    if ! installer="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-      || [[ -z "$installer" ]]; then
+    if ! installer="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
       printf "Could not download the Homebrew installer.\n" >&2
       exit 1
     fi
     NONINTERACTIVE=1 /bin/bash -c "$installer"
-    brew_bin="$(find_homebrew || true)"
   fi
 
-  if [[ -z "$brew_bin" ]]; then
+  if [[ ! -x /opt/homebrew/bin/brew ]]; then
     printf "Homebrew installation completed but the brew executable was not found.\n" >&2
     exit 1
   fi
 
-  eval "$("$brew_bin" shellenv)"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 }
 
 declared_brew_trust_targets() {
@@ -804,32 +649,12 @@ declared_brew_trust_targets() {
   done <"$DOTFILES_DIR/Brewfile"
 }
 
-brew_trust_dependency() {
-  local dependency_type="$1"
-  local dependency="$2"
-
-  if brew trust --help >/dev/null 2>&1; then
-    case "$dependency_type" in
-      brew)
-        brew trust --formula "$dependency"
-        ;;
-      cask)
-        brew trust --cask "$dependency"
-        ;;
-      *)
-        printf "Unsupported Brew trust target type: %s\n" "$dependency_type" >&2
-        return 1
-        ;;
-    esac
-  fi
-}
-
 install_brew_packages() {
   log "Installing Homebrew packages"
 
   local tap_output tap
   local -a taps
-  tap_output="$(declared_brew_taps "$(command -v brew)")"
+  tap_output="$(declared_brew_taps)"
   taps=("${(@f)tap_output}")
   for tap in "${taps[@]}"; do
     [[ -n "$tap" ]] || continue
@@ -843,7 +668,11 @@ install_brew_packages() {
   for trust_target in "${trust_targets[@]}"; do
     [[ -n "$trust_target" ]] || continue
     IFS=$'\t' read -r dependency_type dependency <<<"$trust_target"
-    brew_trust_dependency "$dependency_type" "$dependency"
+    if [[ "$dependency_type" == cask ]]; then
+      brew trust --cask "$dependency"
+    else
+      brew trust --formula "$dependency"
+    fi
   done
 
   local bundle_cask_skip
@@ -854,10 +683,6 @@ install_brew_packages() {
 link_dotfiles() {
   log "Linking dotfiles with Stow"
 
-  if ! have stow; then
-    printf "GNU Stow is required before dotfiles can be linked.\n" >&2
-    return 1
-  fi
   preflight_dotfiles || return 1
 
   if [[ -f "$HOME/.zprofile" && ! -L "$HOME/.zprofile" ]]; then
@@ -899,7 +724,16 @@ install_nvm_node() {
   log "Installing nvm and Node"
 
   export NVM_DIR="$HOME/.nvm"
-  ensure_latest_git_checkout https://github.com/nvm-sh/nvm.git "$NVM_DIR" --release
+  # nvm is pinned to its newest v* release tag, not the branch tip.
+  [[ -d "$NVM_DIR/.git" ]] || git clone --filter=blob:none --depth=1 https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+  git -C "$NVM_DIR" fetch --quiet --depth=1 origin 'refs/tags/*:refs/tags/*'
+  local release
+  release="$(git -C "$NVM_DIR" tag --list 'v[0-9]*' --sort=-version:refname | head -n 1)"
+  if [[ -z "$release" ]]; then
+    printf "Could not resolve an nvm release tag.\n" >&2
+    exit 1
+  fi
+  git -C "$NVM_DIR" checkout --quiet "refs/tags/$release"
 
   set +u
   . "$NVM_DIR/nvm.sh"
@@ -994,20 +828,12 @@ install_neovim_plugins() {
 }
 
 install_yazi_flavor() {
-  local flavor="yazi-rs/flavors:catppuccin-mocha"
-  local package_file="$HOME/.config/yazi/package.toml"
-
-  if [[ -f "$package_file" ]] && grep -Fq "use = \"$flavor\"" "$package_file"; then
-    if (( UPDATE_LOCKS )); then
-      log "Updating the Yazi flavor to its latest version"
-      ya pkg upgrade "$flavor"
-    else
-      log "Installing the Yazi flavor pinned in package.toml"
-      ya pkg install
-    fi
+  if (( UPDATE_LOCKS )); then
+    log "Updating the Yazi flavor to its latest version"
+    ya pkg upgrade yazi-rs/flavors:catppuccin-mocha
   else
-    log "Adding the Yazi flavor"
-    ya pkg add "$flavor"
+    log "Installing the Yazi flavor pinned in package.toml"
+    ya pkg install
   fi
 }
 
@@ -1067,17 +893,12 @@ install_sketchybar_assets() {
   local sbarlua_repository="https://github.com/FelixKratz/SbarLua.git"
   local sbarlua_dir="$HOME/.local/share/sketchybar_lua"
   local sbarlua_stamp="$sbarlua_dir/.dotfiles-ref"
-  local sha1_regex='^[0-9a-f]{40}$'
   local tmp_dir latest_commit installed_commit build_status=0
 
   # One ls-remote request tells whether the stamped build is still current;
   # the clone below only happens when it is not.
   latest_commit="$(git ls-remote "$sbarlua_repository" HEAD)"
   latest_commit="${latest_commit%%$'\t'*}"
-  if [[ ! "$latest_commit" =~ $sha1_regex ]]; then
-    printf "Could not resolve the SbarLua default branch tip.\n" >&2
-    exit 1
-  fi
   if [[ -f "$sbarlua_dir/sketchybar.so" && -r "$sbarlua_stamp" \
     && "$(<"$sbarlua_stamp")" == "$latest_commit" ]]; then
     info "SbarLua already installed"
@@ -1095,7 +916,6 @@ install_sketchybar_assets() {
   } || build_status=$?
   rm -rf -- "$tmp_dir"
   (( build_status == 0 )) || return "$build_status"
-  mkdir -p "$sbarlua_dir"
   printf "%s\n" "$installed_commit" >"$sbarlua_stamp"
 }
 
@@ -1139,28 +959,21 @@ accept_xcode_license() {
 }
 
 wait_for_process_exit() {
-  local process="$1"
-  local attempts="${2:-40}"
   local attempt
-  for (( attempt = 1; attempt <= attempts; attempt++ )); do
-    process_running "$process" || return 0
+  for attempt in {1..40}; do
+    process_running "$1" || return 0
     sleep 0.25
   done
   return 1
 }
 
 restart_openusage() {
-  if [[ ! -d /Applications/OpenUsage.app ]]; then
-    skip "OpenUsage is not installed."
-    return 1
-  fi
-
   if process_running OpenUsage; then
     if ! osascript -e 'quit app "OpenUsage"' >/dev/null; then
       skip "Could not stop OpenUsage."
       return 1
     fi
-    if ! wait_for_process_exit OpenUsage 40; then
+    if ! wait_for_process_exit OpenUsage; then
       skip "OpenUsage did not stop; restart it manually."
       return 1
     fi
@@ -1183,26 +996,16 @@ restart_openusage() {
   return 1
 }
 
-aerospace_ready() {
-  process_running AeroSpace \
-    && aerospace list-workspaces --all --count >/dev/null 2>&1
-}
-
 wait_for_aerospace() {
   local attempt
   for attempt in {1..40}; do
-    aerospace_ready && return 0
+    process_running AeroSpace && aerospace list-workspaces --all --count >/dev/null 2>&1 && return 0
     sleep 0.25
   done
   return 1
 }
 
 restart_aerospace() {
-  if ! have aerospace; then
-    skip "AeroSpace CLI is not installed."
-    return 1
-  fi
-
   if process_running AeroSpace; then
     if ! preflight_aerospace_config; then
       skip "AeroSpace configuration did not pass strict validation."
@@ -1219,17 +1022,13 @@ restart_aerospace() {
         skip "Could not reload AeroSpace config."
         return 1
       fi
-      if ! wait_for_aerospace; then
-        skip "AeroSpace config reloaded but its CLI is not ready."
-        return 1
-      fi
       return 0
     fi
     if ! osascript -e 'quit app "AeroSpace"'; then
       skip "Could not stop AeroSpace."
       return 1
     fi
-    if ! wait_for_process_exit AeroSpace 40; then
+    if ! wait_for_process_exit AeroSpace; then
       skip "AeroSpace did not stop; restart it manually."
       return 1
     fi
@@ -1250,16 +1049,10 @@ restart_aerospace() {
     skip "AeroSpace configuration did not pass strict validation after launch."
     return 1
   fi
-  return 0
 }
 
 restart_sketchybar() {
-  if ! have sketchybar; then
-    skip "SketchyBar CLI is not installed."
-    return 1
-  fi
-
-  if ! brew services restart sketchybar && ! brew services start sketchybar; then
+  if ! brew services restart sketchybar; then
     skip "Could not start SketchyBar."
     return 1
   fi
@@ -1294,7 +1087,7 @@ restart_services() {
 }
 
 print_summary() {
-  local exit_code="${1:-0}"
+  local exit_code="$1"
 
   if (( exit_code )); then
     warn "Setup finished with failed service postflight checks"

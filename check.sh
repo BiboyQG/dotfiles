@@ -553,12 +553,10 @@ run_setup_preflight() {
     XDG_CACHE_HOME="$SETUP_FIXTURE_HOME/.cache" \
     XDG_STATE_HOME="$SETUP_FIXTURE_HOME/.local/state" \
     TMPDIR="$SETUP_FIXTURE_TMP" \
-    STOW_DIR="$SETUP_FIXTURE_ROOT/hostile-stow-dir" \
     zsh -fc '
       cd "$6"
       source "$1"
       DOTFILES_DIR="${2:A}"
-      STOW_IGNORE_PATTERNS_LOADED=0
       POISON_MARKER="$3"
       PREFLIGHT_ACTION="$4"
       REAL_GIT="$(command -v git)"
@@ -583,10 +581,7 @@ run_setup_preflight() {
       stow() {
         local argument
         local simulated=0
-        if [[ "$PWD" != "$STOW_CONFIG_CWD" \
-          || "$HOME" != "$STOW_CONFIG_HOME" \
-          || "${XDG_CONFIG_HOME:-}" != "$STOW_CONFIG_HOME/.config" \
-          || -n "${STOW_DIR+x}" ]]; then
+        if [[ "$PWD" != "$STOW_CONFIG_CWD" || "$HOME" != "$STOW_CONFIG_HOME" ]]; then
           poison stow-environment
           return 97
         fi
@@ -792,7 +787,7 @@ for nvm_previous in v1.0.0 v1.2.3 N/A; do
     PATH="$BREW_FIXTURE_BIN:$NVM_FIXTURE_BIN:/usr/bin:/bin" \
     zsh -fc '
       source "$1"
-      ensure_latest_git_checkout() { :; }
+      git() { [[ "$3" != tag ]] || print -r -- v0.40.3; }
       install_nvm_node >/dev/null
       [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
     ' setup-nvm "$ROOT/setup.sh"
@@ -815,16 +810,13 @@ log "Checking setup Yazi flavor install modes"
 YAZI_FIXTURE_HOME="$CHECK_WORK_DIR/yazi-home"
 YAZI_FIXTURE_BIN="$YAZI_FIXTURE_HOME/bin"
 YAZI_FIXTURE_LOG="$YAZI_FIXTURE_HOME/ya-calls.log"
-mkdir -p "$YAZI_FIXTURE_HOME/.config/yazi" "$YAZI_FIXTURE_BIN"
+mkdir -p "$YAZI_FIXTURE_BIN"
 printf '#!/bin/sh\nprintf "%%s\\n" "$*" >>"$YA_FIXTURE_LOG"\n' >"$YAZI_FIXTURE_BIN/ya"
 chmod +x "$YAZI_FIXTURE_BIN/ya"
-# A declared flavor is installed at its pinned revision, moved to the latest
-# release only with --update, and added when package.toml does not list it.
-for yazi_case in pinned update missing; do
+# A declared flavor is installed at its pinned revision and moved to the
+# latest release only with --update.
+for yazi_case in pinned update; do
   : >"$YAZI_FIXTURE_LOG"
-  rm -f "$YAZI_FIXTURE_HOME/.config/yazi/package.toml"
-  [[ "$yazi_case" == missing ]] \
-    || cp home/.config/yazi/package.toml "$YAZI_FIXTURE_HOME/.config/yazi/package.toml"
   env HOME="$YAZI_FIXTURE_HOME" YA_FIXTURE_LOG="$YAZI_FIXTURE_LOG" \
     PATH="$YAZI_FIXTURE_BIN:/usr/bin:/bin" YAZI_CASE="$yazi_case" zsh -fc '
       source "$1"
@@ -836,7 +828,6 @@ for yazi_case in pinned update missing; do
   case "$yazi_case" in
     pinned) yazi_expected="pkg install" ;;
     update) yazi_expected="pkg upgrade yazi-rs/flavors:catppuccin-mocha" ;;
-    missing) yazi_expected="pkg add yazi-rs/flavors:catppuccin-mocha" ;;
   esac
   [[ "$(<"$YAZI_FIXTURE_LOG")" == "$yazi_expected" ]] || {
     printf "install_yazi_flavor ran the wrong ya command for %s:\n" "$yazi_case" >&2
@@ -844,6 +835,7 @@ for yazi_case in pinned update missing; do
     exit 1
   }
 done
+rg -Fq 'use = "yazi-rs/flavors:catppuccin-mocha"' home/.config/yazi/package.toml
 
 log "Checking native CLI installation without npm or Homebrew"
 CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"
@@ -1010,7 +1002,7 @@ for sbarlua_case in current install build-failure; do
           *) return 1 ;;
         esac
       }
-      make() { [[ "$SBARLUA_CASE" != build-failure ]]; }
+      make() { [[ "$SBARLUA_CASE" != build-failure ]] && command mkdir -p "$HOME/.local/share/sketchybar_lua"; }
       install_sketchybar_assets
     ' setup-sbarlua "$ROOT/setup.sh" >"$CHECK_WORK_DIR/sbarlua.log" 2>&1 \
     || sbarlua_exit=$?
@@ -1039,7 +1031,6 @@ zsh -fc '
   XCODEBUILD_CALLS=0
   XCODEBUILD_EXIT=1
   xcode-select() { print -r -- "$DEVELOPER_DIR"; }
-  have() { [[ "$1" == xcodebuild ]]; }
   xcodebuild() {
     (( XCODEBUILD_CALLS++ ))
     return "$XCODEBUILD_EXIT"
@@ -1100,7 +1091,6 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   open() { return 1; }
   expect_failure restart_openusage
 
-  have() { [[ "$1" == aerospace ]]; }
   open() { return 0; }
   wait_for_aerospace() { return 1; }
   expect_failure restart_aerospace
@@ -1125,7 +1115,6 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   restart_aerospace
   (( AEROSPACE_QUITS == 1 ))
 
-  have() { [[ "$1" == sketchybar ]]; }
   brew() { return 0; }
   sketchybar() { return 1; }
   expect_failure restart_sketchybar
@@ -1380,15 +1369,13 @@ codex_local_paths=(config.toml AGENTS.override.md AGENTS.md.bak skills/test/SKIL
 for local_path in "${codex_local_paths[@]}"; do
   git check-ignore --no-index -q "home/.codex/$local_path"
   env "${ISOLATED_ENV[@]}" zsh -c \
-    'source "$1"; stow_path_is_ignored "$2"' \
+    'source "$1"; load_stow_ignore_patterns && stow_path_is_ignored "$2"' \
     zsh "$ROOT/setup.sh" ".codex/$local_path"
 done
 env "${ISOLATED_ENV[@]}" zsh -c '
   source "$1"
-  stow_path_is_ignored .codex/AGENTS.md && exit 1
-  [[ $? == 1 ]]
+  load_stow_ignore_patterns && ! stow_path_is_ignored .codex/AGENTS.md
 ' zsh "$ROOT/setup.sh"
-rg -q 'use = "yazi-rs/flavors:catppuccin-mocha"' home/.config/yazi/package.toml
 
 log "Checking tmux plugin manifest"
 rg -Fxq 'source-file ~/.config/tmux/plugins.conf' home/.tmux.conf
