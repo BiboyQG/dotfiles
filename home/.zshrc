@@ -15,9 +15,10 @@ fi
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 typeset -U fpath FPATH
-if [[ -d /opt/homebrew/share/zsh/site-functions ]]; then
-	fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
-fi
+fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+# brew shellenv, for example from ~/.zprofile.local, exports FPATH; a child
+# shell (a tmux pane) would then build fpath in a different order and rebuild
+# the compinit dump on every start.
 typeset +x FPATH
 
 if [[ -r "$ZINIT_HOME/zinit.zsh" ]]; then
@@ -49,18 +50,12 @@ autoload -Uz compinit
 zmodload -F zsh/stat b:zstat
 zcompdump="${ZDOTDIR:-$HOME}/.zcompdump-${ZSH_VERSION}"
 zcompdump_fpath="${zcompdump}.fpath"
-zcompdump_tmp="${zcompdump}.tmp.$$"
 # Rebuild (and rerun compaudit) only when the completion directory set or
 # one of those directories changes; the dump stays valid otherwise.
-typeset -Ua zcompdirs
+typeset -Ua zcompdirs=( ${^fpath}(N-/) )
 typeset -a zcompstat
-zcompdirs=()
-zcompstat=()
 zcompinit_refresh=0
-for zcompdir in "$fpath[@]"; do
-	[[ -d "$zcompdir" ]] && zcompdirs+=("$zcompdir")
-done
-zcomp_signature="${ZSH_VERSION}"$'\n'"${(F)zcompdirs}"
+zcomp_signature="${(F)zcompdirs}"
 if [[ ! -f "$zcompdump" ]] \
 	|| [[ ! -f "$zcompdump_fpath" ]] \
 	|| [[ "$(<"$zcompdump_fpath")" != "$zcomp_signature" ]] \
@@ -76,19 +71,14 @@ else
 	done
 fi
 if (( zcompinit_refresh )); then
-	rm -f -- "$zcompdump_tmp"
-	if compinit -d "$zcompdump_tmp" \
-		&& [[ -f "$zcompdump_tmp" ]] \
-		&& mv -f -- "$zcompdump_tmp" "$zcompdump"; then
-		print -r -- "$zcomp_signature" >| "$zcompdump_fpath" 2>/dev/null || true
-	else
-		rm -f -- "$zcompdump_tmp"
-	fi
-	_comp_dumpfile="$zcompdump"
+	# compinit reuses an existing dump whose file count still matches.
+	rm -f -- "$zcompdump"
+	compinit -d "$zcompdump"
+	print -r -- "$zcomp_signature" >| "$zcompdump_fpath"
 else
 	compinit -C -d "$zcompdump"
 fi
-unset zcomp_signature zcompctime zcompdir zcompdirs zcompdump zcompdump_ctime zcompdump_fpath zcompdump_tmp zcompinit_refresh zcompstat
+unset zcomp_signature zcompctime zcompdirs zcompdump zcompdump_ctime zcompdump_fpath zcompinit_refresh zcompstat
 
 # Plugins loaded before compinit queue their compdef registrations in Zinit.
 if (( $+functions[zinit] )); then
@@ -105,12 +95,9 @@ autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey '^x^e' edit-command-line
 
-if [[ -t 0 ]]; then
-	stty -ixon 2>/dev/null || true
-fi
+[[ -t 0 ]] && stty -ixon
 
 HISTSIZE=10000
-HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
 setopt sharehistory
 setopt hist_ignore_space
@@ -151,18 +138,12 @@ alias s="fastfetch"
 alias l="lazygit"
 alias tn="tmux new -s"
 function ta {
-	local query="${1:-}"
-	if (( $# )); then
-		shift
-	fi
-	if [[ -z "$query" ]]; then
+	if [[ -z "${1:-}" || "$1" == -* ]]; then
 		tmux attach "$@"
-		return $?
+		return
 	fi
-	if [[ "$query" == -* ]]; then
-		tmux attach "$query" "$@"
-		return $?
-	fi
+	local query="$1"
+	shift
 
 	# tmux refuses to attach from inside a session; switch the client instead.
 	# switch-client takes none of attach's options, so trailing flags are
@@ -175,47 +156,32 @@ function ta {
 			return 2
 		fi
 	fi
-	local target=""
-	local sessions
+	local target sessions
 	sessions="$(tmux list-sessions -F '#{session_id}:::#{session_name}' 2>/dev/null)"
-
-	if [[ -n "$sessions" ]]; then
-		if [[ "$query" =~ ^[0-9]+$ ]]; then
-			target="$(printf '%s\n' "$sessions" | awk -F ':::' -v idx="$query" '$2 ~ "^"idx"-" {print $1; exit}')"
-		else
-			target="$(printf '%s\n' "$sessions" | awk -F ':::' -v name="$query" '$2 == name {print $1; exit}')"
-			if [[ -z "$target" ]]; then
-				target="$(printf '%s\n' "$sessions" | awk -F ':::' -v label="$query" '{name=$2; sub(/^[0-9]+-/, "", name); if (name == label) {print $1; exit}}')"
-			fi
+	if [[ "$query" =~ ^[0-9]+$ ]]; then
+		target="$(printf '%s\n' "$sessions" | awk -F ':::' -v idx="$query" '$2 ~ "^"idx"-" {print $1; exit}')"
+	else
+		target="$(printf '%s\n' "$sessions" | awk -F ':::' -v name="$query" '$2 == name {print $1; exit}')"
+		if [[ -z "$target" ]]; then
+			target="$(printf '%s\n' "$sessions" | awk -F ':::' -v label="$query" '{name=$2; sub(/^[0-9]+-/, "", name); if (name == label) {print $1; exit}}')"
 		fi
 	fi
-
-	if [[ -n "$target" ]]; then
-		tmux "$cmd" -t "$target" "$@"
-		return $?
-	fi
-
-	tmux "$cmd" -t "$query" "$@"
+	tmux "$cmd" -t "${target:-$query}" "$@"
 }
 alias tls="tmux ls"
 alias c="claude"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"
 alias cat="bat"
 
-# Suffix Aliases - Open Files by Extension
-# Just type the filename to open it with the associated program
 alias -s md='$EDITOR'
 alias -s txt=bat
 alias -s log=bat
 alias -s py='$EDITOR'
-alias -s html=open  # macOS: open in default browser
+alias -s html=open
 
-# Hotkey Insertions - Text Snippets
-# Insert git commit template (Ctrl+x, g, c)
-# \C-b moves cursor back one position
+# \C-b puts the cursor between the quotes.
 bindkey -s '^xgc' 'git commit -m ""\C-b'
 
-# Yazi setup
 function y() {
 	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
 	yazi "$@" --cwd-file="$tmp"
@@ -224,37 +190,30 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-# Environment variables
-export EDITOR="nvim" # For Yazi default editor
+export EDITOR="nvim"
 
 # Node Version Manager
 export NVM_DIR="$HOME/.nvm"
 if [[ -r "$NVM_DIR/alias/default" ]]; then
 	nvm_default_version="$(<"$NVM_DIR/alias/default")"
-	if [[ -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
-		path=("$NVM_DIR/versions/node/$nvm_default_version/bin" $path)
-	elif [[ -s "$NVM_DIR/nvm.sh" ]]; then
+	if [[ ! -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" && -s "$NVM_DIR/nvm.sh" ]]; then
 		# Resolve symbolic/partial aliases with NVM itself without loading its
 		# functions or completions into the interactive shell.
 		nvm_default_version="$(
 			source "$NVM_DIR/nvm.sh" --no-use
 			nvm version default
-		)" || nvm_default_version=""
-		if [[ -n "$nvm_default_version" && -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
-			path=("$NVM_DIR/versions/node/$nvm_default_version/bin" $path)
-		fi
+		)"
+	fi
+	if [[ -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
+		path=("$NVM_DIR/versions/node/$nvm_default_version/bin" $path)
 	fi
 	unset nvm_default_version
 fi
 
-_load_nvm() {
+nvm() {
 	unfunction nvm
 	[[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
 	[[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
-}
-
-nvm() {
-	_load_nvm
 	nvm "$@"
 }
 
