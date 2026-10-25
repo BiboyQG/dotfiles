@@ -214,6 +214,8 @@ return {
 	["zathura"] = ":pdf_old:",
 	["Aperçu"] = ":preview:",
 	["Pearcleaner"] = ":pearcleaner:",
+	["Phi"] = ":phi_browser:",
+	["Phi Canary"] = ":phi_browser:",
 	["Phoenix Slides"] = ":phoenix_slides:",
 	["Adobe Photoshop"] = ":photoshop:",
 	["PhpStorm"] = ":php_storm:",
