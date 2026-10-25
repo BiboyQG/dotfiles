@@ -6,6 +6,10 @@ unset NO_COLOR
 # output during initialization.
 (( $+commands[direnv] )) && emulate zsh -c "$(direnv export zsh)"
 
+# The instant prompt points stdin at /dev/null until the first prompt, so
+# below it `[[ -t 0 ]]` is false and flow control would stay on.
+[[ -t 0 ]] && stty -ixon
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -94,8 +98,6 @@ bindkey '^n' history-search-forward
 autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey '^x^e' edit-command-line
-
-[[ -t 0 ]] && stty -ixon
 
 HISTSIZE=10000
 SAVEHIST=$HISTSIZE
