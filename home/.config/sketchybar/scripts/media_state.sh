@@ -5,12 +5,8 @@ JQ=/opt/homebrew/bin/jq
 MEDIA_CONTROL=/opt/homebrew/bin/media-control
 CACHE_DIR="$HOME/Library/Caches/sketchybar"
 
-if [[ "${1:-}" == "--stdin" ]]; then
-  if (( $# > 2 )); then
-    print -u2 "Usage: $0 [--stdin [cache-dir]]"
-    exit 2
-  fi
-  [[ -n "${2:-}" ]] && CACHE_DIR="$2"
+if (( $# == 2 )) && [[ "$1" == "--stdin" ]]; then
+  CACHE_DIR="$2"
   payload="$(/bin/cat)"
 elif (( $# == 0 )); then
   # media-control prints null when nothing is playing; the filter treats that
@@ -19,37 +15,32 @@ elif (( $# == 0 )); then
     payload=null
   fi
 else
-  print -u2 "Usage: $0 [--stdin [cache-dir]]"
+  print -u2 "Usage: $0 [--stdin cache-dir]"
   exit 2
 fi
 
-if ! playing="$($JQ -er '
+if ! $JQ -e '
   if type != "object" then false
   else
     ((.playbackRate // 0 | tonumber? // 0) > 0)
       and (.bundleIdentifier == "com.spotify.client"
         or .bundleIdentifier == "com.apple.Music")
   end
-' <<<"$payload" 2>/dev/null)" || [[ "$playing" != "true" ]]; then
+' <<<"$payload" >/dev/null 2>&1; then
   $JQ -cn '{playing:false}'
   exit 0
 fi
 
-title="$($JQ -r '.title // "" | tostring' <<<"$payload")"
-artist="$($JQ -r '.artist // "" | tostring' <<<"$payload")"
 artwork_data="$($JQ -r '.artworkData // "" | tostring' <<<"$payload")"
 artwork_path=""
 
 if [[ -n "$artwork_data" ]] && /bin/mkdir -p "$CACHE_DIR"; then
-  if temporary_artwork="$(/usr/bin/mktemp "$CACHE_DIR/media-artwork.XXXXXX" 2>/dev/null)" \
-    && [[ -n "$temporary_artwork" ]]; then
+  if temporary_artwork="$(/usr/bin/mktemp "$CACHE_DIR/media-artwork.XXXXXX" 2>/dev/null)"; then
     if print -rn -- "$artwork_data" | /usr/bin/base64 -D >"$temporary_artwork" 2>/dev/null \
       && [[ -s "$temporary_artwork" ]]; then
       artwork_hash="$(/usr/bin/shasum -a 256 "$temporary_artwork" | /usr/bin/awk '{ print $1 }')"
       candidate_artwork="$CACHE_DIR/media-artwork-$artwork_hash"
-      if [[ -z "$artwork_hash" ]]; then
-        /bin/rm -f "$temporary_artwork"
-      elif [[ -f "$candidate_artwork" ]]; then
+      if [[ -f "$candidate_artwork" ]]; then
         /bin/rm -f "$temporary_artwork"
         artwork_path="$candidate_artwork"
       elif /bin/mv "$temporary_artwork" "$candidate_artwork" 2>/dev/null; then
@@ -66,8 +57,6 @@ if [[ -n "$artwork_data" ]] && /bin/mkdir -p "$CACHE_DIR"; then
   fi
 fi
 
-$JQ -cn \
-  --arg title "$title" \
-  --arg artist "$artist" \
-  --arg artwork "$artwork_path" \
-  '{playing:true, title:$title, artist:$artist, artwork:$artwork}'
+$JQ -c --arg artwork "$artwork_path" \
+  '{playing:true, title:(.title // "" | tostring), artist:(.artist // "" | tostring), artwork:$artwork}' \
+  <<<"$payload"

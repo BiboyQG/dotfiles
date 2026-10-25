@@ -12,7 +12,6 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  alarm(0);
   struct cpu cpu;
   cpu_init(&cpu);
 
@@ -25,10 +24,8 @@ int main(int argc, char **argv) {
     if (cpu_update(&cpu)) {
       snprintf(trigger_message,
                sizeof(trigger_message),
-               "--trigger '%s' user_load='%d' sys_load='%02d' total_load='%02d'",
+               "--trigger '%s' total_load='%02d'",
                argv[1],
-               cpu.user_load,
-               cpu.sys_load,
                cpu.total_load);
       sketchybar(trigger_message);
     }

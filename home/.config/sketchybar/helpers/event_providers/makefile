@@ -1,5 +1,3 @@
-BINDIR ?= $(CURDIR)/bin
-
 .PHONY: all
 all:
 	$(MAKE) -C cpu_load BINDIR="$(BINDIR)"

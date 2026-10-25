@@ -1314,8 +1314,7 @@ brew_trust_targets="$(
 
 log "Checking AI usage fixtures"
 fixture_root="$CHECK_WORK_DIR/openusage"
-bar_root="$CHECK_WORK_DIR/bars"
-mkdir -p "$fixture_root"/{object,array,empty,malformed} "$bar_root"
+mkdir -p "$fixture_root"/{object,array,empty,malformed}
 for provider in codex claude; do
   jq -n '
     {
@@ -1340,7 +1339,7 @@ done
 typeset -A usage_output
 for kind in object array empty malformed; do
   usage_output[$kind]="$(env "${ISOLATED_ENV[@]}" \
-    OPENUSAGE_FIXTURE_DIR="$fixture_root/$kind" AI_USAGE_BAR_DIR="$bar_root" \
+    OPENUSAGE_FIXTURE_DIR="$fixture_root/$kind" \
     zsh home/.config/sketchybar/scripts/ai_usage.sh)"
 done
 

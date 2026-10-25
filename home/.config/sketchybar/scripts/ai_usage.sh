@@ -1,9 +1,9 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-API_BASE="${OPENUSAGE_API_BASE:-http://127.0.0.1:6736/v1/usage}"
+API_BASE="http://127.0.0.1:6736/v1/usage"
 FIXTURE_DIR="${OPENUSAGE_FIXTURE_DIR:-}"
-BAR_DIR="${AI_USAGE_BAR_DIR:-${TMPDIR:-/tmp}/sketchybar-ai-usage}"
+BAR_DIR="${TMPDIR:-/tmp}/sketchybar-ai-usage"
 BAR_WIDTH=52
 BAR_VERSION=2
 TRACK_COLOR="#414550"
@@ -11,15 +11,10 @@ TRACK_COLOR="#414550"
 mkdir -p "$BAR_DIR"
 find "$BAR_DIR" -type f -name 'v*.png' -mtime +7 -delete 2>/dev/null || true
 
-# Sets REPLY to the filled width for a percentage; "--" and other
-# non-numeric values fill nothing.
+# A percentage here is jq-rounded to 0-100; "--" means no limit was reported.
 bar_fill_width() {
-  local percent="${1%%.*}"
-
   REPLY=0
-  [[ "$percent" =~ '^[0-9]+$' ]] || return 0
-  (( percent > 100 )) && percent=100
-  REPLY=$(((percent * BAR_WIDTH + 50) / 100))
+  [[ "$1" == "--" ]] || REPLY=$((($1 * BAR_WIDTH + 50) / 100))
 }
 
 generate_bar() {
@@ -58,13 +53,11 @@ generate_bar() {
     fi
   fi
 
-  if command -v magick >/dev/null 2>&1; then
-    local temporary_output="${output%.png}.${$}.${RANDOM}.png"
-    if magick -size "${BAR_WIDTH}x14" xc:none "${draw[@]}" "$temporary_output" >/dev/null 2>&1; then
-      mv -f "$temporary_output" "$output"
-    else
-      rm -f "$temporary_output"
-    fi
+  local temporary_output="${output%.png}.${$}.${RANDOM}.png"
+  if magick -size "${BAR_WIDTH}x14" xc:none "${draw[@]}" "$temporary_output" >/dev/null 2>&1; then
+    mv -f "$temporary_output" "$output"
+  else
+    rm -f "$temporary_output"
   fi
 
   if [[ -f "$output" ]]; then
@@ -89,10 +82,6 @@ emit_provider() {
   local body parsed
 
   if [[ -n "$FIXTURE_DIR" ]]; then
-    if [[ ! -f "$FIXTURE_DIR/${provider}.json" ]]; then
-      emit_unavailable "$provider"
-      return
-    fi
     body="$(<"$FIXTURE_DIR/${provider}.json")"
   else
     if ! body="$(curl -fsS --max-time 3 "${API_BASE}/${provider}" 2>/dev/null)"; then
@@ -140,17 +129,10 @@ emit_provider() {
   lines=(${(f)parsed})
   local session="${lines[(r)${provider}_session=*]#*=}"
   local weekly="${lines[(r)${provider}_weekly=*]#*=}"
-  local color="#7f8490"
-  [[ "$provider" == "codex" ]] && color="#74AA9C"
+  local color="#74AA9C"
   [[ "$provider" == "claude" ]] && color="#DE7356"
   print -r -- "${provider}_bar=$(generate_bar "$provider" "$color" "$session" "$weekly")"
 }
-
-if [[ -n "$FIXTURE_DIR" ]]; then
-  emit_provider codex
-  emit_provider claude
-  exit 0
-fi
 
 RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sketchybar-ai-usage-run.XXXXXX")"
 trap 'rm -rf "$RUN_DIR"' EXIT
@@ -160,7 +142,7 @@ codex_pid=$!
 emit_provider claude >"$RUN_DIR/claude" &
 claude_pid=$!
 
-wait "$codex_pid" || emit_unavailable codex >"$RUN_DIR/codex"
-wait "$claude_pid" || emit_unavailable claude >"$RUN_DIR/claude"
+wait "$codex_pid"
+wait "$claude_pid"
 
 cat "$RUN_DIR/codex" "$RUN_DIR/claude"

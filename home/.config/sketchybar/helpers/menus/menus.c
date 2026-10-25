@@ -25,7 +25,6 @@ static void ax_init(void) {
       sizeof(keys) / sizeof(*keys),
       &kCFCopyStringDictionaryKeyCallBacks,
       &kCFTypeDictionaryValueCallBacks);
-  if (!options) exit(1);
 
   bool trusted = AXIsProcessTrustedWithOptions(options);
   CFRelease(options);
@@ -35,14 +34,11 @@ static void ax_init(void) {
   // app would block the bar's menu query; a timeout set on the system-wide
   // element applies to every element that does not set its own.
   AXUIElementRef system_wide = AXUIElementCreateSystemWide();
-  if (system_wide) {
-    AXUIElementSetMessagingTimeout(system_wide, 1.0f);
-    CFRelease(system_wide);
-  }
+  AXUIElementSetMessagingTimeout(system_wide, 1.0f);
+  CFRelease(system_wide);
 }
 
 static void ax_perform_click(AXUIElementRef element) {
-  if (!element) return;
   AXUIElementPerformAction(element, kAXCancelAction);
   usleep(150000);
   AXUIElementPerformAction(element, kAXPressAction);
@@ -107,18 +103,13 @@ static void ax_print_title_line(CFStringRef title) {
                            CFStringGetLength(title),
                            kCFStringEncodingUTF8)
                        + 1;
-    if (capacity > 0) {
-      char *buffer = malloc((size_t)capacity);
-      if (buffer && CFStringGetCString(title,
-                                       buffer,
-                                       capacity,
-                                       kCFStringEncodingUTF8)
-          && buffer[0] != '\0') {
-        printf("%s\n", buffer);
-        printed = true;
-      }
-      free(buffer);
+    char *buffer = malloc((size_t)capacity);
+    if (CFStringGetCString(title, buffer, capacity, kCFStringEncodingUTF8)
+        && buffer[0] != '\0') {
+      printf("%s\n", buffer);
+      printed = true;
     }
+    free(buffer);
     CFRelease(title);
   }
   if (!printed) printf(" \n");

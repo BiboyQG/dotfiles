@@ -1,13 +1,13 @@
 #pragma once
 
 #include <ifaddrs.h>
-#include <limits.h>
 #include <net/if.h>
 #include <net/if_mib.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -19,12 +19,6 @@ enum unit {
   UNIT_KBPS,
   UNIT_MBPS,
   UNIT_GBPS
-};
-
-enum network_connection_status {
-  NETWORK_CONNECTION_UNKNOWN,
-  NETWORK_CONNECTION_OFF,
-  NETWORK_CONNECTION_ON
 };
 
 struct network {
@@ -62,45 +56,23 @@ static inline bool address_is_routable(const struct sockaddr *address) {
   return false;
 }
 
-static inline enum network_connection_status
-network_connection_from_interfaces(const char *ifname,
-                                   const struct ifaddrs *interfaces) {
-  if (!ifname) return NETWORK_CONNECTION_UNKNOWN;
-
-  for (const struct ifaddrs *interface = interfaces;
-       interface;
-       interface = interface->ifa_next) {
-    if (interface->ifa_name && interface->ifa_addr
-        && strcmp(interface->ifa_name, ifname) == 0
-        && address_is_routable(interface->ifa_addr)) {
-      return NETWORK_CONNECTION_ON;
-    }
-  }
-  return NETWORK_CONNECTION_OFF;
-}
-
-static inline enum network_connection_status
-network_connection(const char *ifname) {
+static inline bool network_connected(const char *ifname) {
   struct ifaddrs *interfaces = NULL;
-  if (getifaddrs(&interfaces) != 0) return NETWORK_CONNECTION_UNKNOWN;
-
-  enum network_connection_status status =
-      network_connection_from_interfaces(ifname, interfaces);
-  if (interfaces) freeifaddrs(interfaces);
-  return status;
-}
-
-static inline const char *network_connection_string(
-    enum network_connection_status status) {
-  switch (status) {
-    case NETWORK_CONNECTION_ON:
-      return "on";
-    case NETWORK_CONNECTION_OFF:
-      return "off";
-    case NETWORK_CONNECTION_UNKNOWN:
-      return "unknown";
+  if (getifaddrs(&interfaces) != 0) {
+    perror("getifaddrs");
+    exit(EXIT_FAILURE);
   }
-  return "unknown";
+
+  bool connected = false;
+  for (const struct ifaddrs *interface = interfaces;
+       interface && !connected;
+       interface = interface->ifa_next) {
+    connected = interface->ifa_addr
+                && strcmp(interface->ifa_name, ifname) == 0
+                && address_is_routable(interface->ifa_addr);
+  }
+  freeifaddrs(interfaces);
+  return connected;
 }
 
 static inline bool network_init(struct network *net, const char *ifname) {
@@ -115,7 +87,7 @@ static inline bool network_init(struct network *net, const char *ifname) {
     return false;
   }
 
-  for (uint32_t row = 1; row <= interface_count && row <= INT32_MAX; ++row) {
+  for (uint32_t row = 1; row <= interface_count; ++row) {
     if (!ifdata((int32_t)row, &net->data)) continue;
     if (strcmp(net->data.ifmd_name, ifname) == 0) {
       net->row = (int32_t)row;
@@ -140,9 +112,7 @@ static inline void scaled_rate(double rate, int *value, enum unit *unit) {
     *unit = UNIT_KBPS;
   }
 
-  double scaled = rate / divisor;
-  if (scaled > (double)INT_MAX) scaled = (double)INT_MAX;
-  *value = (int)scaled;
+  *value = (int)(rate / divisor);
 }
 
 static inline bool network_update(struct network *net) {

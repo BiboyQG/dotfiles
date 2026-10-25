@@ -9,8 +9,6 @@
 
 static inline bool parse_update_frequency(const char *text,
                                           useconds_t *sleep_us) {
-  if (!text || !sleep_us) return false;
-
   errno = 0;
   char *end = NULL;
   double seconds = strtod(text, &end);
