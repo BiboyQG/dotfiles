@@ -26,7 +26,6 @@ zsh check.sh --live   # Also inspect installed tools and the current machine
 
 ## Documentation
 
-- [Setup and maintenance](docs/setup.md): installation details, configuration layout, local overrides, and troubleshooting.
+- [Setup and maintenance](docs/setup.md): installation details, configuration layout, agent instructions, local overrides, and troubleshooting.
 - [Everyday usage](docs/usage.md): tmux session slots, keyboard shortcuts, and shell helpers.
 - [Tools](docs/tools.md): package inventory and installation methods.
-- Agent configuration: [`home/.claude/`](home/.claude/) (Claude Code `CLAUDE.md` and `settings.json`) and [`home/.codex/AGENTS.md`](home/.codex/AGENTS.md), linked into `~/.claude` and `~/.codex`.

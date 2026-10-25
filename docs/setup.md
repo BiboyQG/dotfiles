@@ -4,19 +4,7 @@
 
 ## Install or update
 
-This setup targets Apple Silicon Macs. Install the Xcode Command Line Tools first; setup exits when they are missing:
-
-```sh
-xcode-select --install
-```
-
-From the repository root, run:
-
-```sh
-zsh setup.sh --skip-system-defaults
-```
-
-This installs or updates tools, deploys links, and restarts or reloads OpenUsage, AeroSpace, and SketchyBar. It skips macOS defaults and NVRAM changes. Run `zsh setup.sh` to include those system preferences.
+Run the commands in the [README quick start](../README.md#quick-start); to update an existing clone, run `git pull` and then `zsh setup.sh --skip-system-defaults` in it. Setup exits when the Xcode Command Line Tools are missing.
 
 With `--skip-system-defaults`, setup asks for an administrator password only to install Homebrew, accept a pending Xcode license, or install or upgrade the pkg-based casks (SF Symbols, SF Mono, SF Pro).
 
@@ -69,7 +57,5 @@ Setup links [`home/.codex/AGENTS.md`](../home/.codex/AGENTS.md) into a real `~/.
 
 ## Troubleshooting
 
-- **Setup stops at a file conflict:** move or merge the reported file, then rerun setup.
-- **A Neovim, Tree-sitter or zinit step fails:** fix the reported error (setup prints the zinit log path on failure) and rerun setup.
 - **AeroSpace or SketchyBar does not start:** read the postflight output, then run `zsh check.sh --live`.
 - **Desktop flashes during AeroSpace workspace switches:** see the [AeroSpace patch](aerospace-patch.md).

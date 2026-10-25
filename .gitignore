@@ -2,5 +2,3 @@
 
 /home/.codex/*
 !/home/.codex/AGENTS.md
-
-__pycache__/

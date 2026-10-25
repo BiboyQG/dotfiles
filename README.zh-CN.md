@@ -26,7 +26,6 @@ zsh check.sh --live   # 额外检查已安装工具及本机状态
 
 ## 文档
 
-- [安装与维护（英文）](docs/setup.md)：安装细节、配置目录、本机覆盖项和排错。
+- [安装与维护（英文）](docs/setup.md)：安装细节、配置目录、Agent 配置、本机覆盖项和排错。
 - [日常使用（英文）](docs/usage.md)：tmux 会话编号、快捷键和 Shell 辅助命令。
 - [工具清单（英文）](docs/tools.md)：工具用途和安装方式。
-- Agent 配置：[`home/.claude/`](home/.claude/)（Claude Code 的 `CLAUDE.md` 和 `settings.json`）和 [`home/.codex/AGENTS.md`](home/.codex/AGENTS.md)，链接到 `~/.claude` 和 `~/.codex`。

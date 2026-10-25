@@ -483,7 +483,7 @@ printf '.config/preflight-boundary\n' \
   >>"$SETUP_FIXTURE_SOURCE/stow-target-dirs.txt"
 cp home/.stow-local-ignore \
   "$SETUP_FIXTURE_SOURCE/home/.stow-local-ignore"
-printf '^/\\.config/preflight-ignored($|/)\n' \
+printf 'fixture-ignored\n' \
   >>"$SETUP_FIXTURE_SOURCE/home/.stow-local-ignore"
 printf 'font_family fixture\n' \
   >"$SETUP_FIXTURE_SOURCE/home/.config/kitty/kitty.conf"
@@ -680,16 +680,17 @@ assert_setup_preflight folded reject \
 rm -- "$SETUP_FIXTURE_HOME/.config/yazi"
 rmdir "$SETUP_FIXTURE_SOURCE/home/.config/yazi/flavors"
 
-# Entries below a folded sub-directory stay reachable through its link, and
-# a Finder .DS_Store is not machine-local data, so neither blocks migration.
+# An ignored entry below a folded sub-directory stays reachable through its
+# link, and a Finder .DS_Store is not machine-local data, so neither blocks
+# migration.
 mkdir -p "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins"
-: >"$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins/.gitignore"
+: >"$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins/fixture-ignored"
 : >"$SETUP_FIXTURE_SOURCE/home/.config/yazi/.DS_Store"
 ln -s "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_HOME/.config/yazi"
 assert_setup_preflight folded-reachable accept
 rm -- "$SETUP_FIXTURE_HOME/.config/yazi" \
-  "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins/.gitignore" \
+  "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins/fixture-ignored" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi/.DS_Store"
 rmdir "$SETUP_FIXTURE_SOURCE/home/.config/yazi/plugins"
 
