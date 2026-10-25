@@ -23,7 +23,10 @@ brew_bundle_cask_skip() {
 
   # Mos smooths the mouse wheel on the Mac Studio; the MacBook Pro has no
   # mouse and scrolls with Homerow.
-  model="$(mac_model_name)" || return 1
+  if ! model="$(mac_model_name)" || [[ -z "$model" ]]; then
+    printf 'Could not read the Mac model name for the Mos cask skip.\n' >&2
+    return 1
+  fi
   if [[ "$model" != "Mac Studio" && " $skip_value " != *" mos "* ]]; then
     skip_value+="${skip_value:+ }mos"
   fi
