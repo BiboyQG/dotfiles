@@ -1,12 +1,5 @@
 return {
   "christoomey/vim-tmux-navigator",
-  cmd = {
-    "TmuxNavigateLeft",
-    "TmuxNavigateDown",
-    "TmuxNavigateUp",
-    "TmuxNavigateRight",
-    "TmuxNavigatePrevious",
-  },
   -- Declaring the keys here makes LazyVim skip its own <C-h/j/k/l> window maps,
   -- which otherwise replace the navigator maps on VeryLazy.
   keys = {

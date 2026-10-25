@@ -101,7 +101,7 @@
         },
         "when": "terminalFocus"
     },
-    { // Move focus to the SideBar if not (!) there
+    {
         "key": "ctrl+h",
         "when": "!sideBarFocus && !terminalFocus",
         "command": "workbench.action.focusSideBar"
@@ -114,12 +114,12 @@
         },
         "when": "terminalFocus"
     },
-    { // Move focus to the Editor, if currently in the SideBar
+    {
         "key": "ctrl+l",
         "when": "sideBarFocus || explorerViewletFocus || filesExplorerFocus",
         "command": "workbench.action.focusActiveEditorGroup"
     },
-    { // Move focus to the Editor, if currently in the SideBar
+    {
         "key": "ctrl+h",
         "when": "(sideBarFocus || explorerViewletFocus || filesExplorerFocus) && !terminalFocus",
         "command": "workbench.action.focusActiveEditorGroup"

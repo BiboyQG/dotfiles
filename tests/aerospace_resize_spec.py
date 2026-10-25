@@ -91,10 +91,10 @@ class ResizeTests(unittest.TestCase):
     def state(self):
         return json.loads((self.root / "state.json").read_text())
 
-    def start(self, direction="left", amount="50", trace=False, **options):
+    def start(self, direction="left", trace=False, **options):
         env = dict(os.environ, AEROSPACE=str(self.mock), TMPDIR=str(self.root),
                    RESIZE_FIXTURE=str(self.root), **options)
-        command = ["/bin/zsh"] + (["-x"] if trace else []) + [str(SCRIPT), direction, amount]
+        command = ["/bin/zsh"] + (["-x"] if trace else []) + [str(SCRIPT), direction]
         process = subprocess.Popen(command, env=env, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE, text=True, start_new_session=True)
         self.processes.append(process)
@@ -132,12 +132,12 @@ class ResizeTests(unittest.TestCase):
                 with self.subTest(direction=direction, boundary=boundary):
                     self.set_state("1")
                     options = {"RESIZE_BOUNDARY": "1"} if boundary else {}
-                    self.finish(self.start(direction, "35", **options))
+                    self.finish(self.start(direction, **options))
                     state = self.state()
                     self.assertEqual(state["focused"], "1")
                     self.assertEqual(state["calls"][-1]["args"],
                                      ["resize", "--window-id", "1", dimension,
-                                      "-35" if boundary else "+35"])
+                                      "-50" if boundary else "+50"])
                     restores = [call for call in state["calls"]
                                 if call["args"][:2] == ["focus", "--window-id"]]
                     self.assertEqual(len(restores), 0 if boundary else 1,
