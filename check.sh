@@ -172,11 +172,10 @@ cat >"$IP_FIXTURE_DIR/curl" <<'BASH'
 #!/bin/bash
 set -euo pipefail
 
-[[ "$#" -eq 7 ]]
-[[ "$1" == "-4" && "$2" == "-fsS" ]]
+[[ "$#" -eq 5 ]]
+[[ "$1" == "-4" && "$2" == "-f" ]]
 [[ "$3" == "--max-time" && "$4" == "2" ]]
-[[ "$5" == "--retry" && "$6" == "0" ]]
-url="$7"
+url="$5"
 printf '%s\n' "$url" >>"$IP_CURL_LOG"
 
 case "$IP_MOCK_SCENARIO:$url" in
@@ -260,20 +259,16 @@ run_ip_case() {
   : >"$IP_CASE_DIG_LOG"
   rm -f -- "$IP_SLOW_MARKER"
 
-  if IP_CASE_OUTPUT="$(
+  IP_CASE_EXIT=0
+  IP_CASE_OUTPUT="$(
     env "${ISOLATED_ENV[@]}" \
-      IP_CURL_BIN="$IP_FIXTURE_DIR/curl" \
-      IP_DIG_BIN="$IP_FIXTURE_DIR/dig" \
+      PATH="$IP_FIXTURE_DIR:$PATH" \
       IP_MOCK_SCENARIO="$scenario" \
       IP_CURL_LOG="$IP_CASE_CURL_LOG" \
       IP_DIG_LOG="$IP_CASE_DIG_LOG" \
       IP_SLOW_MARKER="$IP_SLOW_MARKER" \
       "$interpreter" "$ROOT/home/bin/ip" 2>"$IP_CASE_STDERR"
-  )"; then
-    IP_CASE_EXIT=0
-  else
-    IP_CASE_EXIT=$?
-  fi
+  )" || IP_CASE_EXIT=$?
 }
 
 zmodload zsh/datetime
