@@ -6,7 +6,7 @@
 
 Run the commands in the [README quick start](../README.md#quick-start); to update an existing clone, run `git pull` and then `zsh setup.sh --skip-system-defaults` in it. Setup exits when the Xcode Command Line Tools are missing.
 
-With `--skip-system-defaults`, setup asks for an administrator password only to install Homebrew, accept a pending Xcode license, or install or upgrade the pkg-based casks (SF Symbols, SF Mono, SF Pro).
+With `--skip-system-defaults`, setup asks for an administrator password only to install Homebrew, accept a pending Xcode license, or install or upgrade the pkg-based casks (SF Symbols, SF Mono, SF Pro). Run `zsh setup.sh` without the flag once on each Mac: its defaults step turns off the input-source indicator, which otherwise stalls AeroSpace on every switch LockIME makes.
 
 Neovim plugins and the Yazi flavor are installed at the revisions pinned in [`lazy-lock.json`](../home/.config/nvim/lazy-lock.json) and [`package.toml`](../home/.config/yazi/package.toml), so a fresh machine matches the repository. To move those pins to the latest upstream versions, run:
 

@@ -594,6 +594,13 @@ setup_system_preferences() {
   defaults write com.apple.finder WarnOnEmptyTrash -bool false
   defaults write com.apple.dock autohide -bool true
   defaults write com.apple.dock "autohide-delay" -float "0"
+  # The input-source indicator beside the cursor blocks the focused app's
+  # main thread for about 0.5 s on every input-source change, which stalls
+  # AeroSpace's Accessibility calls while LockIME switches.
+  defaults write NSGlobalDomain TSMLanguageIndicatorEnabled -bool false
+  # macOS press-and-hold otherwise stops key repeat (and opens the accent
+  # picker for k), so holding j or k in VS Code's Vim extension cannot scroll.
+  defaults write com.microsoft.VSCode ApplePressAndHoldEnabled -bool false
 
   local consumer
   for consumer in Dock Finder SystemUIServer; do

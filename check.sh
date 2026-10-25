@@ -1111,6 +1111,8 @@ env SYSTEM_DEFAULTS_LOG="$SYSTEM_DEFAULTS_LOG" zsh -fc '
     "write com.apple.AppleMultitouchTrackpad Clicking -bool true" \
     "write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true" \
     "-currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1" \
+    "write NSGlobalDomain TSMLanguageIndicatorEnabled -bool false" \
+    "write com.microsoft.VSCode ApplePressAndHoldEnabled -bool false" \
     "killall Dock" "killall Finder" "nvram StartupMute=%01"; do
     grep -Fxq -- "$expected" "$SYSTEM_DEFAULTS_LOG"
   done
