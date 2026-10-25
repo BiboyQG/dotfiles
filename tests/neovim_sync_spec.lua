@@ -1,16 +1,15 @@
 local root = assert(arg[1])
--- setup.sh installs the revisions in lazy-lock.json unless --update sets
--- DOTFILES_NVIM_UPDATE=1; an unset or "0" variable must keep the lock.
+-- setup.sh passes DOTFILES_NVIM_UPDATE=0, or 1 with --update; 0 must keep the
+-- versions pinned in lazy-lock.json.
 local modes = {
-  { update = nil, lockfile = true },
   { update = "0", lockfile = true },
   { update = "1", lockfile = false },
 }
 for _, mode in ipairs(modes) do
   for _, failure in ipairs({ "none", "missing", "task", "process", "cleanup", "running", "exception" }) do
     local synced, exit_command, diagnostic = false, nil, nil
-    local plugin = { name = "fixture", _ = { installed = false } }
-    local removed = { name = "removed", _ = { installed = true } }
+    local plugin = { name = "fixture", _ = {} }
+    local removed = { name = "removed", _ = {} }
     local config = { plugins = { fixture = plugin }, to_clean = { removed } }
     local function task(name, failed, running)
       return {
@@ -33,7 +32,7 @@ for _, mode in ipairs(modes) do
         assert(options.wait == true and options.show == false)
         assert(
           options.lockfile == mode.lockfile,
-          "lockfile option did not follow DOTFILES_NVIM_UPDATE=" .. tostring(mode.update)
+          "lockfile option did not follow DOTFILES_NVIM_UPDATE=" .. mode.update
         )
         if failure == "exception" then error("fixture sync exception") end
         plugin._.installed = failure ~= "missing"

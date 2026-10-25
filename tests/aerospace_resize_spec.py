@@ -11,7 +11,7 @@ import time
 import unittest
 
 
-ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
+ROOT = Path(sys.argv[1]).resolve()
 SCRIPT = ROOT / "home/.config/aerospace/scripts/resize-edge"
 MOCK = r'''#!/usr/bin/env python3
 import fcntl

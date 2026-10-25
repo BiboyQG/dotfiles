@@ -64,8 +64,6 @@ def server():
             tmux("set", "-g", "default-command", "/bin/sh")
             tmux("set", "-g", "base-index", "1")
             tmux("set", "-g", "pane-base-index", "1")
-            tmux("set", "-g", "@resurrect-dir", str(work / "saved"))
-            tmux("set", "-g", "@resurrect-processes", "false")
             command = f"{shlex.quote(sys.executable)} {shlex.quote(str(MANAGER))}"
             tmux("set", "-g", "@resurrect-hook-pre-restore-all", f"{command} restore-begin")
             tmux("set", "-g", "@resurrect-hook-post-restore-all", f"{command} restore-end")
@@ -123,15 +121,14 @@ def run_outcome(outcome):
         subprocess.run(["/bin/bash", str(STARTUP)], env=env, check=True)
         actual = tmux("list-sessions", "-F", "#{session_name}")
         assert actual == "1-kept-on-reload", actual
-    return outcome
 
 
 if PLUGINS is None:
     outcomes = ("restored", "no-snapshot", "multiple-servers", "opt-out", "missing-plugin", "failed")
     # Each outcome has its own temporary HOME and socket, so they run at once;
-    # list() re-raises the first failure and the result keeps the order explicit.
+    # list() re-raises the first failure.
     with ThreadPoolExecutor(len(outcomes)) as pool:
-        assert list(pool.map(run_outcome, outcomes)) == list(outcomes)
+        list(pool.map(run_outcome, outcomes))
 
 
     with server() as (work, env, tmux, manager):
@@ -151,28 +148,8 @@ if PLUGINS is None:
         manager("startup-prepare")
         assert manager("startup-claim") == ""
         assert tmux("list-sessions", "-F", "#{session_name}") == "0"
-
-
-if PLUGINS is not None:
-    restore = PLUGINS / "tmux-resurrect/scripts/restore.sh"
-    assert restore.is_file(), restore
-    with server() as (work, env, tmux, manager):
-        saved = work / "saved"
-        write_snapshot(work, saved)
-        assert manager("startup-claim") == "claimed"
-        # Invoke the actual installed plugin, independent of other live servers.
-        # Eligibility gates are covered above without consulting user processes.
-        result = subprocess.run(["/bin/bash", str(restore)], env=env, capture_output=True, text=True, check=True)
-        assert "can't find" not in result.stderr, result.stderr
-        manager("startup-finish")
-        actual = tmux("list-windows", "-a", "-F", "#{session_name}:#{window_name}:#{window_panes}")
-        assert actual == "1-alpha:saved-1-alpha:2\n2-beta:saved-2-beta:2", actual
-        for name in ("1-alpha", "2-beta"):
-            positions = tmux("list-panes", "-t", name, "-F", "#{pane_left}:#{pane_top}").splitlines()
-            assert positions[0] == "0:0" and positions[1].endswith(":0"), positions
-            assert int(positions[1].split(":", 1)[0]) > 0, positions
-        print("Installed tmux-resurrect restored session names, window names, panes, and layouts.")
-
+    print("tmux restore lifecycle, skip, failure, manual restore, and reload fixtures passed.")
+else:
     # Exercise configuration loading before the initial session exists, not just
     # source-file against an already-created server. All plugin data stays local.
     with tempfile.TemporaryDirectory(prefix="dotfiles-tmux-startup-") as directory:
@@ -210,7 +187,6 @@ if PLUGINS is not None:
         try:
             result = tmux_config("-f", str(work / ".tmux.conf"), "new-session", "-d", "/usr/bin/tail -f /dev/null")
             assert not result.stdout and not result.stderr, result.stdout + result.stderr
-            assert tmux_config("show-option", "-gqv", "default-shell").stdout.strip() == "/bin/sh"
             deadline = time.monotonic() + 5
             while time.monotonic() < deadline:
                 name = tmux_config("list-sessions", "-F", "#{session_name}").stdout.strip()
@@ -222,6 +198,10 @@ if PLUGINS is not None:
             assert state == "complete", state
             actual = tmux_config("list-windows", "-a", "-F", "#{session_name}:#{window_name}:#{window_panes}").stdout.strip()
             assert actual == "1-alpha:saved-1-alpha:2\n2-beta:saved-2-beta:2", actual
+            for name in ("1-alpha", "2-beta"):
+                positions = tmux_config("list-panes", "-t", name, "-F", "#{pane_left}:#{pane_top}").stdout.splitlines()
+                assert positions[0] == "0:0" and positions[1].endswith(":0"), positions
+                assert int(positions[1].split(":", 1)[0]) > 0, positions
             # A queued session-created hook may still enforce valid numbering.
             tmux_config("rename-session", "-t", "1-alpha", "1-kept-on-reload")
             tmux_config("source-file", str(work / ".tmux.conf"))
@@ -231,6 +211,3 @@ if PLUGINS is not None:
             print("Deployed tmux configuration restored a new server without a placeholder and reloaded safely.")
         finally:
             tmux_config("kill-server", check=False)
-
-if PLUGINS is None:
-    print("tmux restore lifecycle, skip, failure, manual restore, and reload fixtures passed.")

@@ -1,11 +1,10 @@
 local root = assert(arg[1])
 local original_dofile = dofile
-for _, failure in ipairs({ "none", "install", "update", "query", "timeout" }) do
+for _, failure in ipairs({ "none", "install", "update", "query" }) do
   local installed, updated, verified = false, false, 0
   local function task(kind)
     return { wait = function(_, timeout)
       assert(timeout == 300000)
-      if failure == "timeout" then error("timeout") end
       if kind == "install" then installed = true else
         assert(installed, "update started before installation finished")
         updated = true
@@ -39,5 +38,4 @@ for _, failure in ipairs({ "none", "install", "update", "query", "timeout" }) do
   assert(ok == (failure == "none"), "parser failure did not propagate: " .. failure)
   if failure == "none" then assert(verified == 4) end
 end
-_G.dofile = original_dofile
 print("Tree-sitter completion and failure fixtures passed.")

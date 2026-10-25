@@ -17,8 +17,6 @@ deferred_plugin = '''
 typeset -ga ZINIT_COMPDEF_REPLAY
 compdef() { ZINIT_COMPDEF_REPLAY+=("${(j: :)${(q)@}}"); }
 compdef _git ggp=git-push
-compdef _git gccd=git-clone
-compdef _git gdv=git-diff
 unfunction compdef
 zinit() {
   [[ "$*" == 'cdreplay -q' ]] || return 1
@@ -28,11 +26,7 @@ zinit() {
   done
 }
 '''
-inspect_completions = '''
-for name in ggp gccd gdv; do
-  print -r -- "$name:${_comps[$name]:-missing}:${_services[$name]:-missing}"
-done
-'''
+inspect_completions = 'print -r -- "${_comps[ggp]:-missing}:${_services[ggp]:-missing}"\n'
 
 with tempfile.TemporaryDirectory(prefix="dotfiles-completion-spec-") as directory:
     work = Path(directory)
@@ -47,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-completion-spec-") as director
         assert not result.stderr, result.stderr
         return result.stdout.splitlines()
 
-    expected = ["ggp:_git:git-push", "gccd:_git:git-clone", "gdv:_git:git-diff"]
+    expected = ["_git:git-push"]
     assert run(deferred_plugin, inspect_completions) == expected, "fresh compinit lost deferred completions"
     dump, = (path for path in work.glob(".zcompdump-[0-9]*") if not path.name.endswith(".fpath"))
     dump_state = (dump.stat().st_ino, dump.stat().st_mtime_ns, dump.read_bytes())

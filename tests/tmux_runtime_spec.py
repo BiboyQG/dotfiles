@@ -79,7 +79,6 @@ os.execv(real_tmux, [real_tmux, *args])
         def rename_targets():
             return [json.loads(line)[2] for line in rename_log.read_text().splitlines()]
 
-        rename_log.unlink(missing_ok=True)
         manager("rename", "alpha", "--session", "$0", extra_env=rename_env)
         assert rename_targets() == ["$0", "$0"], rename_targets()
         assert tmux("list-sessions", "-F", "#{session_id}\t#{session_name}") == "$0\t1-alpha\n$1\t2-beta\n$2\t3-gamma"
