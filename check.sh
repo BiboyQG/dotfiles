@@ -442,20 +442,62 @@ tmux switch-client -t missing"
 done
 
 log "Checking setup command-line behavior"
-setup_help="$(env "${ISOLATED_ENV[@]}" zsh setup.sh --help)"
+# The runs below source setup.sh and replace its steps afterwards, so a guard
+# that called main during source would run the real steps.
+[[ "$(tail -n 3 setup.sh)" == 'if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
+  main "$@"
+fi' ]] || {
+  printf "setup.sh must keep main behind its source-safe entry guard\n" >&2
+  exit 1
+}
+
+SETUP_CLI_POISON="$CHECK_WORK_DIR/setup-cli-poison"
+# Only main and argument parsing run for real. Every other setup.sh function,
+# and the listed commands, records its name instead, so a setup.sh that
+# ignores its options fails here instead of setting up this Mac, whatever its
+# steps are named. cleanup_sudo stays real because it is the EXIT trap.
+run_setup_cli() {
+  local setup_script="$1"
+  shift
+  env "${ISOLATED_ENV[@]}" zsh -fc '
+    source "$1"
+    POISON_MARKER="$2"
+    shift 2
+    poison() { print -r -- "$1" >>"$POISON_MARKER"; return 97; }
+    for name in brew curl defaults git killall make npm open osascript stow sudo ya \
+      ${(k)functions:#(main|parse_args|usage|cleanup_sudo|poison)}; do
+      functions[$name]="poison $name"
+    done
+    main "$@"
+  ' setup-cli "$setup_script" "$SETUP_CLI_POISON" "$@"
+}
+
+help_status=0
+setup_help="$(run_setup_cli setup.sh --help)" || help_status=$?
+setup_status=0
+run_setup_cli setup.sh --invalid-check-option >/dev/null 2>&1 || setup_status=$?
+[[ ! -e "$SETUP_CLI_POISON" ]] || {
+  printf "setup.sh ran setup steps for --help or an invalid option:\n" >&2
+  sed 's/^/  /' "$SETUP_CLI_POISON" >&2
+  exit 1
+}
+(( help_status == 0 ))
 grep -Fq 'usage:' <<<"$setup_help"
 grep -Fq -- '--update' <<<"$setup_help"
-setup_status=0
-env "${ISOLATED_ENV[@]}" zsh setup.sh --invalid-check-option >/dev/null 2>&1 || setup_status=$?
 (( setup_status == 2 )) || {
   printf "setup.sh returned %d for an invalid option; expected 2.\n" "$setup_status" >&2
   exit 1
 }
 
-[[ "$(tail -n 3 setup.sh)" == 'if [[ "${ZSH_EVAL_CONTEXT:-}" == toplevel ]]; then
-  main "$@"
-fi' ]] || {
-  printf "setup.sh must keep main behind its source-safe entry guard\n" >&2
+# A copy whose main drops its arguments before parsing them, as a guard
+# calling main without "$@" does, must reach the stubs and nothing else.
+SETUP_CLI_BROKEN="$CHECK_WORK_DIR/setup-cli-broken"
+mkdir -p "$SETUP_CLI_BROKEN"
+ln -s "$ROOT/lib" "$SETUP_CLI_BROKEN/lib"
+sed 's/^  parse_args "\$@"$/  parse_args/' setup.sh >"$SETUP_CLI_BROKEN/setup.sh"
+run_setup_cli "$SETUP_CLI_BROKEN/setup.sh" --help >/dev/null 2>&1 || true
+[[ -s "$SETUP_CLI_POISON" ]] || {
+  printf "The setup command-line stubs did not stop a setup.sh that ignores --help.\n" >&2
   exit 1
 }
 
