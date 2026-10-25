@@ -26,7 +26,7 @@ Setup stops on a conflicting existing file instead of adopting it; move or merge
 4. Link `home/` with Stow without adopting existing files, and create `~/.gitconfig` empty if it is missing.
 5. Install or update Claude Code and Codex CLI (official installers, `~/.local/bin`), nvm and the latest Node (global packages carried over from the previous default), zinit and the zsh plugins, kitty, SbarLua and the SketchyBar helpers (`~/.local/libexec/sketchybar`), and the tmux plugins; zsh and tmux plugins that are no longer declared are removed.
 6. Install the pinned Yazi flavor and Neovim plugins, then install and update Tree-sitter parsers and check the required parsers' highlight queries.
-7. Restart OpenUsage, reload AeroSpace's config in place (launching or relaunching it only when it is not running or its binary changed), then restart SketchyBar once AeroSpace responds, and check that each service responds.
+7. Restart OpenUsage, load the configuration in [`home/.config/lockime/rules.json`](../home/.config/lockime/rules.json) into LockIME and launch or relaunch it, reload AeroSpace's config in place (launching or relaunching it only when it is not running or its binary changed), then restart SketchyBar once AeroSpace responds, and check that each service responds.
 
 Setup fails when a Neovim plugin task fails, a zinit update logs an error or leaves a plugin behind its upstream (log: `${XDG_STATE_HOME:-~/.local/state}/dotfiles/zinit-update.log`), or a required Tree-sitter parser fails to install or lacks its highlight query.
 
@@ -57,5 +57,6 @@ Setup links [`home/.codex/AGENTS.md`](../home/.codex/AGENTS.md) into a real `~/.
 
 ## Troubleshooting
 
+- **LockIME did not start on a first run:** approve the macOS prompt for the newly downloaded app, then rerun setup.
 - **AeroSpace or SketchyBar does not start:** read the postflight output, then run `zsh check.sh --live`.
 - **Desktop flashes during AeroSpace workspace switches:** see the [AeroSpace patch](aerospace-patch.md).

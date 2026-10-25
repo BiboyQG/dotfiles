@@ -56,5 +56,6 @@ Packages are declared in [Brewfile](../Brewfile); other installers are in [setup
 | VS Code             | `brew --cask`         | GUI editor with extensions declared in Brewfile                                                                     |
 | Phi                 | `brew --cask`         | Browser used by the AeroSpace shortcut                                                                              |
 | Mos                 | `brew --cask`         | Smooth mouse-wheel scrolling (Mac Studio only)                                                                      |
+| LockIME             | `brew --cask`         | Switches the input source per app; rules in `home/.config/lockime/rules.json`                                       |
 | Claude Code         | Native installer      | Anthropic coding CLI                                                                                                |
 | Codex CLI           | Standalone installer  | OpenAI coding CLI                                                                                                   |

@@ -15,7 +15,7 @@ cd dotfiles
 zsh setup.sh --skip-system-defaults
 ```
 
-安装脚本会安装或更新工具、部署配置链接，并重启或重载 OpenUsage、AeroSpace 和 SketchyBar。若还要应用 macOS 系统偏好和 NVRAM 设置，运行 `zsh setup.sh`。
+安装脚本会安装或更新工具、部署配置链接，并重启或重载 OpenUsage、LockIME、AeroSpace 和 SketchyBar。若还要应用 macOS 系统偏好和 NVRAM 设置，运行 `zsh setup.sh`。
 
 ## 检查
 

@@ -45,6 +45,10 @@ side) and `r` reloads the configuration.
 - VS Code ([keybindings](../home/Library/Application%20Support/Code/User/keybindings.json)): `Ctrl+h` moves focus between the sidebar and the editor, `Ctrl+l` from the sidebar to the editor, and `Ctrl+j`/`Ctrl+k` to the terminal (inside the terminal, `Ctrl+h/j/k` go to the shell); `⇧⌘N` opens a terminal and `Ctrl+w` closes the focused one; `Space Space` opens Quick Open in Vim Normal mode; `Ctrl+]` / `Ctrl+Shift+[` open the next / previous editor; in the Explorer, `a`, `r`, `c`, `x`, `p`, `d`, `s` create, rename, copy, cut, paste, delete and open to the side.
 - Neovim: Neo-tree shows dotfiles; Git-ignored files stay hidden until you press `H`.
 
+## Input sources
+
+LockIME switches the input source when an app activates. The per-app rules are in [`rules.json`](../home/.config/lockime/rules.json); setup loads that file into LockIME on every run, replacing everything set in LockIME's own window except the menu-bar icon setting.
+
 ## Shell shortcuts
 
 Defined in [`home/.zshrc`](../home/.zshrc) and [`home/bin/`](../home/bin/):

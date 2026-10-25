@@ -1,0 +1,11 @@
+{
+  "isEnabled": true,
+  "enhancedModeEnabled": false,
+  "appRules": [
+    { "bundleID": "net.kovidgoyal.kitty", "mode": "switched", "lockedSourceID": "com.apple.keylayout.US" },
+    { "bundleID": "com.microsoft.VSCode", "mode": "switched", "lockedSourceID": "com.apple.keylayout.US" },
+    { "bundleID": "com.phibrowser.Mac", "mode": "switched", "lockedSourceID": "com.apple.keylayout.US" },
+    { "bundleID": "com.anthropic.claudefordesktop", "mode": "switched", "lockedSourceID": "com.bytedance.inputmethod.doubaoime.pinyin" },
+    { "bundleID": "com.tencent.xinWeChat", "mode": "switched", "lockedSourceID": "com.bytedance.inputmethod.doubaoime.pinyin" }
+  ]
+}

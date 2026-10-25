@@ -15,7 +15,7 @@ cd dotfiles
 zsh setup.sh --skip-system-defaults
 ```
 
-Setup installs or updates tools, links configurations, and restarts or reloads OpenUsage, AeroSpace, and SketchyBar. To also apply macOS defaults and NVRAM preferences, run `zsh setup.sh`.
+Setup installs or updates tools, links configurations, and restarts or reloads OpenUsage, LockIME, AeroSpace, and SketchyBar. To also apply macOS defaults and NVRAM preferences, run `zsh setup.sh`.
 
 ## Checks
 

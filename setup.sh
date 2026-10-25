@@ -996,6 +996,41 @@ restart_openusage() {
   return 1
 }
 
+restart_lockime() {
+  # LockIME keeps its rules in its own defaults domain and writes them back
+  # whenever it saves, so the rules are loaded while it is not running.
+  if process_running LockIME; then
+    if ! osascript -e 'quit app "LockIME"' >/dev/null; then
+      skip "Could not stop LockIME."
+      return 1
+    fi
+    if ! wait_for_process_exit LockIME; then
+      skip "LockIME did not stop; restart it manually."
+      return 1
+    fi
+  fi
+
+  local rules_hex
+  rules_hex="$(xxd -p "$DOTFILES_DIR/home/.config/lockime/rules.json" | tr -d '\n')"
+  if [[ -z "$rules_hex" ]]; then
+    skip "Could not read the LockIME rules."
+    return 1
+  fi
+  defaults write com.oomol.LockIME lockConfiguration -data "$rules_hex"
+  if ! open -gja LockIME; then
+    skip "Could not open LockIME."
+    return 1
+  fi
+
+  local attempt
+  for attempt in {1..20}; do
+    process_running LockIME && return 0
+    sleep 0.25
+  done
+  skip "LockIME did not start."
+  return 1
+}
+
 wait_for_aerospace() {
   local attempt
   for attempt in {1..40}; do
@@ -1069,10 +1104,11 @@ restart_sketchybar() {
 }
 
 restart_services() {
-  log "Restarting OpenUsage, AeroSpace, and SketchyBar"
+  log "Restarting OpenUsage, LockIME, AeroSpace, and SketchyBar"
 
   local failed=0
   restart_openusage || failed=1
+  restart_lockime || failed=1
   if restart_aerospace; then
     restart_sketchybar || failed=1
   else

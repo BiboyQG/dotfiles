@@ -1133,6 +1133,19 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   process_running() { return 1; }
   open() { return 1; }
   expect_failure restart_openusage
+  defaults() { print -r -- "defaults $*" >>"$SERVICE_FIXTURE_LOG"; }
+  expect_failure restart_lockime
+
+  # A running LockIME is quit before its rules are written, then relaunched.
+  LOCKIME_RUNNING=1
+  process_running() { [[ "$1" == LockIME ]] && (( LOCKIME_RUNNING )); }
+  osascript() { print -r -- "osascript $*" >>"$SERVICE_FIXTURE_LOG"; LOCKIME_RUNNING=0; }
+  open() { print -r -- "open $*" >>"$SERVICE_FIXTURE_LOG"; LOCKIME_RUNNING=1; }
+  : >"$SERVICE_FIXTURE_LOG"
+  restart_lockime
+  [[ "$(<"$SERVICE_FIXTURE_LOG")" == "osascript -e quit app \"LockIME\"
+defaults write com.oomol.LockIME lockConfiguration -data $(xxd -p "$DOTFILES_DIR/home/.config/lockime/rules.json" | tr -d "\n")
+open -gja LockIME" ]]
 
   open() { return 0; }
   wait_for_aerospace() { return 1; }
@@ -1163,11 +1176,16 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   expect_failure restart_sketchybar
 
   OPENUSAGE_EXIT=0
+  LOCKIME_EXIT=0
   AEROSPACE_EXIT=0
   SKETCHYBAR_EXIT=0
   restart_openusage() {
     print -r -- openusage >>"$SERVICE_FIXTURE_LOG"
     return "$OPENUSAGE_EXIT"
+  }
+  restart_lockime() {
+    print -r -- lockime >>"$SERVICE_FIXTURE_LOG"
+    return "$LOCKIME_EXIT"
   }
   restart_aerospace() {
     print -r -- aerospace >>"$SERVICE_FIXTURE_LOG"
@@ -1189,14 +1207,19 @@ env SERVICE_FIXTURE_LOG="$SERVICE_FIXTURE_LOG" zsh -fc '
   }
 
   all_calls="openusage
+lockime
 aerospace
 sketchybar"
   assert_service_case 0 "$all_calls"
   OPENUSAGE_EXIT=1
   assert_service_case 1 "$all_calls"
   OPENUSAGE_EXIT=0
+  LOCKIME_EXIT=1
+  assert_service_case 1 "$all_calls"
+  LOCKIME_EXIT=0
   AEROSPACE_EXIT=1
   assert_service_case 1 "openusage
+lockime
 aerospace"
   AEROSPACE_EXIT=0
   SKETCHYBAR_EXIT=1
@@ -1332,6 +1355,7 @@ while IFS= read -r file; do
 done < <(repo_files '*.json' '*.jsonc')
 jq empty home/.config/nvim/lazyvim.json
 jq empty home/.config/nvim/lazy-lock.json
+jq empty home/.config/lockime/rules.json
 rg -Fq 'lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"' \
   home/.config/nvim/lua/config/lazy.lua
 
@@ -1342,7 +1366,7 @@ brew_trust_targets="$(
   env "${ISOLATED_ENV[@]}" zsh -c \
     'source "$1"; declared_brew_trust_targets' zsh "$ROOT/setup.sh"
 )"
-[[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace\ncask\tabue-ammar/tinycast/tinycast\ncask\tphibrowser/tap/phi' ]]
+[[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace\ncask\tabue-ammar/tinycast/tinycast\ncask\tphibrowser/tap/phi\ncask\toomol-lab/tap/lockime' ]]
 
 log "Checking AI usage fixtures"
 fixture_root="$CHECK_WORK_DIR/openusage"
