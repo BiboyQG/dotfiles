@@ -52,6 +52,8 @@ cask "nikitabobko/tap/aerospace"
 cask "abue-ammar/tinycast/tinycast"
 cask "openusage"
 cask "phibrowser/tap/phi"
+# Mac Studio only; brew_bundle_cask_skip skips it on the other Macs.
+cask "mos"
 cask "visual-studio-code"
 
 vscode "aaronthomas.vscode-snazzy-operator"

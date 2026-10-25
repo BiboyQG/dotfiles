@@ -55,5 +55,6 @@ Packages are declared in [Brewfile](../Brewfile); other installers are in [setup
 | Uv                  | `brew`                | Python package/venv manager                                                                                         |
 | VS Code             | `brew --cask`         | GUI editor with extensions declared in Brewfile                                                                     |
 | Phi                 | `brew --cask`         | Browser used by the AeroSpace shortcut                                                                              |
+| Mos                 | `brew --cask`         | Smooth mouse-wheel scrolling (Mac Studio only)                                                                      |
 | Claude Code         | Native installer      | Anthropic coding CLI                                                                                                |
 | Codex CLI           | Standalone installer  | OpenAI coding CLI                                                                                                   |

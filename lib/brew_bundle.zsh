@@ -1,6 +1,13 @@
+# The marketing name ("Mac Studio", "MacBook Pro"); hw.model would need the
+# model identifier of every generation.
+mac_model_name() {
+  system_profiler SPHardwareDataType -json \
+    | plutil -extract 'SPHardwareDataType.0.machine_name' raw -o - -
+}
+
 brew_bundle_cask_skip() {
   local skip_value="${HOMEBREW_BUNDLE_CASK_SKIP:-}"
-  local pair cask app
+  local pair cask app model
   local -a unmanaged_apps=(
     'visual-studio-code:/Applications/Visual Studio Code.app'
   )
@@ -13,6 +20,13 @@ brew_bundle_cask_skip() {
       skip_value+="${skip_value:+ }$cask"
     fi
   done
+
+  # Mos smooths the mouse wheel on the Mac Studio; the MacBook Pro has no
+  # mouse and scrolls with Homerow.
+  model="$(mac_model_name)" || return 1
+  if [[ "$model" != "Mac Studio" && " $skip_value " != *" mos "* ]]; then
+    skip_value+="${skip_value:+ }mos"
+  fi
   print -r -- "$skip_value"
 }
 

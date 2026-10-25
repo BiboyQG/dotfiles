@@ -34,7 +34,7 @@ Setup stops on a conflicting existing file instead of adopting it; move or merge
 
 1. Preflight before changing anything: Stow conflicts, `~/.zprofile`, the tmux plugin manifest, modified or foreign checkouts of nvm, zinit, Homebrew taps and tmux plugins, and strict validation of a running AeroSpace's configuration (a stopped AeroSpace is validated right after launch).
 2. Apply macOS defaults and NVRAM settings, unless `--skip-system-defaults` is given.
-3. Install Homebrew if missing, tap the [Brewfile](../Brewfile)'s third-party taps and `brew trust` its tap-qualified entries, then install or upgrade the bundle, including its VS Code extensions. A VS Code app that Homebrew did not install is kept.
+3. Install Homebrew if missing, tap the [Brewfile](../Brewfile)'s third-party taps and `brew trust` its tap-qualified entries, then install or upgrade the bundle, including its VS Code extensions. A VS Code app that Homebrew did not install is kept, and the Mos cask is installed on a Mac Studio only (`check.sh --live` applies the same rule).
 4. Link `home/` with Stow without adopting existing files, and create `~/.gitconfig` empty if it is missing.
 5. Install or update Claude Code and Codex CLI (official installers, `~/.local/bin`), nvm and the latest Node (global packages carried over from the previous default), zinit and the zsh plugins, kitty, SbarLua and the SketchyBar helpers (`~/.local/libexec/sketchybar`), and the tmux plugins; zsh and tmux plugins that are no longer declared are removed.
 6. Install the pinned Yazi flavor and Neovim plugins, then install and update Tree-sitter parsers and check the required parsers' highlight queries.
