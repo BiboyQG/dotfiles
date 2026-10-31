@@ -22,7 +22,7 @@ Add deterministic fixtures to `check.sh` or a focused `tests/*_spec.lua` or `tes
 
 ## Commit & Pull Request Guidelines
 
-Follow the established Conventional Commit style, such as `fix(yazi): restore zoxide directory jump` or `refactor(check): build the SketchyBar helpers with the shared flags`. Keep commits scoped to one concern and stage exact paths; never sweep unrelated working-tree changes into a commit. Pull requests should explain the problem, user-visible impact, validation performed, and any macOS-specific assumptions. Include screenshots for visual SketchyBar changes and link relevant issues when available.
+Follow the established Conventional Commit style, such as `fix(yazi): restore zoxide directory jump` or `refactor(check): build the SketchyBar helpers with the shared flags`. Keep commits scoped to one concern and stage exact paths; never sweep unrelated working-tree changes into a commit. Commit directly on `main` without asking once the checks in Testing Guidelines pass. Pull requests should explain the problem, user-visible impact, validation performed, and any macOS-specific assumptions. Include screenshots for visual SketchyBar changes and link relevant issues when available.
 
 ## Security & Local Configuration
 
