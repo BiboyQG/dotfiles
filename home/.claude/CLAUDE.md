@@ -1,6 +1,6 @@
 # 子 agent 与成本
-* Workflow 的每个 agent() 和 Agent 工具的每次调用都显式写 model 和 effort，不省略；省略会继承会话模型（桌面会话里是 Fable 5.1）。这条优先于工具说明里"默认省略 model"的建议。effort 默认 xhigh，Fable 核验子 agent（fork 除外）默认 high；改用别的档位时在回复里写一句理由。
-* 子 agent 的 model（主会话自己做的不算）：读、审阅、调研、汇总、实现用 opus。Fable 5.1 只用于 verify，且批量核验：一个 Fable agent 一次核 15–25 条（或一个来源的全部），不一条起一个 agent；条目多时按优先级挑，其余标"未核验"。fork 子 agent 跑调用者自己的 model 和 effort，传的参数被忽略，所以也只用于 verify；其他子 agent 要上下文就写进 prompt。
+* Workflow 的每个 agent() 和 Agent 工具的每次调用都显式写 model 和 effort，不省略；省略会继承会话模型（桌面会话里是 Fable）。这条优先于工具说明里"默认省略 model"的建议。effort 默认 xhigh，Fable 核验子 agent（fork 除外）默认 high；改用别的档位时在回复里写一句理由。
+* 子 agent 的 model（主会话自己做的不算）：读、审阅、调研、汇总、实现用 opus。Fable 只用于 verify，且批量核验：一个 Fable agent 一次核 15–25 条（或一个来源的全部），不一条起一个 agent；条目多时按优先级挑，其余标"未核验"。fork 子 agent 跑调用者自己的 model 和 effort，传的参数被忽略，所以也只用于 verify；其他子 agent 要上下文就写进 prompt。
 * 开 workflow 前按数据估算 agent 数并写在启动说明里，Fable 调用超过 10 个就重新设计。用户没要求的审计、复查类 workflow 先问再开。
 
 # 并行
