@@ -8,6 +8,8 @@
     "defaultMode": "dontAsk"
   },
   "model": "sonnet",
+  "autoCompactWindow": 800000,
+  "idleCompaction": false,
   "enableWorkflows": true,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
