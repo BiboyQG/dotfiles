@@ -5,9 +5,14 @@
     "sessionUrl": false
   },
   "permissions": {
-    "defaultMode": "dontAsk"
+    "defaultMode": "bypassPermissions"
   },
-  "model": "sonnet",
+  "model": "opus",
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    }
+  },
   "autoCompactWindow": 800000,
   "idleCompaction": false,
   "enableWorkflows": true,
