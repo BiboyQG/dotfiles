@@ -49,7 +49,7 @@ Git settings are tracked in [`home/.config/git/config`](../home/.config/git/conf
 
 ### Agent instructions
 
-Setup links [`home/.codex/AGENTS.md`](../home/.codex/AGENTS.md) into a real `~/.codex`, and [`home/.claude/CLAUDE.md`](../home/.claude/CLAUDE.md) and [`home/.claude/settings.json`](../home/.claude/settings.json) into a real `~/.claude`. Other files in those directories stay machine-local. Start a new Codex or Claude Code session after editing them.
+Setup links [`home/.codex/AGENTS.md`](../home/.codex/AGENTS.md) into a real `~/.codex`, and [`home/.claude/CLAUDE.md`](../home/.claude/CLAUDE.md) and [`home/.claude/settings.json`](../home/.claude/settings.json) into a real `~/.claude`, and each skill in [`home/.claude/skills/`](../home/.claude/skills/) into a real `~/.claude/skills`. Other files in those directories stay machine-local. Start a new Codex or Claude Code session after editing them.
 
 ## Validate changes
 
