@@ -1,0 +1,75 @@
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "shift-cmd-n": "workspace::NewTerminal",
+      "shift-cmd-i": "agent::ToggleFocus"
+    }
+  },
+  {
+    "context": "Editor && vim_mode == insert",
+    "bindings": {
+      "k j": "vim::NormalBefore"
+    }
+  },
+  {
+    "context": "Editor && vim_mode == visual",
+    "bindings": {
+      "k j": ["vim::SwitchMode", "Normal"]
+    }
+  },
+  {
+    "context": "Editor && vim_mode == normal && !VimWaiting && !menu",
+    "bindings": {
+      "space space": "file_finder::Toggle"
+    }
+  },
+  {
+    "context": "EmptyPane || SharedScreen",
+    "bindings": {
+      "space space": "file_finder::Toggle",
+      "ctrl-h": "project_panel::ToggleFocus",
+      "ctrl-j": "terminal_panel::ToggleFocus",
+      "ctrl-k": "terminal_panel::ToggleFocus"
+    }
+  },
+  {
+    "context": "Editor",
+    "bindings": {
+      "ctrl-h": "project_panel::ToggleFocus",
+      "ctrl-j": "terminal_panel::ToggleFocus",
+      "ctrl-k": "terminal_panel::ToggleFocus",
+      "ctrl-]": "pane::ActivateNextItem",
+      "ctrl-{": "pane::ActivatePreviousItem",
+      "ctrl-shift-[": "pane::ActivatePreviousItem"
+    }
+  },
+  {
+    "context": "ProjectPanel && not_editing",
+    "bindings": {
+      "a": "project_panel::NewFile",
+      "shift-a": "project_panel::NewDirectory",
+      "r": "project_panel::Rename",
+      "c": "project_panel::Copy",
+      "p": "project_panel::Paste",
+      "x": "project_panel::Cut",
+      "d": ["project_panel::Delete", { "skip_prompt": true }],
+      "s": "project_panel::OpenSplitVertical",
+      "shift-s": "project_panel::OpenSplitHorizontal",
+      "enter": "project_panel::OpenPermanent",
+      "ctrl-h": "project_panel::ToggleFocus",
+      "ctrl-l": "project_panel::ToggleFocus",
+      "ctrl-j": "terminal_panel::ToggleFocus",
+      "ctrl-k": "terminal_panel::ToggleFocus"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "ctrl-w": "pane::CloseActiveItem",
+      "ctrl-h": ["terminal::SendKeystroke", "ctrl-h"],
+      "ctrl-j": ["terminal::SendKeystroke", "ctrl-j"],
+      "ctrl-k": ["terminal::SendKeystroke", "ctrl-k"]
+    }
+  }
+]

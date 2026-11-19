@@ -4,7 +4,7 @@
 
 适用于 **Apple Silicon Mac** 的个人配置，不支持 Intel Mac。
 
-包含 Zsh、Kitty、tmux、Neovim，以及 AeroSpace 窗口管理、SketchyBar、Yazi 和 VS Code 配置。[`home/`](home/) 中的文件由 GNU Stow 链接到用户目录，依赖由 [`Brewfile`](Brewfile) 和 [`setup.sh`](setup.sh) 管理。
+包含 Zsh、Kitty、tmux、Neovim，以及 AeroSpace 窗口管理、SketchyBar、Yazi、Zed 和 VS Code 配置。[`home/`](home/) 中的文件由 GNU Stow 链接到用户目录，依赖由 [`Brewfile`](Brewfile) 和 [`setup.sh`](setup.sh) 管理。
 
 ## 快速开始
 

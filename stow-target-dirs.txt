@@ -5,5 +5,6 @@
 .config
 .config/nvim
 .config/yazi
+.config/zed
 Library/Application Support/Code/User
 Library/LaunchAgents

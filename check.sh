@@ -514,6 +514,7 @@ mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.config/kitty" \
   "$SETUP_FIXTURE_SOURCE/home/.config/nvim" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
+  "$SETUP_FIXTURE_SOURCE/home/.config/zed" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
   "$SETUP_FIXTURE_SOURCE/home/Library/Application Support/Code/User" \
   "$SETUP_FIXTURE_SOURCE/home/Library/LaunchAgents" \
@@ -1358,6 +1359,8 @@ done < <(repo_files '*.json' '*.jsonc')
 jq empty home/.config/nvim/lazyvim.json
 jq empty home/.config/nvim/lazy-lock.json
 jq empty home/.config/lockime/rules.json
+jq empty home/.config/zed/settings.json
+jq empty home/.config/zed/keymap.json
 rg -Fq 'lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"' \
   home/.config/nvim/lua/config/lazy.lua
 
@@ -1513,6 +1516,7 @@ manifest_file_lines="$(
 # Codex writes machine-local state into ~/.codex, so Stow must link its files
 # into a real directory instead of folding the directory into the repository.
 assert_line "$manifest_target_dirs" ".codex"
+assert_line "$manifest_target_dirs" ".config/zed"
 
 log "Checking home package source boundaries"
 boundary_failed=0
@@ -1547,6 +1551,8 @@ fi
 (( boundary_failed == 0 )) || exit 1
 
 assert_line "$(<"$worktree_leaf_plan")" "LINK .codex/AGENTS.md"
+assert_line "$(<"$worktree_leaf_plan")" "LINK .config/zed/keymap.json"
+assert_line "$(<"$worktree_leaf_plan")" "LINK .config/zed/settings.json"
 
 log "Building and analyzing SketchyBar helpers"
 helper_bin_dir="$CHECK_WORK_DIR/helpers"

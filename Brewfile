@@ -57,6 +57,7 @@ cask "oomol-lab/tap/lockime"
 # Mac Studio only; brew_bundle_cask_skip skips it on the other Macs.
 cask "mos"
 cask "visual-studio-code"
+cask "zed"
 
 vscode "aaronthomas.vscode-snazzy-operator"
 vscode "charliermarsh.ruff"

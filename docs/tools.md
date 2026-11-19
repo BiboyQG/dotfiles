@@ -54,6 +54,7 @@ Packages are declared in [Brewfile](../Brewfile); other installers are in [setup
 | Fonts               | `brew --cask`         | JetBrains Mono NF, Monaspace, Maple Mono NF CN, Symbols Nerd Font, SketchyBar app font, SF Mono, SF Pro, SF Symbols |
 | Uv                  | `brew`                | Python package/venv manager                                                                                         |
 | VS Code             | `brew --cask`         | GUI editor with extensions declared in Brewfile                                                                     |
+| Zed                 | `brew --cask`         | Native GUI and SSH remote code editor                                                                               |
 | Phi                 | `brew --cask`         | Browser used by the AeroSpace shortcut                                                                              |
 | Mos                 | `brew --cask`         | Smooth mouse-wheel scrolling (Mac Studio only)                                                                      |
 | LockIME             | `brew --cask`         | Switches the input source per app; rules in `home/.config/lockime/rules.json`                                       |

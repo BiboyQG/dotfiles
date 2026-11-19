@@ -4,7 +4,7 @@ English · [简体中文](README.zh-CN.md)
 
 Personal dotfiles for **Apple Silicon macOS**. Intel Macs are not supported.
 
-A Zsh, Kitty, tmux, and Neovim environment with AeroSpace window management, SketchyBar, Yazi, and VS Code settings. Files in [`home/`](home/) are deployed with GNU Stow; [`Brewfile`](Brewfile) and [`setup.sh`](setup.sh) manage dependencies.
+A Zsh, Kitty, tmux, and Neovim environment with AeroSpace window management, SketchyBar, Yazi, Zed, and VS Code settings. Files in [`home/`](home/) are deployed with GNU Stow; [`Brewfile`](Brewfile) and [`setup.sh`](setup.sh) manage dependencies.
 
 ## Quick start
 
