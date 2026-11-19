@@ -29,6 +29,7 @@
     "bindings": {
       "space space": "file_finder::Toggle",
       "ctrl-h": "project_panel::ToggleFocus",
+      "ctrl-l": "project_panel::ToggleFocus",
       "ctrl-j": "terminal_panel::ToggleFocus",
       "ctrl-k": "terminal_panel::ToggleFocus"
     }
@@ -37,11 +38,11 @@
     "context": "Editor",
     "bindings": {
       "ctrl-h": "project_panel::ToggleFocus",
+      "ctrl-l": "project_panel::ToggleFocus",
       "ctrl-j": "terminal_panel::ToggleFocus",
       "ctrl-k": "terminal_panel::ToggleFocus",
       "ctrl-]": "pane::ActivateNextItem",
-      "ctrl-{": "pane::ActivatePreviousItem",
-      "ctrl-shift-[": "pane::ActivatePreviousItem"
+      "ctrl-[": "pane::ActivatePreviousItem"
     }
   },
   {

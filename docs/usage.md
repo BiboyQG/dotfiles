@@ -42,7 +42,7 @@ side) and `r` reloads the configuration.
 
 ## Editors
 
-- VS Code ([keybindings](../home/Library/Application%20Support/Code/User/keybindings.json)) and Zed ([keymap](../home/.config/zed/keymap.json)): `Ctrl+h` moves focus between the sidebar and the editor, `Ctrl+l` from the sidebar to the editor, and `Ctrl+j`/`Ctrl+k` to the terminal (inside the terminal, `Ctrl+h/j/k` go to the shell); `⇧⌘N` opens a terminal and `Ctrl+w` closes the focused one; `Space Space` opens Quick Open in Vim Normal mode; `Ctrl+]` / `Ctrl+Shift+[` open the next / previous editor; in the Explorer / Project Panel, `a`, `r`, `c`, `x`, `p`, `d`, `s` create, rename, copy, cut, paste, delete and open to the side.
+- VS Code ([keybindings](../home/Library/Application%20Support/Code/User/keybindings.json)) and Zed ([keymap](../home/.config/zed/keymap.json)): `Ctrl+h` moves focus between the sidebar and the editor (`Ctrl+l` moves from the sidebar to the editor, and in Zed also toggles its right-docked Project Panel), and `Ctrl+j`/`Ctrl+k` to the terminal (inside the terminal, `Ctrl+h/j/k` go to the shell); `⇧⌘N` opens a terminal and `Ctrl+w` closes the focused one; `Space Space` opens Quick Open in Vim Normal mode; `Ctrl+]` / `Ctrl+Shift+[` (`Ctrl+[` in Zed) open the next / previous editor; in the Explorer / Project Panel, `a`, `r`, `c`, `x`, `p`, `d`, `s` create, rename, copy, cut, paste, delete and open to the side.
 - Neovim: Neo-tree shows dotfiles; Git-ignored files stay hidden until you press `H`.
 
 ## Input sources

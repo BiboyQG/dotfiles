@@ -23,6 +23,10 @@
   "project_panel": {
     "auto_fold_dirs": false
   },
+  "terminal": {
+    "font_family": "JetBrainsMono Nerd Font Mono",
+    "font_fallbacks": ["Symbols Nerd Font Mono", "Maple Mono NF CN", "SF Pro"]
+  },
   "languages": {
     "Python": {
       "language_servers": ["basedpyright", "ruff"],
