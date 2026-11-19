@@ -3,7 +3,12 @@
     "context": "Workspace",
     "bindings": {
       "shift-cmd-n": "workspace::NewTerminal",
-      "shift-cmd-i": "agent::ToggleFocus"
+      "shift-cmd-i": "agent::ToggleFocus",
+      "ctrl-shift-h": "workspace::ToggleLeftDock",
+      "ctrl-shift-j": "workspace::ToggleBottomDock",
+      "ctrl-shift-k": "multi_workspace::ToggleWorkspaceSidebar",
+      "ctrl-shift-l": "workspace::ToggleRightDock",
+      "ctrl-shift-f": "workspace::ToggleAllDocks"
     }
   },
   {
@@ -28,21 +33,19 @@
     "context": "EmptyPane || SharedScreen",
     "bindings": {
       "space space": "file_finder::Toggle",
-      "ctrl-h": "project_panel::ToggleFocus",
-      "ctrl-l": "project_panel::ToggleFocus",
+      "ctrl-h": "agent::ToggleFocus",
       "ctrl-j": "terminal_panel::ToggleFocus",
-      "ctrl-k": "terminal_panel::ToggleFocus"
+      "ctrl-l": "project_panel::ToggleFocus"
     }
   },
   {
     "context": "Editor",
     "bindings": {
-      "ctrl-h": "project_panel::ToggleFocus",
-      "ctrl-l": "project_panel::ToggleFocus",
+      "ctrl-h": "agent::ToggleFocus",
       "ctrl-j": "terminal_panel::ToggleFocus",
-      "ctrl-k": "terminal_panel::ToggleFocus",
-      "ctrl-]": "pane::ActivateNextItem",
-      "ctrl-[": "pane::ActivatePreviousItem"
+      "ctrl-l": "project_panel::ToggleFocus",
+      "ctrl-[": "pane::ActivatePreviousItem",
+      "ctrl-]": "pane::ActivateNextItem"
     }
   },
   {
@@ -59,18 +62,58 @@
       "shift-s": "project_panel::OpenSplitHorizontal",
       "enter": "project_panel::OpenPermanent",
       "ctrl-h": "project_panel::ToggleFocus",
-      "ctrl-l": "project_panel::ToggleFocus",
-      "ctrl-j": "terminal_panel::ToggleFocus",
-      "ctrl-k": "terminal_panel::ToggleFocus"
+      "ctrl-j": "terminal_panel::ToggleFocus"
     }
   },
   {
-    "context": "Terminal",
+    "context": "TerminalPanel > Terminal",
     "bindings": {
       "ctrl-w": "pane::CloseActiveItem",
-      "ctrl-h": ["terminal::SendKeystroke", "ctrl-h"],
-      "ctrl-j": ["terminal::SendKeystroke", "ctrl-j"],
-      "ctrl-k": ["terminal::SendKeystroke", "ctrl-k"]
+      "ctrl-h": "agent::ToggleFocus",
+      "ctrl-k": "terminal_panel::ToggleFocus",
+      "ctrl-l": "project_panel::ToggleFocus",
+      "ctrl-[": "pane::ActivatePreviousItem",
+      "ctrl-]": "pane::ActivateNextItem"
+    }
+  },
+  {
+    "context": "AgentPanel",
+    "bindings": {
+      "ctrl-h": "multi_workspace::FocusWorkspaceSidebar",
+      "ctrl-l": "agent::ToggleFocus",
+      "ctrl-[": "multi_workspace::PreviousThread",
+      "ctrl-]": "multi_workspace::NextThread"
+    }
+  },
+  {
+    "context": "AgentPanel > Editor",
+    "bindings": {
+      "ctrl-h": "multi_workspace::FocusWorkspaceSidebar",
+      "ctrl-l": "agent::ToggleFocus",
+      "ctrl-[": "multi_workspace::PreviousThread",
+      "ctrl-]": "multi_workspace::NextThread"
+    }
+  },
+  {
+    "context": "AgentPanel > Terminal",
+    "bindings": {
+      "ctrl-h": "multi_workspace::FocusWorkspaceSidebar",
+      "ctrl-l": "agent::ToggleFocus",
+      "ctrl-[": "multi_workspace::PreviousThread",
+      "ctrl-]": "multi_workspace::NextThread"
+    }
+  },
+  {
+    "context": "ThreadsSidebar && !Editor",
+    "bindings": {
+      "t": "agent::NewTerminalThread",
+      "a": "agents_sidebar::NewThreadInGroup",
+      "r": "agent::RenameSelectedThread",
+      "d": "agent::RemoveSelectedThread",
+      "ctrl-h": "multi_workspace::ToggleWorkspaceSidebar",
+      "ctrl-l": "agent::ToggleFocus",
+      "ctrl-[": "multi_workspace::PreviousThread",
+      "ctrl-]": "multi_workspace::NextThread"
     }
   }
 ]

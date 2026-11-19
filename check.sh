@@ -1359,8 +1359,6 @@ done < <(repo_files '*.json' '*.jsonc')
 jq empty home/.config/nvim/lazyvim.json
 jq empty home/.config/nvim/lazy-lock.json
 jq empty home/.config/lockime/rules.json
-jq empty home/.config/zed/settings.json
-jq empty home/.config/zed/keymap.json
 rg -Fq 'lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"' \
   home/.config/nvim/lua/config/lazy.lua
 
