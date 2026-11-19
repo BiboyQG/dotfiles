@@ -7,6 +7,7 @@
     { "bundleID": "dev.zed.Zed", "mode": "switched", "lockedSourceID": "com.apple.keylayout.US" },
     { "bundleID": "com.phibrowser.Mac", "mode": "switched", "lockedSourceID": "com.apple.keylayout.US" },
     { "bundleID": "com.anthropic.claudefordesktop", "mode": "switched", "lockedSourceID": "com.bytedance.inputmethod.doubaoime.pinyin" },
+    { "bundleID": "com.google.antigravity", "mode": "switched", "lockedSourceID": "com.bytedance.inputmethod.doubaoime.pinyin" },
     { "bundleID": "com.tencent.xinWeChat", "mode": "switched", "lockedSourceID": "com.bytedance.inputmethod.doubaoime.pinyin" }
   ]
 }
