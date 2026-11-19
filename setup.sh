@@ -794,6 +794,30 @@ install_codex_cli() {
   "$HOME/.local/bin/codex" --version
 }
 
+install_agy_cli() {
+  # install.sh exits early when the binary already exists, and its final
+  # `agy install` step appends a PATH line to ~/.zshrc and ~/.zprofile, so
+  # first-time installs run against a disposable HOME.
+  if [[ -x "$HOME/.local/bin/agy" ]]; then
+    log "Updating Antigravity CLI with its own updater"
+    "$HOME/.local/bin/agy" update
+  else
+    log "Installing latest Antigravity CLI with the native installer"
+    local install_dir="$HOME/.local/bin"
+    local installer_home
+    local install_status=0
+    installer_home="$(mktemp -d)"
+    {
+      curl -fsSL https://antigravity.google/cli/install.sh \
+        | HOME="$installer_home" PATH="$install_dir:$PATH" \
+          /bin/bash -s -- --dir "$install_dir"
+    } || install_status=$?
+    rm -rf -- "$installer_home"
+    (( install_status == 0 )) || return "$install_status"
+  fi
+  "$HOME/.local/bin/agy" --version
+}
+
 install_zinit() {
   log "Installing latest zinit"
 
@@ -1175,6 +1199,7 @@ main() {
   link_dotfiles
   install_claude_cli
   install_codex_cli
+  install_agy_cli
   install_nvm_node
   install_zinit
   install_zsh_plugins

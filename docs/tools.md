@@ -60,3 +60,4 @@ Packages are declared in [Brewfile](../Brewfile); other installers are in [setup
 | LockIME             | `brew --cask`         | Switches the input source per app; rules in `home/.config/lockime/rules.json`                                       |
 | Claude Code         | Native installer      | Anthropic coding CLI                                                                                                |
 | Codex CLI           | Standalone installer  | OpenAI coding CLI                                                                                                   |
+| Antigravity CLI     | Native installer      | Google coding CLI (`agy`)                                                                                           |

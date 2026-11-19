@@ -883,12 +883,13 @@ rg -Fq 'use = "yazi-rs/flavors:catppuccin-mocha"' home/.config/yazi/package.toml
 
 log "Checking native CLI installation without npm or Homebrew"
 CLI_FIXTURE_HOME="$CHECK_WORK_DIR/native-cli-home"
+CLI_FIXTURE_TMP="$CHECK_WORK_DIR/native-cli-tmp"
 CLI_FIXTURE_LOG="$CHECK_WORK_DIR/native-cli-calls.log"
-mkdir -p "$CLI_FIXTURE_HOME"
+mkdir -p "$CLI_FIXTURE_HOME" "$CLI_FIXTURE_TMP"
 # The failure cases run while no binary is installed yet. On a repeat run an
-# installed Claude Code updates itself instead of downloading the installer;
-# Codex has no updater and reruns its installer.
-for cli in claude codex; do
+# installed Claude Code or Antigravity CLI updates itself instead of
+# downloading the installer; Codex has no updater and reruns its installer.
+for cli in claude codex agy; do
   for install_case in download-failure installer-failure success repeat; do
     expected_exit=0
     case "$install_case" in
@@ -897,8 +898,9 @@ for cli in claude codex; do
     esac
     actual_exit=0
     : >"$CLI_FIXTURE_LOG"
-    env HOME="$CLI_FIXTURE_HOME" PATH=/usr/bin:/bin \
-      CLI_INSTALL_CASE="$install_case" CLI_FIXTURE_LOG="$CLI_FIXTURE_LOG" zsh -fc '
+    env HOME="$CLI_FIXTURE_HOME" TMPDIR="$CLI_FIXTURE_TMP" PATH=/usr/bin:/bin \
+      CLI_FIXTURE_HOME="$CLI_FIXTURE_HOME" CLI_INSTALL_CASE="$install_case" \
+      CLI_FIXTURE_LOG="$CLI_FIXTURE_LOG" zsh -fc '
         source "$1"
         curl() {
           print -r -- "curl $2" >>"$CLI_FIXTURE_LOG"
@@ -911,25 +913,33 @@ for cli in claude codex; do
           case "$2" in
             https://claude.ai/install.sh) print -r -- cli=claude ;;
             https://chatgpt.com/codex/install.sh) print -r -- cli=codex ;;
+            https://antigravity.google/cli/install.sh) print -r -- cli=agy ;;
             *) return 1 ;;
           esac
           cat <<"SH"
 set -eu
-[ "${PATH%%:*}" = "$HOME/.local/bin" ]
+target_dir="$CLI_FIXTURE_HOME/.local/bin"
+[ "${PATH%%:*}" = "$target_dir" ]
 if [ "$cli" = codex ]; then
+  [ "$HOME" = "$CLI_FIXTURE_HOME" ]
   [ "$CODEX_NON_INTERACTIVE" = 1 ]
-  [ "$CODEX_INSTALL_DIR" = "$HOME/.local/bin" ]
+  [ "$CODEX_INSTALL_DIR" = "$target_dir" ]
   [ "$*" = "--release latest" ]
+elif [ "$cli" = agy ]; then
+  [ "$HOME" != "$CLI_FIXTURE_HOME" ]
+  [ "$*" = "--dir $target_dir" ]
+  printf "export PATH=\"\$HOME/.local/bin:\$PATH\"\n" >>"$HOME/.zshrc"
 else
+  [ "$HOME" = "$CLI_FIXTURE_HOME" ]
   [ "$*" = latest ]
 fi
-mkdir -p "$HOME/.local/bin"
-cat >"$HOME/.local/bin/$cli" <<BIN
+mkdir -p "$target_dir"
+cat >"$target_dir/$cli" <<BIN
 #!/bin/sh
 printf "%s %s\\n" "$cli" "\$1" >>"$CLI_FIXTURE_LOG"
 [ "\$1" = --version ] || [ "\$1" = update ]
 BIN
-chmod +x "$HOME/.local/bin/$cli"
+chmod +x "$target_dir/$cli"
 SH
         }
         "install_${2}_cli"
@@ -941,6 +951,11 @@ SH
         "$cli" "$install_case" "$actual_exit" "$expected_exit" >&2
       exit 1
     fi
+    [[ ! -e "$CLI_FIXTURE_HOME/.zshrc" && -z "$(ls -A "$CLI_FIXTURE_TMP")" ]] || {
+      printf 'Native CLI %s %s mutated HOME or leaked a temp directory.\n' \
+        "$cli" "$install_case" >&2
+      exit 1
+    }
     case "$cli:$install_case" in
       claude:success)
         cli_expected=$'curl https://claude.ai/install.sh\nclaude --version' ;;
@@ -952,6 +967,12 @@ SH
         cli_expected=$'curl https://chatgpt.com/codex/install.sh\ncodex --version' ;;
       codex:*)
         cli_expected='curl https://chatgpt.com/codex/install.sh' ;;
+      agy:success)
+        cli_expected=$'curl https://antigravity.google/cli/install.sh\nagy --version' ;;
+      agy:repeat)
+        cli_expected=$'agy update\nagy --version' ;;
+      agy:*)
+        cli_expected='curl https://antigravity.google/cli/install.sh' ;;
     esac
     [[ "$(<"$CLI_FIXTURE_LOG")" == "$cli_expected" ]] || {
       printf 'Unexpected %s %s commands:\n' "$cli" "$install_case" >&2
@@ -1229,9 +1250,10 @@ aerospace"
   assert_service_case 1 "$all_calls"
 
   preflight_setup accept_xcode_license install_homebrew install_brew_packages \
-    link_dotfiles install_claude_cli install_codex_cli install_nvm_node \
-    install_zinit install_zsh_plugins install_kitty install_sketchybar_assets \
-    install_tmux_plugins install_yazi_flavor install_neovim_plugins () { :; }
+    link_dotfiles install_claude_cli install_codex_cli install_agy_cli \
+    install_nvm_node install_zinit install_zsh_plugins install_kitty \
+    install_sketchybar_assets install_tmux_plugins install_yazi_flavor \
+    install_neovim_plugins () { :; }
   restart_services() { return 1; }
   print_summary() { print -r -- "summary ${1:-}" >>"$SERVICE_FIXTURE_LOG"; }
   : >"$SERVICE_FIXTURE_LOG"
