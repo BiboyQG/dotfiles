@@ -2,25 +2,11 @@
   {
     "context": "Workspace",
     "bindings": {
-      "shift-cmd-n": "workspace::NewTerminal",
-      "shift-cmd-i": "agent::ToggleFocus",
       "ctrl-shift-h": "workspace::ToggleLeftDock",
       "ctrl-shift-j": "workspace::ToggleBottomDock",
       "ctrl-shift-k": "multi_workspace::ToggleWorkspaceSidebar",
       "ctrl-shift-l": "workspace::ToggleRightDock",
       "ctrl-shift-f": "workspace::ToggleAllDocks"
-    }
-  },
-  {
-    "context": "Editor && vim_mode == insert",
-    "bindings": {
-      "k j": "vim::NormalBefore"
-    }
-  },
-  {
-    "context": "Editor && vim_mode == visual",
-    "bindings": {
-      "k j": ["vim::SwitchMode", "Normal"]
     }
   },
   {

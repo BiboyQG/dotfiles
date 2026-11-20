@@ -3,8 +3,8 @@
   "show_edit_predictions": false,
   "autosave": {
     "after_delay": {
-      "milliseconds": 1000
-    }
+      "milliseconds": 1000,
+    },
   },
   "remove_trailing_whitespace_on_save": true,
   "ensure_final_newline_on_save": true,
@@ -13,37 +13,37 @@
   "auto_indent_on_paste": true,
   "soft_wrap": "editor_width",
   "session": {
-    "trust_all_worktrees": true
+    "trust_all_worktrees": true,
   },
   "diagnostics": {
     "inline": {
-      "enabled": true
-    }
+      "enabled": true,
+    },
   },
   "project_panel": {
-    "auto_fold_dirs": false
+    "auto_fold_dirs": false,
   },
   "terminal": {
     "font_family": "JetBrainsMono Nerd Font Mono",
-    "font_fallbacks": ["Symbols Nerd Font Mono", "Maple Mono NF CN", "SF Pro"]
+    "font_fallbacks": ["Symbols Nerd Font Mono", "Maple Mono NF CN", "SF Pro"],
   },
   "languages": {
     "Python": {
       "language_servers": ["basedpyright", "ruff"],
       "formatter": {
         "language_server": {
-          "name": "ruff"
-        }
-      }
-    }
+          "name": "ruff",
+        },
+      },
+    },
   },
   "lsp": {
     "basedpyright": {
       "settings": {
         "basedpyright.analysis": {
-          "typeCheckingMode": "basic"
-        }
-      }
-    }
-  }
+          "typeCheckingMode": "basic",
+        },
+      },
+    },
+  },
 }
