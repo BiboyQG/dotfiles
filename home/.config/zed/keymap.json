@@ -80,7 +80,7 @@
   {
     "context": "AgentPanel",
     "bindings": {
-      "ctrl-h": "multi_workspace::FocusWorkspaceSidebar",
+      "ctrl-h": ["workspace::SendKeystrokes", "cmd-alt-; down"],
       "ctrl-l": "agent::ToggleFocus",
       "ctrl-[": "multi_workspace::PreviousThread",
       "ctrl-]": "multi_workspace::NextThread"
@@ -89,7 +89,7 @@
   {
     "context": "AgentPanel > Editor",
     "bindings": {
-      "ctrl-h": "multi_workspace::FocusWorkspaceSidebar",
+      "ctrl-h": ["workspace::SendKeystrokes", "cmd-alt-; down"],
       "ctrl-l": "agent::ToggleFocus",
       "ctrl-[": "multi_workspace::PreviousThread",
       "ctrl-]": "multi_workspace::NextThread"
@@ -100,7 +100,7 @@
     "bindings": {
       "ctrl-w": ["terminal::SendKeystroke", "ctrl-w"],
       "ctrl-k": ["terminal::SendKeystroke", "ctrl-k"],
-      "ctrl-h": "multi_workspace::FocusWorkspaceSidebar",
+      "ctrl-h": ["workspace::SendKeystrokes", "cmd-alt-; down"],
       "ctrl-l": "agent::ToggleFocus",
       "ctrl-[": "multi_workspace::PreviousThread",
       "ctrl-]": "multi_workspace::NextThread"
@@ -119,18 +119,12 @@
   {
     "context": "ThreadsSidebar > Editor",
     "bindings": {
+      "ctrl-j": "editor::MoveDown",
       "ctrl-h": "multi_workspace::ToggleWorkspaceSidebar",
       "ctrl-l": "multi_workspace::FocusWorkspaceSidebar",
       "ctrl-shift-k": "multi_workspace::ToggleWorkspaceSidebar",
       "ctrl-[": "multi_workspace::PreviousThread",
       "ctrl-]": "multi_workspace::NextThread"
-    }
-  },
-  {
-    "context": "ThreadsSidebar && searching > Editor && vim_mode == normal",
-    "bindings": {
-      "t": "agent::NewTerminalThread",
-      "a": "agents_sidebar::NewThreadInGroup"
     }
   },
   {
