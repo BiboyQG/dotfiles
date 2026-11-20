@@ -1027,6 +1027,36 @@ for kitty_case in current outdated missing; do
   }
 done
 
+log "Checking Zed CLI link setup"
+ZED_FIXTURE_HOME="$CHECK_WORK_DIR/zed-home"
+ZED_FIXTURE_LOG="$ZED_FIXTURE_HOME/calls.log"
+mkdir -p "$ZED_FIXTURE_HOME/Zed.app/Contents/MacOS"
+cat >"$ZED_FIXTURE_HOME/Zed.app/Contents/MacOS/cli" <<'SH'
+#!/bin/sh
+printf 'zed %s\n' "$*" >>"$ZED_FIXTURE_LOG"
+[ "$1" = --version ]
+SH
+chmod +x "$ZED_FIXTURE_HOME/Zed.app/Contents/MacOS/cli"
+: >"$ZED_FIXTURE_LOG"
+env HOME="$ZED_FIXTURE_HOME" PATH=/usr/bin:/bin \
+  ZED_FIXTURE_LOG="$ZED_FIXTURE_LOG" zsh -fc '
+    source "$1"
+    log() { :; }
+    ZED_APP_DIR="$HOME/Zed.app"
+    install_zed_cli
+    [[ "$(readlink "$HOME/.local/bin/zed")" == "$ZED_APP_DIR/Contents/MacOS/cli" ]]
+  ' setup-zed "$ROOT/setup.sh"
+[[ "$(<"$ZED_FIXTURE_LOG")" == "zed --version" ]]
+if env HOME="$ZED_FIXTURE_HOME" PATH=/usr/bin:/bin zsh -fc '
+  source "$1"
+  log() { :; }
+  ZED_APP_DIR="$HOME/MissingZed.app"
+  install_zed_cli
+' setup-zed-missing "$ROOT/setup.sh" >/dev/null 2>&1; then
+  printf "install_zed_cli accepted a missing Zed.app CLI binary.\n" >&2
+  exit 1
+fi
+
 log "Checking SbarLua install stamp and cleanup"
 SBARLUA_FIXTURE_HOME="$CHECK_WORK_DIR/sbarlua-home"
 SBARLUA_FIXTURE_TMP="$CHECK_WORK_DIR/sbarlua-clone"
@@ -1252,8 +1282,8 @@ aerospace"
   preflight_setup accept_xcode_license install_homebrew install_brew_packages \
     link_dotfiles install_claude_cli install_codex_cli install_agy_cli \
     install_nvm_node install_zinit install_zsh_plugins install_kitty \
-    install_sketchybar_assets install_tmux_plugins install_yazi_flavor \
-    install_neovim_plugins () { :; }
+    install_zed_cli install_sketchybar_assets install_tmux_plugins \
+    install_yazi_flavor install_neovim_plugins () { :; }
   restart_services() { return 1; }
   print_summary() { print -r -- "summary ${1:-}" >>"$SERVICE_FIXTURE_LOG"; }
   : >"$SERVICE_FIXTURE_LOG"

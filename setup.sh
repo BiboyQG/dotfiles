@@ -15,6 +15,7 @@ STOW_IGNORE_FULL_PATH=()
 STOW_CONFIG_CWD="/var/empty"
 STOW_CONFIG_HOME="$STOW_CONFIG_CWD/dotfiles-stow-home"
 KITTY_APP_DIR="/Applications/kitty.app"
+ZED_APP_DIR="/Applications/Zed.app"
 
 log() {
   printf "\n==> %s\n" "$*"
@@ -892,6 +893,16 @@ install_kitty() {
   ln -sf "$KITTY_APP_DIR/Contents/MacOS/kitten" "$HOME/.local/bin/kitten"
 }
 
+install_zed_cli() {
+  log "Linking Zed CLI"
+
+  # The Homebrew cask links /opt/homebrew/bin/zed, while a hand-installed
+  # /Applications/Zed.app stays on the skip list and needs its own link.
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$ZED_APP_DIR/Contents/MacOS/cli" "$HOME/.local/bin/zed"
+  "$HOME/.local/bin/zed" --version
+}
+
 install_sketchybar_helpers() {
   local helper_bin_dir="$HOME/.local/libexec/sketchybar"
   local build_dir
@@ -1204,6 +1215,7 @@ main() {
   install_zinit
   install_zsh_plugins
   install_kitty
+  install_zed_cli
   install_sketchybar_assets
   install_tmux_plugins
   install_yazi_flavor
