@@ -12,7 +12,6 @@ cd "$ROOT"
 RUN_LIVE_CHECKS=0
 BREW_AUDIT_INCOMPLETE=0
 FOLDING_MANIFEST="$ROOT/stow-target-dirs.txt"
-INSTALLED_XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 usage() {
   printf "usage: zsh check.sh [--live]\n"
@@ -512,11 +511,9 @@ mkdir -p \
   "$SETUP_FIXTURE_SOURCE/home/.claude/skills" \
   "$SETUP_FIXTURE_SOURCE/home/.codex" \
   "$SETUP_FIXTURE_SOURCE/home/.config/kitty" \
-  "$SETUP_FIXTURE_SOURCE/home/.config/nvim" \
   "$SETUP_FIXTURE_SOURCE/home/.config/yazi" \
   "$SETUP_FIXTURE_SOURCE/home/.config/zed" \
   "$SETUP_FIXTURE_SOURCE/home/.config/preflight-boundary" \
-  "$SETUP_FIXTURE_SOURCE/home/Library/Application Support/Code/User" \
   "$SETUP_FIXTURE_SOURCE/home/Library/LaunchAgents" \
   "$SETUP_FIXTURE_HOME/.config/preflight-boundary" \
   "$SETUP_FIXTURE_TMP" \
@@ -655,7 +652,7 @@ run_setup_preflight() {
           preflight_git_checkout "$5"
           ;;
         github-checkout)
-          preflight_github_checkout "nvm-sh/nvm" "$5"
+          preflight_github_checkout "zdharma-continuum/zinit" "$5"
           ;;
         stow-real-conflict)
           run_stow --dir="$DOTFILES_DIR" --restow --target="$HOME" home
@@ -747,108 +744,23 @@ assert_setup_preflight stow-real reject \
   '../source/home/.config/kitty/kitty.conf' '--adopt not specified' \
   -- stow-real-conflict
 
-corrupt_checkout="$SETUP_FIXTURE_HOME/.nvm"
+corrupt_checkout="$SETUP_FIXTURE_HOME/zinit.git"
 mkdir -p "$corrupt_checkout/.git/objects"
 printf 'not-a-valid-head\n' >"$corrupt_checkout/.git/HEAD"
 assert_setup_preflight corrupt-git reject \
   "Could not inspect Git checkout $corrupt_checkout:" \
   -- git-checkout "$corrupt_checkout"
 
-wrong_origin_checkout="$SETUP_FIXTURE_HOME/wrong-nvm"
+wrong_origin_checkout="$SETUP_FIXTURE_HOME/wrong-zinit"
 git init --quiet "$wrong_origin_checkout"
 git -C "$wrong_origin_checkout" remote add origin \
-  https://github.com/example/not-nvm.git
+  https://github.com/example/not-zinit.git
 assert_setup_preflight wrong-origin reject \
-  "Unexpected origin for Git checkout nvm-sh/nvm at $wrong_origin_checkout: https://github.com/example/not-nvm.git" \
+  "Unexpected origin for Git checkout zdharma-continuum/zinit at $wrong_origin_checkout: https://github.com/example/not-zinit.git" \
   -- github-checkout "$wrong_origin_checkout"
 
 printf '../escape\n' >>"$SETUP_FIXTURE_SOURCE/stow-target-dirs.txt"
 assert_setup_preflight invalid reject 'Invalid Stow target directory: ../escape'
-
-log "Checking setup NVM activation"
-NVM_FIXTURE_HOME="$SETUP_SNAPSHOT_DIR/nvm-home"
-NVM_FIXTURE_BIN="$NVM_FIXTURE_HOME/.nvm/versions/node/v1.2.3/bin"
-NVM_FIXTURE_LOG="$NVM_FIXTURE_HOME/nvm-calls.log"
-BREW_FIXTURE_BIN="$SETUP_SNAPSHOT_DIR/homebrew/bin"
-mkdir -p "$NVM_FIXTURE_HOME/.nvm" "$NVM_FIXTURE_BIN" "$BREW_FIXTURE_BIN"
-printf '#!/bin/sh\nexit 0\n' >"$NVM_FIXTURE_BIN/npm"
-printf '#!/bin/sh\nexit 0\n' >"$BREW_FIXTURE_BIN/npm"
-chmod +x "$NVM_FIXTURE_BIN/npm" "$BREW_FIXTURE_BIN/npm"
-cat >"$NVM_FIXTURE_HOME/.nvm/nvm.sh" <<'ZSH'
-NVM_FIXTURE_INSTALLED=0
-nvm() {
-  local command="$1"
-  local entry
-  local -a updated_path
-
-  case "$command" in
-    install)
-      NVM_FIXTURE_INSTALLED=1
-      ;;
-    alias)
-      return 0
-      ;;
-    version)
-      # Until install runs, the default alias still names the previous release
-      # or, like the real nvm, prints N/A and fails when it does not exist.
-      if [[ "$2" == default && "$NVM_FIXTURE_INSTALLED" == 0 ]]; then
-        print -r -- "$NVM_FIXTURE_PREVIOUS"
-        [[ "$NVM_FIXTURE_PREVIOUS" != N/A ]] || return 3
-      else
-        print -r -- v1.2.3
-      fi
-      ;;
-    reinstall-packages | uninstall)
-      print -r -- "$command $2" >>"$NVM_FIXTURE_LOG"
-      ;;
-    deactivate)
-      for entry in "${path[@]}"; do
-        [[ "$entry" == "$NVM_FIXTURE_BIN" ]] || updated_path+=("$entry")
-      done
-      path=("${updated_path[@]}")
-      ;;
-    use)
-      for entry in "${path[@]}"; do
-        [[ "$entry" == "$NVM_FIXTURE_BIN" ]] && return 0
-      done
-      path=("$NVM_FIXTURE_BIN" "${path[@]}")
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-ZSH
-# The previous default is migrated and removed only when it is a different,
-# existing version; a matching or missing default must leave nvm alone.
-for nvm_previous in v1.0.0 v1.2.3 N/A; do
-  : >"$NVM_FIXTURE_LOG"
-  env \
-    HOME="$NVM_FIXTURE_HOME" \
-    NVM_FIXTURE_BIN="$NVM_FIXTURE_BIN" \
-    NVM_FIXTURE_LOG="$NVM_FIXTURE_LOG" \
-    NVM_FIXTURE_PREVIOUS="$nvm_previous" \
-    PATH="$BREW_FIXTURE_BIN:$NVM_FIXTURE_BIN:/usr/bin:/bin" \
-    zsh -fc '
-      source "$1"
-      git() { [[ "$3" != tag ]] || print -r -- v0.40.3; }
-      install_nvm_node >/dev/null
-      [[ "$(command -v npm)" == "$NVM_FIXTURE_BIN/npm" ]]
-    ' setup-nvm "$ROOT/setup.sh"
-  if [[ "$nvm_previous" == v1.0.0 ]]; then
-    [[ "$(<"$NVM_FIXTURE_LOG")" == $'reinstall-packages v1.0.0\nuninstall v1.0.0' ]] || {
-      printf "install_nvm_node did not migrate and remove the previous default:\n" >&2
-      sed 's/^/  /' "$NVM_FIXTURE_LOG" >&2
-      exit 1
-    }
-  else
-    [[ ! -s "$NVM_FIXTURE_LOG" ]] || {
-      printf "install_nvm_node touched nvm for previous default %s:\n" "$nvm_previous" >&2
-      sed 's/^/  /' "$NVM_FIXTURE_LOG" >&2
-      exit 1
-    }
-  fi
-done
 
 log "Checking setup Yazi flavor install modes"
 YAZI_FIXTURE_HOME="$CHECK_WORK_DIR/yazi-home"
@@ -1164,7 +1076,6 @@ env SYSTEM_DEFAULTS_LOG="$SYSTEM_DEFAULTS_LOG" zsh -fc '
     "write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true" \
     "-currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1" \
     "write NSGlobalDomain TSMLanguageIndicatorEnabled -bool false" \
-    "write com.microsoft.VSCode ApplePressAndHoldEnabled -bool false" \
     "killall Dock" "killall Finder" "nvram StartupMute=%01"; do
     grep -Fxq -- "$expected" "$SYSTEM_DEFAULTS_LOG"
   done
@@ -1281,9 +1192,9 @@ aerospace"
 
   preflight_setup accept_xcode_license install_homebrew install_brew_packages \
     link_dotfiles install_claude_cli install_codex_cli install_agy_cli \
-    install_nvm_node install_zinit install_zsh_plugins install_kitty \
+    install_zinit install_zsh_plugins install_kitty \
     install_zed_cli install_sketchybar_assets install_tmux_plugins \
-    install_yazi_flavor install_neovim_plugins () { :; }
+    install_yazi_flavor () { :; }
   restart_services() { return 1; }
   print_summary() { print -r -- "summary ${1:-}" >>"$SERVICE_FIXTURE_LOG"; }
   : >"$SERVICE_FIXTURE_LOG"
@@ -1308,14 +1219,12 @@ done < <(repo_files '*.lua'; print -r -- home/.config/sketchybar/sketchybarrc)
 
 log "Checking Lua runtime regression fixtures"
 lua tests/sketchybar_runtime_spec.lua "$ROOT"
-lua tests/treesitter_sync_spec.lua "$ROOT"
-lua tests/neovim_sync_spec.lua "$ROOT"
 
 log "Checking shell and tmux runtime regression fixtures"
 # The specs use separate temp dirs, tmux sockets and lock files, so they run
 # in parallel; their output is printed in a fixed order once all have finished.
 RUNTIME_SPECS=(
-  shell_syntax aerospace_resize nvm_runtime zsh_completion zinit_update
+  shell_syntax aerospace_resize zsh_completion zinit_update
   brew_bundle tmux_runtime tmux_restore
 )
 typeset -A RUNTIME_SPEC_PIDS
@@ -1408,11 +1317,7 @@ log "Checking JSON and JSONC"
 while IFS= read -r file; do
   [[ -f "$file" ]] && json5 --validate "$file"
 done < <(repo_files '*.json' '*.jsonc')
-jq empty home/.config/nvim/lazyvim.json
-jq empty home/.config/nvim/lazy-lock.json
 jq empty home/.config/lockime/rules.json
-rg -Fq 'lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"' \
-  home/.config/nvim/lua/config/lazy.lua
 
 log "Checking Brewfile and LaunchAgent"
 ruby -c Brewfile >/dev/null
@@ -1624,7 +1529,7 @@ log "Checking patch whitespace"
 snapshot_git diff --cached --check HEAD -- :/
 
 if (( RUN_LIVE_CHECKS )); then
-  for command in aerospace brew fc-match fc-scan nvim tree-sitter; do
+  for command in aerospace brew fc-match fc-scan; do
     require "$command"
   done
 
@@ -1710,62 +1615,6 @@ if not symbol_families:
 for family in sorted(symbol_families):
     require_family(family)
 PY
-
-  log "Checking installed Neovim Tree-sitter runtime"
-  tree_sitter_output="$(tree-sitter --version)"
-  if [[ "$tree_sitter_output" =~ '([0-9]+([.][0-9]+){2})' ]]; then
-    tree_sitter_version="$match[1]"
-  else
-    printf "Could not parse tree-sitter version: %s\n" \
-      "$tree_sitter_output" >&2
-    exit 1
-  fi
-  minimum_tree_sitter_version="0.26.1"
-  autoload -Uz is-at-least
-  is-at-least "$minimum_tree_sitter_version" "$tree_sitter_version" || {
-    printf "tree-sitter %s is below required %s.\n" \
-      "$tree_sitter_version" "$minimum_tree_sitter_version" >&2
-    exit 1
-  }
-  treesitter_root="$INSTALLED_XDG_DATA_HOME/nvim/lazy/nvim-treesitter"
-  [[ -f "$treesitter_root/plugin/filetypes.lua" ]] || {
-    printf "nvim-treesitter is not installed at %s.\n" \
-      "$treesitter_root" >&2
-    exit 1
-  }
-  treesitter_status="$(
-    GIT_OPTIONAL_LOCKS=0 git -C "$treesitter_root" status --porcelain --untracked-files=no
-  )"
-  [[ -z "$treesitter_status" ]] || {
-    printf "Installed nvim-treesitter checkout is dirty:\n%s\n" \
-      "$treesitter_status" >&2
-    exit 1
-  }
-  expected_treesitter_commit="$(
-    jq -er '.["nvim-treesitter"].commit' home/.config/nvim/lazy-lock.json
-  )"
-  installed_treesitter_commit="$(git -C "$treesitter_root" rev-parse HEAD)"
-  [[ "$installed_treesitter_commit" == "$expected_treesitter_commit" ]] || {
-    printf "Installed nvim-treesitter does not match lazy-lock.json.\n" >&2
-    exit 1
-  }
-  env "${ISOLATED_ENV[@]}" \
-    XDG_DATA_HOME="$INSTALLED_XDG_DATA_HOME" \
-    NVIM_TS_ROOT="$treesitter_root" \
-    NVIM_LOG_FILE="$CHECK_WORK_DIR/nvim.log" \
-    nvim -l - <<'LUA'
-local root = assert(vim.env.NVIM_TS_ROOT)
-vim.opt.runtimepath:append(root .. "/runtime")
-dofile(root .. "/plugin/filetypes.lua")
-for _, filetype in ipairs({ "diff", "vim", "lua", "jsonc" }) do
-  local language = vim.treesitter.language.get_lang(filetype) or filetype
-  vim.treesitter.language.add(language)
-  assert(
-    vim.treesitter.query.get(language, "highlights"),
-    ("missing highlights query for %s (%s)"):format(filetype, language)
-  )
-end
-LUA
 
   log "Checking live AeroSpace configuration"
   # setup.sh's preflight already compares the active config with the
@@ -1856,7 +1705,7 @@ LUA
   log "Reporting unmanaged Brew dependencies"
   brew_bundle_report_extras "$ROOT/Brewfile" || BREW_AUDIT_INCOMPLETE=1
 else
-  printf "  Live font, Neovim, AeroSpace, tmux, and Homebrew checks skipped; rerun with --live.\n"
+  printf "  Live font, AeroSpace, tmux, and Homebrew checks skipped; rerun with --live.\n"
 fi
 
 final_worktree_changes="$(

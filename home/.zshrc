@@ -175,10 +175,10 @@ alias c="claude"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"
 alias cat="bat"
 
-alias -s md='$EDITOR'
+alias -s md='$=EDITOR'
 alias -s txt=bat
 alias -s log=bat
-alias -s py='$EDITOR'
+alias -s py='$=EDITOR'
 alias -s html=open
 
 # \C-b puts the cursor between the quotes.
@@ -192,32 +192,7 @@ function y() {
 	rm -f -- "$tmp"
 }
 
-export EDITOR="nvim"
-
-# Node Version Manager
-export NVM_DIR="$HOME/.nvm"
-if [[ -r "$NVM_DIR/alias/default" ]]; then
-	nvm_default_version="$(<"$NVM_DIR/alias/default")"
-	if [[ ! -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" && -s "$NVM_DIR/nvm.sh" ]]; then
-		# Resolve symbolic/partial aliases with NVM itself without loading its
-		# functions or completions into the interactive shell.
-		nvm_default_version="$(
-			source "$NVM_DIR/nvm.sh" --no-use
-			nvm version default
-		)"
-	fi
-	if [[ -x "$NVM_DIR/versions/node/$nvm_default_version/bin/node" ]]; then
-		path=("$NVM_DIR/versions/node/$nvm_default_version/bin" $path)
-	fi
-	unset nvm_default_version
-fi
-
-nvm() {
-	unfunction nvm
-	[[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
-	[[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
-	nvm "$@"
-}
+export EDITOR="zed --wait"
 
 # Cargo (Rust package manager)
 if [[ -r "$HOME/.cargo/env" ]]; then

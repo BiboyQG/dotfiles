@@ -54,7 +54,7 @@ run_stow() {
 
 usage() {
   printf "usage: zsh setup.sh [--skip-system-defaults] [--update]\n"
-  printf "  --update  move the Neovim plugin and Yazi flavor locks to the latest upstream versions\n"
+  printf "  --update  move the Yazi flavor lock to the latest upstream version\n"
 }
 
 parse_args() {
@@ -207,7 +207,6 @@ preflight_github_checkout() {
 
 preflight_existing_git_checkouts() {
   log "Checking existing dependency checkouts"
-  preflight_github_checkout "nvm-sh/nvm" "$HOME/.nvm" || return 1
   preflight_github_checkout "zdharma-continuum/zinit" \
     "${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git" || return 1
 }
@@ -599,9 +598,6 @@ setup_system_preferences() {
   # main thread for about 0.5 s on every input-source change, which stalls
   # AeroSpace's Accessibility calls while LockIME switches.
   defaults write NSGlobalDomain TSMLanguageIndicatorEnabled -bool false
-  # macOS press-and-hold otherwise stops key repeat (and opens the accent
-  # picker for k), so holding j or k in VS Code's Vim extension cannot scroll.
-  defaults write com.microsoft.VSCode ApplePressAndHoldEnabled -bool false
 
   local consumer
   for consumer in Dock Finder SystemUIServer; do
@@ -650,8 +646,9 @@ declared_brew_trust_targets() {
         dependency_type="${line%% *}"
         dependency="${line#*\"}"
         dependency="${dependency%%\"*}"
-        [[ "$dependency" == */*/* ]] \
-          && print -r -- "$dependency_type"$'\t'"$dependency"
+        if [[ "$dependency" == */*/* ]]; then
+          print -r -- "$dependency_type"$'\t'"$dependency"
+        fi
         ;;
     esac
   done <"$DOTFILES_DIR/Brewfile"
@@ -728,51 +725,6 @@ link_dotfiles() {
   [[ -e "$HOME/.gitconfig" || -L "$HOME/.gitconfig" ]] || : >"$HOME/.gitconfig"
 }
 
-install_nvm_node() {
-  log "Installing nvm and Node"
-
-  export NVM_DIR="$HOME/.nvm"
-  # nvm is pinned to its newest v* release tag, not the branch tip.
-  [[ -d "$NVM_DIR/.git" ]] || git clone --filter=blob:none --depth=1 https://github.com/nvm-sh/nvm.git "$NVM_DIR"
-  git -C "$NVM_DIR" fetch --quiet --depth=1 origin 'refs/tags/*:refs/tags/*'
-  local release
-  release="$(git -C "$NVM_DIR" tag --list 'v[0-9]*' --sort=-version:refname | head -n 1)"
-  if [[ -z "$release" ]]; then
-    printf "Could not resolve an nvm release tag.\n" >&2
-    exit 1
-  fi
-  git -C "$NVM_DIR" checkout --quiet "refs/tags/$release"
-
-  set +u
-  . "$NVM_DIR/nvm.sh"
-
-  local installed_node_version previous_node_version
-  # nvm prints N/A and fails while the default alias does not exist yet.
-  previous_node_version="$(nvm version default)" || previous_node_version="N/A"
-  nvm install node
-  installed_node_version="$(nvm version node)"
-
-  if [[ "$installed_node_version" == "N/A" ]]; then
-    printf "Failed to resolve the latest installed Node version.\n" >&2
-    exit 1
-  fi
-
-  nvm alias default "$installed_node_version"
-  nvm deactivate --silent >/dev/null 2>&1 || true
-  nvm use "$installed_node_version"
-
-  # Carry the previous default's global packages over, then remove it.
-  # reinstall-packages refuses the version in use and uninstall refuses the
-  # active one, so this runs after `nvm use` and in this order.
-  if [[ "$previous_node_version" != "N/A" \
-    && "$previous_node_version" != "$installed_node_version" ]]; then
-    nvm reinstall-packages "$previous_node_version"
-    nvm uninstall "$previous_node_version"
-  fi
-
-  set -u
-}
-
 install_claude_cli() {
   # The native installer downloads the release on every run; an installed
   # Claude Code checks its own release metadata and downloads only on a change.
@@ -845,18 +797,6 @@ install_zsh_plugins() {
     return 1
   fi
   zsh -c 'source "$HOME/.zshrc"; zinit cclear' </dev/null
-}
-
-install_neovim_plugins() {
-  if (( UPDATE_LOCKS )); then
-    log "Updating Neovim plugins to their latest versions"
-  else
-    log "Installing the Neovim plugins pinned in lazy-lock.json"
-  fi
-  NVIM_LOG_FILE=/dev/null DOTFILES_NVIM_SYNC="$DOTFILES_DIR/lib/sync_neovim.lua" \
-    DOTFILES_NVIM_UPDATE="$UPDATE_LOCKS" \
-    nvim --headless '+lua dofile(vim.env.DOTFILES_NVIM_SYNC)' +qa
-  NVIM_LOG_FILE=/dev/null nvim -l "$DOTFILES_DIR/lib/sync_treesitter.lua"
 }
 
 install_yazi_flavor() {
@@ -1184,11 +1124,11 @@ print_summary() {
   if (( UPDATE_LOCKS )); then
     local lock_status
     lock_status="$(git -C "$DOTFILES_DIR" status --short -- \
-      home/.config/nvim/lazy-lock.json home/.config/yazi/package.toml)"
+      home/.config/yazi/package.toml)"
     if [[ -n "$lock_status" ]]; then
-      printf "Updated lock files; commit the bump:\n%s\n" "$lock_status"
+      printf "Updated lock file; commit the bump:\n%s\n" "$lock_status"
     else
-      printf "Lock files are unchanged.\n"
+      printf "Lock file is unchanged.\n"
     fi
   fi
 }
@@ -1211,7 +1151,6 @@ main() {
   install_claude_cli
   install_codex_cli
   install_agy_cli
-  install_nvm_node
   install_zinit
   install_zsh_plugins
   install_kitty
@@ -1219,7 +1158,6 @@ main() {
   install_sketchybar_assets
   install_tmux_plugins
   install_yazi_flavor
-  install_neovim_plugins
   local exit_code=0
   restart_services || exit_code=1
   print_summary "$exit_code"
