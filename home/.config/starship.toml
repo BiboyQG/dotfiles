@@ -1,33 +1,188 @@
+"$schema" = "https://starship.rs/config-schema.json"
+
+palette = "catppuccin_mocha"
 add_newline = false
 command_timeout = 1000
 
+# Two-line lean layout inspired by p10k, paired with Zsh's native right prompt
+# (reflows cleanly when AeroSpace resizes Kitty panes).
 format = """
+$os\
 $username\
 $hostname\
 $directory\
 $git_branch\
+$git_commit\
+$git_state\
 $git_status\
-$python\
-$cmd_duration\
 $line_break\
 $character"""
 
+right_format = """
+$status\
+$cmd_duration\
+$jobs\
+$direnv\
+$env_var\
+$python\
+$conda"""
+
+[os]
+disabled = false
+style = "subtext1"
+
+[os.symbols]
+Macos = " "
+Linux = " "
+
+[username]
+style_user = "lavender"
+style_root = "bold red"
+format = "[$user]($style) "
+show_always = false
+
+[hostname]
+ssh_only = true
+ssh_symbol = "󰣀 "
+style = "lavender"
+format = "[$ssh_symbol$hostname]($style) "
+
 [directory]
-truncation_length = 4
+style = "bold blue"
+format = "[$path]($style)[$read_only]($read_only_style) "
+truncation_length = 3
 truncate_to_repo = false
+fish_style_pwd_dir_length = 1
+read_only = " 󰌾"
+read_only_style = "red"
 
 [git_branch]
-symbol = " "
+symbol = " "
+style = "green"
+truncation_length = 32
+format = "[on ](overlay1)[$symbol$branch(:$remote_branch)]($style) "
 
+[git_commit]
+commit_hash_length = 8
+tag_disabled = false
+tag_symbol = "#"
+style = "green"
+format = "[@$hash$tag]($style) "
+
+[git_state]
+style = "bold red"
+format = '[$state( $progress_current/$progress_total)]($style) '
+
+# Counted, color-coded indicators matching p10k's lean git formatter (no brackets).
 [git_status]
-ahead = "⇡${count}"
-behind = "⇣${count}"
-diverged = "⇕⇡${ahead_count}⇣${behind_count}"
-
-[cmd_duration]
-min_time = 2_000
-show_milliseconds = false
+format = "$ahead_behind$stashed$conflicted$staged$modified$renamed$deleted$untracked"
+ahead = "[⇡${count} ](green)"
+behind = "[⇣${count} ](green)"
+diverged = "[⇣${behind_count}⇡${ahead_count} ](green)"
+stashed = "[*${count} ](green)"
+conflicted = "[~${count} ](red)"
+staged = "[+${count} ](yellow)"
+modified = "[!${count} ](yellow)"
+renamed = "[»${count} ](yellow)"
+deleted = "[✘${count} ](red)"
+untracked = "[?${count} ](sapphire)"
 
 [character]
 success_symbol = "[❯](bold green)"
 error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold lavender)"
+vimcmd_visual_symbol = "[❮](bold mauve)"
+vimcmd_replace_one_symbol = "[▶](bold peach)"
+vimcmd_replace_symbol = "[▶](bold peach)"
+
+[status]
+disabled = false
+symbol = "✘ "
+style = "red"
+map_symbol = true
+not_executable_symbol = "󰂭 "
+not_found_symbol = "󰍉 "
+sigint_symbol = "󰐊 "
+signal_symbol = "⚡ "
+format = " [$symbol$status]($style)"
+
+[cmd_duration]
+min_time = 3_000
+show_milliseconds = false
+style = "yellow"
+format = " [󱎫 $duration]($style)"
+
+[jobs]
+symbol = "✦ "
+style = "peach"
+number_threshold = 1
+format = " [$symbol$number]($style)"
+
+[direnv]
+disabled = false
+symbol = "󰀫 "
+style = "yellow"
+format = " [$symbol$allowed]($style)"
+allowed_msg = "env"
+not_allowed_msg = "blocked"
+denied_msg = "denied"
+
+[env_var.YAZI_LEVEL]
+symbol = "󰇥 "
+style = "yellow"
+format = " [${symbol}yazi]($style)"
+
+# Show active virtualenvs / uv envs without forking python --version in every directory.
+[python]
+symbol = " "
+style = "teal"
+detect_extensions = []
+detect_files = []
+format = " [$symbol$virtualenv]($style)"
+
+[conda]
+symbol = " "
+style = "teal"
+ignore_base = true
+format = " [$symbol$environment]($style)"
+
+# Skip version-probing subprocesses for unused runtimes (matches p10k's lean config).
+[package]
+disabled = true
+
+[nodejs]
+disabled = true
+
+[lua]
+disabled = true
+
+[ruby]
+disabled = true
+
+[palettes.catppuccin_mocha]
+rosewater = "#f5e0dc"
+flamingo = "#f2cdcd"
+pink = "#f5c2e7"
+mauve = "#cba6f7"
+red = "#f38ba8"
+maroon = "#eba0ac"
+peach = "#fab387"
+yellow = "#f9e2af"
+green = "#a6e3a1"
+teal = "#94e2d5"
+sky = "#89dceb"
+sapphire = "#74c7ec"
+blue = "#89b4fa"
+lavender = "#b4befe"
+text = "#cdd6f4"
+subtext1 = "#bac2de"
+subtext0 = "#a6adc8"
+overlay2 = "#9399b2"
+overlay1 = "#7f849c"
+overlay0 = "#6c7086"
+surface2 = "#585b70"
+surface1 = "#45475a"
+surface0 = "#313244"
+base = "#1e1e2e"
+mantle = "#181825"
+crust = "#11111b"
