@@ -14,8 +14,6 @@ STOW_IGNORE_REGEXES=()
 STOW_IGNORE_FULL_PATH=()
 STOW_CONFIG_CWD="/var/empty"
 STOW_CONFIG_HOME="$STOW_CONFIG_CWD/dotfiles-stow-home"
-KITTY_APP_DIR="/Applications/kitty.app"
-ZED_APP_DIR="/Applications/Zed.app"
 
 log() {
   printf "\n==> %s\n" "$*"
@@ -810,7 +808,8 @@ install_yazi_flavor() {
 }
 
 install_kitty() {
-  local kitty_bin="$KITTY_APP_DIR/Contents/MacOS/kitty"
+  local app_dir="/Applications/kitty.app"
+  local kitty_bin="$app_dir/Contents/MacOS/kitty"
   local installed_version latest_version=""
 
   # The installer picks its release from current-version.txt; skip the
@@ -830,7 +829,7 @@ install_kitty() {
 
   mkdir -p "$HOME/.local/bin"
   ln -sf "$kitty_bin" "$HOME/.local/bin/kitty"
-  ln -sf "$KITTY_APP_DIR/Contents/MacOS/kitten" "$HOME/.local/bin/kitten"
+  ln -sf "$app_dir/Contents/MacOS/kitten" "$HOME/.local/bin/kitten"
 }
 
 install_zed_cli() {
@@ -839,7 +838,7 @@ install_zed_cli() {
   # The Homebrew cask links /opt/homebrew/bin/zed, while a hand-installed
   # /Applications/Zed.app stays on the skip list and needs its own link.
   mkdir -p "$HOME/.local/bin"
-  ln -sf "$ZED_APP_DIR/Contents/MacOS/cli" "$HOME/.local/bin/zed"
+  ln -sf "/Applications/Zed.app/Contents/MacOS/cli" "$HOME/.local/bin/zed"
   "$HOME/.local/bin/zed" --version
 }
 

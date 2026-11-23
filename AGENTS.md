@@ -2,15 +2,15 @@
 
 ## Project Structure & Module Organization
 
-This repository manages dotfiles for an Apple Silicon Mac; Intel Macs are not supported. Deployable files live in the `home/` GNU Stow package; the per-directory layout is in `docs/setup.md`. Repository tooling stays at the root: `setup.sh` installs and links the environment, `check.sh` validates it, `Brewfile` declares packages, `stow-target-dirs.txt` lists the deployed directories that must stay real directories, and `lib/` holds the zsh and Neovim Lua helpers that `setup.sh` runs plus the build script for the AeroSpace patch in `patches/aerospace/`. User documentation is in `docs/`.
+This repository manages dotfiles for an Apple Silicon Mac; Intel Macs are not supported. Deployable files live in the `home/` GNU Stow package; the per-directory layout is in `docs/setup.md`. Repository tooling stays at the root: `setup.sh` installs and links the environment, `check.sh` validates it, `Brewfile` declares packages, `stow-target-dirs.txt` lists the deployed directories that must stay real directories, and `lib/` holds the zsh helpers that `setup.sh` runs. User documentation is in `docs/`.
 
 ## Build, Test, and Development Commands
 
 - `zsh check.sh` runs the standard non-destructive suite: syntax checks, fixtures, strict C compilation, manifest validation, and isolated Stow simulations.
-- `zsh check.sh --live` adds read-only checks against installed fonts, Neovim, AeroSpace, tmux, and Homebrew. Run it for machine-integrated changes.
-- `zsh setup.sh --skip-system-defaults` installs or updates dependencies, deploys links, and restarts or reloads OpenUsage, AeroSpace, and SketchyBar, without changing macOS defaults or NVRAM.
+- `zsh check.sh --live` adds read-only checks against installed fonts, AeroSpace, tmux, and Homebrew. Run it for machine-integrated changes.
+- `zsh setup.sh --skip-system-defaults` installs or updates dependencies, deploys links, and restarts or reloads OpenUsage, LockIME, AeroSpace, and SketchyBar, without changing macOS defaults or NVRAM.
 - `zsh setup.sh` additionally applies macOS defaults and NVRAM preferences (asks for sudo up front).
-- Add `--update` to either command to move `home/.config/nvim/lazy-lock.json` and `home/.config/yazi/package.toml` to the latest upstream versions; commit the lock changes it lists.
+- Add `--update` to either command to move `home/.config/yazi/package.toml` to the latest upstream version; commit the lock change it lists.
 
 ## Coding Style & Naming Conventions
 
@@ -18,7 +18,7 @@ Preserve the style of the file being edited. Shell code uses zsh or bash explici
 
 ## Testing Guidelines
 
-Add deterministic fixtures to `check.sh` or a focused `tests/*_spec.lua` or `tests/*_spec.py` file that takes the repository root as its first argument; add a Python spec to `RUNTIME_SPECS` in `check.sh` by its name without `_spec.py` (those specs run in parallel, so each must use its own temp directory and sockets) and a Lua spec as its own `lua tests/<name>_spec.lua "$ROOT"` line. Mock external services instead of depending on network state. Run `zsh check.sh` for every change and `zsh check.sh --live` when runtime integration is affected. Also run `git diff --check` before committing.
+Add deterministic fixtures to `check.sh` or a focused `tests/*_spec.lua` or `tests/*_spec.py` file that takes the repository root as its first argument; add a Python spec to `RUNTIME_SPECS` in `check.sh` by its name without `_spec.py` (those specs run in parallel, so each must use its own temp directory) and a Lua spec as its own `lua tests/<name>_spec.lua "$ROOT"` line. Mock external services instead of depending on network state. Run `zsh check.sh` for every change and `zsh check.sh --live` when runtime integration is affected. Also run `git diff --check` before committing.
 
 ## Commit & Pull Request Guidelines
 
