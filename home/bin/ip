@@ -1,155 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-primary_endpoint="https://api.ipify.org"
-fallback_endpoints=(
+endpoints=(
+  "https://api.ipify.org"
   "https://ipv4.icanhazip.com"
-  "https://ipinfo.io/ip"
-  "https://ifconfig.co/ip"
   "https://checkip.amazonaws.com"
 )
-curl_opts=( -4 -f --max-time 2 )
-# 150 polls of 20 ms outlast curl's own --max-time with room to spare.
-poll_rounds=150
 
-run_dir=""
-request_pids=()
-result_ip=""
-
-# Every request runs in its own process group (set -m) so cancelling it also
-# reaches anything the command spawned.
-start_request() {
-  local output="$1"
-  shift
-  rm -f -- "$output.status"
-  # bash prints "child setpgid ...: Operation not permitted" on its own stderr
-  # when a job-control child exits before the parent's setpgid; keep that
-  # diagnostic out of the helper's stderr (the request redirects its own).
-  {
-    set -m
-    (
-      trap - EXIT HUP INT TERM
-      set +m
-      request_exit=0
-      "$@" >"$output" 2>/dev/null || request_exit=$?
-      printf '%s\n' "$request_exit" >"$output.status"
-    ) &
-    request_pids+=("$!")
-    disown "$!" >/dev/null 2>&1 || true
-    set +m
-  } 2>/dev/null
-}
-
-request_running() {
-  kill -0 -- "-$1" >/dev/null 2>&1
-}
-
-request_succeeded() {
-  local status_file="$1.status" request_exit
-  [[ -r "$status_file" ]] || return 1
-  IFS= read -r request_exit <"$status_file" || return 1
-  [[ "$request_exit" == 0 ]]
-}
-
-stop_requests() {
-  local pid round signal
-  for signal in TERM KILL; do
-    for pid in ${request_pids[@]+"${request_pids[@]}"}; do
-      request_running "$pid" && kill "-$signal" -- "-$pid" >/dev/null 2>&1 || true
-    done
-    for (( round = 0; round < 10; round++ )); do
-      local running=0
-      for pid in ${request_pids[@]+"${request_pids[@]}"}; do
-        request_running "$pid" && running=1
-      done
-      (( running )) || break
-      sleep 0.02
-    done
-  done
-  request_pids=()
-}
-
-cleanup() {
-  local status=$?
-  trap - EXIT
-  stop_requests
-  [[ -n "$run_dir" ]] && rm -rf -- "$run_dir"
-  exit "$status"
-}
-trap cleanup EXIT
-trap 'exit 129' HUP
-trap 'exit 130' INT
-trap 'exit 143' TERM
-
-# Prints the response body as a bare IPv4 address, or fails.
-read_ipv4() {
-  local content octet
-  content="$(tr -d ' \t\r\n' <"$1")"
-  [[ "$content" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
-  for octet in ${content//./ }; do
+valid_ipv4() {
+  local ip="$1" octet
+  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  for octet in ${ip//./ }; do
     (( 10#$octet <= 255 )) || return 1
   done
-  printf '%s\n' "$content"
 }
 
-# Races the given endpoints and keeps the first valid answer.
-fetch_first_ipv4() {
-  local index=0 round pid url
-  local -a settled=()
-
-  for url in "$@"; do
-    start_request "$run_dir/response.$index" curl "${curl_opts[@]}" "$url"
-    settled+=(0)
-    index=$((index + 1))
-  done
-
-  for (( round = 0; round < poll_rounds; round++ )); do
-    local pending=0
-    for (( index = 0; index < ${#request_pids[@]}; index++ )); do
-      (( settled[index] )) && continue
-      pid="${request_pids[$index]}"
-      if request_running "$pid"; then
-        pending=1
-        continue
-      fi
-      settled[index]=1
-      if request_succeeded "$run_dir/response.$index" \
-        && result_ip="$(read_ipv4 "$run_dir/response.$index")"; then
-        stop_requests
-        return 0
-      fi
-    done
-    (( pending )) || break
-    sleep 0.02
-  done
-
-  stop_requests
-  return 1
-}
-
-fetch_dig_ipv4() {
-  local round
-  local output="$run_dir/dig"
-
-  start_request "$output" dig +short -4 +time=1 +tries=1 \
-    myip.opendns.com @resolver1.opendns.com
-  for (( round = 0; round < poll_rounds; round++ )); do
-    request_running "${request_pids[0]}" || break
-    sleep 0.02
-  done
-  stop_requests
-  request_succeeded "$output" || return 1
-  result_ip="$(read_ipv4 "$output")"
-}
-
-run_dir="$(mktemp -d "${TMPDIR:-/tmp}/public-ip.XXXXXX")"
-
-if fetch_first_ipv4 "$primary_endpoint" \
-  || fetch_first_ipv4 "${fallback_endpoints[@]}" \
-  || fetch_dig_ipv4; then
-  printf '%s\n' "$result_ip"
-  exit 0
-fi
+for url in "${endpoints[@]}"; do
+  if raw="$(curl -4 -fsSL --max-time 2 "$url" 2>/dev/null)"; then
+    ip="$(printf '%s' "$raw" | tr -d ' \t\r\n')"
+    if valid_ipv4 "$ip"; then
+      printf '%s\n' "$ip"
+      exit 0
+    fi
+  fi
+done
 
 printf 'unable to determine public IPv4\n' >&2
 exit 1

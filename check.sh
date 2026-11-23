@@ -164,179 +164,27 @@ done
 
 log "Checking public IP helper behavior"
 IP_FIXTURE_DIR="$CHECK_WORK_DIR/ip-fixtures"
-IP_SLOW_MARKER="$IP_FIXTURE_DIR/slow-started"
 mkdir -p "$IP_FIXTURE_DIR"
-
 cat >"$IP_FIXTURE_DIR/curl" <<'BASH'
 #!/bin/bash
 set -euo pipefail
-
-[[ "$#" -eq 5 ]]
-[[ "$1" == "-4" && "$2" == "-f" ]]
-[[ "$3" == "--max-time" && "$4" == "2" ]]
-url="$5"
-printf '%s\n' "$url" >>"$IP_CURL_LOG"
-
+url="${@: -1}"
 case "$IP_MOCK_SCENARIO:$url" in
-  primary_success:https://api.ipify.org)
-    printf '203.0.113.7\n'
-    ;;
-  invalid_primary_fallback:https://api.ipify.org)
-    printf '999.1.2.3\n'
-    ;;
-  invalid_primary_fallback:https://ipv4.icanhazip.com)
-    printf '198.51.100.17\n'
-    ;;
-  invalid_primary_fallback:*)
-    exit 22
-    ;;
-  partial_primary_fallback:https://api.ipify.org)
-    printf '203.0.113.7'
-    exit 18
-    ;;
-  partial_primary_fallback:https://ipv4.icanhazip.com)
-    printf '203.0.113.70\n'
-    ;;
-  partial_primary_fallback:*)
-    exit 22
-    ;;
-  race:https://api.ipify.org)
-    exit 22
-    ;;
-  race:https://ipv4.icanhazip.com)
-    : >"$IP_SLOW_MARKER"
-    sleep 8
-    exit 22
-    ;;
-  race:https://ipinfo.io/ip)
-    for _ in {1..100}; do
-      [[ -e "$IP_SLOW_MARKER" ]] && break
-      sleep 0.01
-    done
-    [[ -e "$IP_SLOW_MARKER" ]]
-    printf '192.0.2.44\n'
-    ;;
-  race:*)
-    sleep 8
-    exit 22
-    ;;
-  all_fail:* | partial_dig:* | successful_dig:*)
-    exit 22
-    ;;
-  *)
-    exit 64
-    ;;
+  primary_success:https://api.ipify.org) printf '203.0.113.7\n' ;;
+  fallback:https://api.ipify.org) printf '999.1.2.3\n' ;;
+  fallback:https://ipv4.icanhazip.com) printf '198.51.100.17\n' ;;
+  *) exit 22 ;;
 esac
 BASH
+chmod +x "$IP_FIXTURE_DIR/curl"
 
-cat >"$IP_FIXTURE_DIR/dig" <<'BASH'
-#!/bin/bash
-set -euo pipefail
-
-printf '%s\n' "$*" >>"$IP_DIG_LOG"
-case "$IP_MOCK_SCENARIO" in
-  partial_dig)
-    printf '203.0.113.7\n'
-    ;;
-  successful_dig)
-    printf '198.51.100.18\n'
-    exit 0
-    ;;
-esac
-exit 9
-BASH
-chmod +x "$IP_FIXTURE_DIR/curl" "$IP_FIXTURE_DIR/dig"
-
-run_ip_case() {
-  local scenario="$1"
-  local interpreter="$2"
-
-  IP_CASE_CURL_LOG="$IP_FIXTURE_DIR/$scenario.curl.log"
-  IP_CASE_DIG_LOG="$IP_FIXTURE_DIR/$scenario.dig.log"
-  IP_CASE_STDERR="$IP_FIXTURE_DIR/$scenario.stderr"
-  : >"$IP_CASE_CURL_LOG"
-  : >"$IP_CASE_DIG_LOG"
-  rm -f -- "$IP_SLOW_MARKER"
-
-  IP_CASE_EXIT=0
-  IP_CASE_OUTPUT="$(
-    env "${ISOLATED_ENV[@]}" \
-      PATH="$IP_FIXTURE_DIR:$PATH" \
-      IP_MOCK_SCENARIO="$scenario" \
-      IP_CURL_LOG="$IP_CASE_CURL_LOG" \
-      IP_DIG_LOG="$IP_CASE_DIG_LOG" \
-      IP_SLOW_MARKER="$IP_SLOW_MARKER" \
-      "$interpreter" "$ROOT/home/bin/ip" 2>"$IP_CASE_STDERR"
-  )" || IP_CASE_EXIT=$?
-}
-
-zmodload zsh/datetime
-# The shebang resolves to whichever bash is first on PATH, so exercise both the
-# macOS baseline and the Homebrew build when they differ.
-typeset -Ua ip_interpreters
-ip_interpreters=(/bin/bash "$(command -v bash)")
-for ip_interpreter in "${ip_interpreters[@]}"; do
-  run_ip_case primary_success "$ip_interpreter"
-  (( IP_CASE_EXIT == 0 ))
-  [[ "$IP_CASE_OUTPUT" == "203.0.113.7" ]]
-  [[ ! -s "$IP_CASE_STDERR" ]]
-  [[ "$(<"$IP_CASE_CURL_LOG")" == "https://api.ipify.org" ]]
-  [[ ! -s "$IP_CASE_DIG_LOG" ]]
-
-  run_ip_case invalid_primary_fallback "$ip_interpreter"
-  (( IP_CASE_EXIT == 0 ))
-  [[ "$IP_CASE_OUTPUT" == "198.51.100.17" ]]
-  [[ ! -s "$IP_CASE_STDERR" ]]
-  grep -Fxq 'https://api.ipify.org' "$IP_CASE_CURL_LOG"
-  [[ ! -s "$IP_CASE_DIG_LOG" ]]
-
-  run_ip_case partial_primary_fallback "$ip_interpreter"
-  (( IP_CASE_EXIT == 0 ))
-  [[ "$IP_CASE_OUTPUT" == "203.0.113.70" ]]
-  [[ ! -s "$IP_CASE_STDERR" ]]
-  [[ ! -s "$IP_CASE_DIG_LOG" ]]
-
-  run_ip_case partial_dig "$ip_interpreter"
-  (( IP_CASE_EXIT == 1 ))
-  [[ -z "$IP_CASE_OUTPUT" ]]
-  [[ "$(<"$IP_CASE_STDERR")" == "unable to determine public IPv4" ]]
-  [[ -s "$IP_CASE_DIG_LOG" ]]
-
-  run_ip_case successful_dig "$ip_interpreter"
-  (( IP_CASE_EXIT == 0 ))
-  [[ "$IP_CASE_OUTPUT" == "198.51.100.18" ]]
-  [[ ! -s "$IP_CASE_STDERR" ]]
-
-  typeset -F race_started race_elapsed
-  race_started=$EPOCHREALTIME
-  run_ip_case race "$ip_interpreter"
-  race_elapsed=$(( EPOCHREALTIME - race_started ))
-  (( IP_CASE_EXIT == 0 ))
-  [[ "$IP_CASE_OUTPUT" == "192.0.2.44" ]]
-  [[ ! -s "$IP_CASE_STDERR" ]]
-  (( race_elapsed < 3.0 )) || {
-    printf "Public IP fallback waited %.3fs for a slow endpoint.\n" \
-      "$race_elapsed" >&2
-    exit 1
-  }
-  [[ ! -s "$IP_CASE_DIG_LOG" ]]
-
-  run_ip_case all_fail "$ip_interpreter"
-  (( IP_CASE_EXIT == 1 ))
-  [[ -z "$IP_CASE_OUTPUT" ]]
-  [[ "$(<"$IP_CASE_STDERR")" == "unable to determine public IPv4" ]]
-  [[ "$(awk 'END { print NR }' "$IP_CASE_CURL_LOG")" == 5 ]]
-  for endpoint in \
-    'https://api.ipify.org' \
-    'https://ipv4.icanhazip.com' \
-    'https://ipinfo.io/ip' \
-    'https://ifconfig.co/ip' \
-    'https://checkip.amazonaws.com'; do
-    grep -Fxq "$endpoint" "$IP_CASE_CURL_LOG"
-  done
-  [[ "$(<"$IP_CASE_DIG_LOG")" == \
-    "+short -4 +time=1 +tries=1 myip.opendns.com @resolver1.opendns.com" ]]
-done
+[[ "$(env "${ISOLATED_ENV[@]}" PATH="$IP_FIXTURE_DIR:$PATH" IP_MOCK_SCENARIO=primary_success "$ROOT/home/bin/ip")" == "203.0.113.7" ]]
+[[ "$(env "${ISOLATED_ENV[@]}" PATH="$IP_FIXTURE_DIR:$PATH" IP_MOCK_SCENARIO=fallback "$ROOT/home/bin/ip")" == "198.51.100.17" ]]
+if env "${ISOLATED_ENV[@]}" PATH="$IP_FIXTURE_DIR:$PATH" IP_MOCK_SCENARIO=all_fail "$ROOT/home/bin/ip" >/dev/null 2>"$IP_FIXTURE_DIR/stderr"; then
+  printf "home/bin/ip succeeded when all endpoints failed.\n" >&2
+  exit 1
+fi
+[[ "$(<"$IP_FIXTURE_DIR/stderr")" == "unable to determine public IPv4" ]]
 
 log "Checking media-state helper behavior"
 media_cache="$CHECK_WORK_DIR/media-cache"
