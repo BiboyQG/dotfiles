@@ -139,37 +139,7 @@ alias ll="eza -alh --icons=auto --color=always"
 alias s="fastfetch"
 alias l="lazygit"
 alias tn="tmux new -s"
-function ta {
-	if [[ -z "${1:-}" || "$1" == -* ]]; then
-		tmux attach "$@"
-		return
-	fi
-	local query="$1"
-	shift
-
-	# tmux refuses to attach from inside a session; switch the client instead.
-	# switch-client takes none of attach's options, so trailing flags are
-	# rejected there instead of being passed through.
-	local cmd=attach
-	if [[ -n "${TMUX:-}" ]]; then
-		cmd=switch-client
-		if (( $# )); then
-			print -u2 "ta: attach options are not supported inside tmux: $*"
-			return 2
-		fi
-	fi
-	local target sessions
-	sessions="$(tmux list-sessions -F '#{session_id}:::#{session_name}' 2>/dev/null)"
-	if [[ "$query" =~ ^[0-9]+$ ]]; then
-		target="$(printf '%s\n' "$sessions" | awk -F ':::' -v idx="$query" '$2 ~ "^"idx"-" {print $1; exit}')"
-	else
-		target="$(printf '%s\n' "$sessions" | awk -F ':::' -v name="$query" '$2 == name {print $1; exit}')"
-		if [[ -z "$target" ]]; then
-			target="$(printf '%s\n' "$sessions" | awk -F ':::' -v label="$query" '{name=$2; sub(/^[0-9]+-/, "", name); if (name == label) {print $1; exit}}')"
-		fi
-	fi
-	tmux "$cmd" -t "${target:-$query}" "$@"
-}
+alias ta="tmux attach"
 alias tls="tmux ls"
 alias c="claude"
 alias codex="codex --dangerously-bypass-approvals-and-sandbox"

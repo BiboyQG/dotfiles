@@ -848,15 +848,8 @@ install_sketchybar_helpers() {
   local build_dir
   build_dir="$(mktemp -d)"
 
-  if ! make -C "$DOTFILES_DIR/home/.config/sketchybar/helpers/event_providers" BINDIR="$build_dir"; then
-    rm -r -- "$build_dir"
-    printf "Could not build required SketchyBar event providers.\n" >&2
-    return 1
-  fi
-
   mkdir -p "$helper_bin_dir"
-  /usr/bin/install -m 755 "$build_dir/cpu_load" "$helper_bin_dir/cpu_load"
-  /usr/bin/install -m 755 "$build_dir/network_load" "$helper_bin_dir/network_load"
+  rm -f -- "$helper_bin_dir/cpu_load" "$helper_bin_dir/network_load"
 
   if make -C "$DOTFILES_DIR/home/.config/sketchybar/helpers/menus" BINDIR="$build_dir"; then
     /usr/bin/install -m 755 "$build_dir/menus" "$helper_bin_dir/menus"

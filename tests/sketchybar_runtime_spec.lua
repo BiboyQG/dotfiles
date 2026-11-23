@@ -166,16 +166,6 @@ package.loaded.colors = {
 }
 package.loaded.icons = {
   switch = { on = "ON", off = "OFF" },
-  media = { back = "BACK", play_pause = "PLAY", forward = "NEXT" },
-  wifi = {
-    upload = "UP",
-    download = "DOWN",
-    router = "ROUTER",
-    connected = "CONNECTED",
-    disconnected = "DISCONNECTED",
-  },
-  clipboard = "CLIPBOARD",
-  cpu = "CPU",
   battery = { _100 = "B100", _75 = "B75", _50 = "B50", _25 = "B25", _0 = "B0", charging = "CHARGING" },
   volume = { _100 = "V100", _66 = "V66", _33 = "V33", _10 = "V10", _0 = "V0" },
 }
@@ -512,150 +502,6 @@ local function test_spaces_startup_retry()
   expect(#state.delays == 30, "startup retries did not stop at the cap")
 end
 
-local function test_media()
-  local _, state = fake_sbar()
-  dofile(sketchybar_root .. "/items/media.lua")
-
-  expect(
-    state.events.spotify_media_change == "com.spotify.client.PlaybackStateChanged",
-    "Spotify event mapping failed"
-  )
-  expect(state.events.music_media_change == "com.apple.Music.playerInfo", "Music event mapping failed")
-  expect(#state.execs == 0, "media queried during module load")
-
-  local cover
-  local artist
-  for _, object in pairs(state.objects) do
-    if type(object.properties.background) == "table"
-      and type(object.properties.background.image) == "table"
-      and object.properties.background.image.scale == 0.85
-    then
-      cover = object
-    elseif type(object.properties.label) == "table" and object.properties.label.max_chars == 18 then
-      artist = object
-    end
-  end
-  expect(cover and artist, "media objects are missing")
-
-  state.emit("forced")
-  expect(#state.execs == 1, "forced media query count is incorrect")
-  state.execs[1].callback({ playing = true, artist = "A", title = "T", artwork = "/tmp/art" }, 0)
-  expect(cover.properties.drawing == true, "playing media is hidden")
-  expect(cover.properties.background.image.string == "/tmp/art", "artwork path was not applied")
-
-  state.emit("spotify_media_change", { INFO = { ["Player State"] = "Paused" } })
-  expect(cover.properties.drawing == true, "notification hid media before checking global state")
-  state.execs[#state.execs].callback({
-    playing = true,
-    artist = "Other player",
-    title = "Still playing",
-    artwork = "",
-  }, 0)
-  expect(cover.properties.drawing == true, "another active player was hidden")
-  expect(artist.properties.label.string == "Other player", "global media state was not applied")
-
-  state.emit("spotify_media_change", { INFO = { ["Player State"] = "Stopped" } })
-  state.execs[#state.execs].callback({ playing = false }, 0)
-  expect(cover.properties.drawing == false, "stopped global media state stayed visible")
-
-  state.emit("music_media_change", { INFO = { ["Player State"] = "Playing" } })
-  local first_refresh_count = #state.execs
-  state.emit("music_media_change", { INFO = { ["Player State"] = "Playing" } })
-  expect(#state.execs == first_refresh_count, "media refreshes did not coalesce")
-  state.execs[#state.execs].callback({ playing = true, artist = "stale", title = "stale", artwork = "" }, 0)
-  expect(#state.execs == first_refresh_count + 1, "coalesced media rerun is missing")
-  state.execs[#state.execs].callback({ playing = true, artist = "new", title = "new", artwork = "" }, 0)
-  expect(artist.properties.label.string == "new", "latest media state did not win")
-  expect(cover.properties.background.image.drawing == false, "missing artwork left a stale image")
-
-  state.emit_object(cover.name, "mouse.entered", {})
-  state.emit("music_media_change", { INFO = { ["Player State"] = "Playing" } })
-  state.execs[#state.execs].callback({ playing = true, artist = "hovered", title = "hovered", artwork = "" }, 0)
-  state.delays[#state.delays]()
-  expect(artist.properties.label.width == "dynamic", "refresh timer collapsed hovered media details")
-  state.emit_object(cover.name, "mouse.exited", {})
-  expect(artist.properties.label.width == 0, "mouse exit did not collapse media details")
-
-  state.emit("system_woke")
-  state.execs[#state.execs].callback("failed", 1)
-  expect(cover.properties.drawing == false, "media command failure left stale UI")
-end
-
-local function test_wifi()
-  local _, state = fake_sbar()
-  dofile(sketchybar_root .. "/items/widgets/wifi.lua")
-
-  expect(#state.execs == 1, "wifi module did not resolve the Wi-Fi interface first")
-  expect(state.execs[1].command:find("listallhardwareports") ~= nil, "Wi-Fi interface lookup is missing")
-  state.execs[1].callback("en1\n", 0)
-  expect(#state.execs == 2, "interface lookup did not start the network provider")
-  expect(
-    state.execs[2].command:find("network_load en1 network_update", 1, true) ~= nil,
-    "network provider does not use the resolved interface"
-  )
-
-  expect(state.subscriptions.system_woke == nil, "wake-time ipconfig path is still subscribed")
-  local wifi = state.objects["widgets.wifi.padding"]
-  state.emit_object("widgets.wifi1", "network_update", {
-    upload = "100 Bps",
-    download = "000 Bps",
-    connected = "on",
-  })
-  expect(wifi.properties.icon.string == "CONNECTED", "connected=on failed")
-  state.emit_object("widgets.wifi1", "network_update", {
-    upload = "000 Bps",
-    download = "000 Bps",
-    connected = "off",
-  })
-  expect(wifi.properties.icon.string == "DISCONNECTED", "connected=off failed")
-
-  state.emit_object("widgets.wifi1", "mouse.clicked", {})
-  local popup_ip_lookup = false
-  local info_lookups = 0
-  local lookups = {}
-  for _, exec in ipairs(state.execs) do
-    if exec.command == "ipconfig getifaddr en1" then popup_ip_lookup = true end
-    if exec.command:find("getinfo Wi-Fi", 1, true) then info_lookups = info_lookups + 1 end
-    for _, key in ipairs({ "getcomputername", "getsummary", "getinfo Wi-Fi" }) do
-      if exec.command:find(key, 1, true) then lookups[key] = exec end
-    end
-  end
-  expect(popup_ip_lookup, "popup IP lookup does not use the resolved interface")
-  expect(info_lookups == 1 and lookups["getinfo Wi-Fi"].command == "networksetup -getinfo Wi-Fi", "mask and router are not read from one networksetup call")
-
-  local function row(title)
-    return find_object(state, function(object)
-      return type(object.properties.icon) == "table" and object.properties.icon.string == title
-    end)
-  end
-  local hostname, mask, router, ssid = row("Hostname:"), row("Subnet mask:"), row("Router:"), row("ROUTER")
-  expect(hostname and mask and router and ssid, "wifi popup rows are missing")
-  lookups["getinfo Wi-Fi"].callback("DHCP Configuration\nIP address: 10.0.0.2\nSubnet mask: 255.255.255.0\nRouter: 10.0.0.1\nClient ID: \nIPv6: Automatic\nIPv6 Router: fe80::1\nWi-Fi ID: aa:bb\n", 0)
-  expect(mask.properties.label.string == "255.255.255.0", "subnet mask was not parsed")
-  expect(router.properties.label.string == "10.0.0.1", "router was not parsed from its own line")
-  lookups["getcomputername"].callback("host\n", 0)
-  expect(hostname.properties.label.string == "host", "hostname was not trimmed")
-  lookups["getsummary"].callback("<redacted>\n", 0)
-  expect(ssid.properties.label.string == "Unavailable", "redacted SSID is shown")
-  local before_ssid_click = #state.execs
-  state.emit_object(ssid.name, "mouse.clicked", { NAME = ssid.name })
-  expect(#state.execs == before_ssid_click, "unavailable SSID was copied")
-
-  -- A second click within the restore second copies the real value, not the
-  -- glyph, and only the latest restore applies.
-  local delays_before = #state.delays
-  state.emit_object(hostname.name, "mouse.clicked", { NAME = hostname.name })
-  expect(hostname.properties.label.string == "CLIPBOARD", "copy did not show the clipboard glyph")
-  expect(state.execs[#state.execs].command == 'printf %s "host" | pbcopy', "copied value is wrong")
-  state.emit_object(hostname.name, "mouse.clicked", { NAME = hostname.name })
-  expect(state.execs[#state.execs].command == 'printf %s "host" | pbcopy', "second click copied the glyph")
-  expect(#state.delays == delays_before + 2, "copy restores are missing")
-  state.delays[delays_before + 1]()
-  expect(hostname.properties.label.string == "CLIPBOARD", "stale restore replaced the glyph early")
-  state.delays[delays_before + 2]()
-  expect(hostname.properties.label.string == "host" and hostname.properties.label.align == "right", "label was not restored")
-end
-
 local function test_battery()
   local _, state = fake_sbar()
   dofile(sketchybar_root .. "/items/widgets/battery.lua")
@@ -729,29 +575,6 @@ local function test_battery()
   report("Now drawing from 'AC Power'\n")
   expect(battery.properties.drawing == false, "battery stays visible without a battery")
   expect(bracket.properties.drawing == false and padding.properties.drawing == false, "battery group stays visible without a battery")
-end
-
-local function test_cpu()
-  local _, state = fake_sbar()
-  dofile(sketchybar_root .. "/items/widgets/cpu.lua")
-  expect(#state.execs == 1, "cpu module did not start its event provider")
-  expect(state.execs[1].command:find("cpu_load cpu_update 2.0", 1, true) ~= nil, "cpu provider command is wrong")
-  local cpu = state.objects["widgets.cpu"]
-  expect(cpu and cpu.properties.graph.color == "blue", "cpu graph is missing")
-
-  local cases = {
-    { load = "10", color = "blue" },
-    { load = "45", color = "yellow" },
-    { load = "70", color = "orange" },
-    { load = "90", color = "red" },
-  }
-  for index, case in ipairs(cases) do
-    state.emit_object("widgets.cpu", "cpu_update", { total_load = case.load })
-    expect(cpu.properties.graph.color == case.color, "cpu color for " .. case.load .. "% is wrong")
-    expect(cpu.properties.label == "cpu " .. case.load .. "%", "cpu label for " .. case.load .. "% is wrong")
-    expect(#state.pushes == index, "cpu graph push count is wrong")
-    expect(state.pushes[index].values[1] == tonumber(case.load) / 100, "cpu graph push value is wrong")
-  end
 end
 
 local function test_volume()
@@ -899,131 +722,12 @@ local function test_calendar()
   expect(#state.delays == 4 and calendar.set_count == sets + 1, "current minute timer stopped ticking")
 end
 
-local function load_ai_usage()
-  local _, state = fake_sbar()
-  dofile(sketchybar_root .. "/items/ai_usage.lua")
-  return state
-end
-
-local function usage_output(codex_status, claude_status, codex_session, codex_weekly, claude_session, claude_weekly)
-  return table.concat({
-    "codex_status=" .. codex_status,
-    "codex_session=" .. (codex_session or "--"),
-    "codex_weekly=" .. (codex_weekly or "--"),
-    "codex_bar=/tmp/codex-" .. (codex_session or "--") .. ".png",
-    "claude_status=" .. claude_status,
-    "claude_session=" .. (claude_session or "--"),
-    "claude_weekly=" .. (claude_weekly or "--"),
-    "claude_bar=/tmp/claude.png",
-  }, "\n")
-end
-
-local function test_ai_usage()
-  local state = load_ai_usage()
-  expect(#state.execs == 0, "usage queried during module load")
-  local session = state.objects["ai_usage.codex.session_percent"]
-  local weekly = state.objects["ai_usage.codex.weekly_percent"]
-  local bar = state.objects["ai_usage.codex.bar"]
-  local popup_claude_session = state.objects["ai_usage.popup.claude.session_percent"]
-  local popup_claude_weekly = state.objects["ai_usage.popup.claude.weekly_percent"]
-  expect(session and weekly and bar and popup_claude_session and popup_claude_weekly, "usage objects are missing")
-
-  state.emit("forced")
-  expect(#state.execs == 1, "forced did not query usage")
-  expect(state.execs[1].command:find("scripts/ai_usage.sh", 1, true) ~= nil, "usage script path is wrong")
-  state.execs[1].callback(usage_output("ok", "ok", "75", "30", "15", "--"))
-  expect(session.properties.label.string == "75%", "session percentage is wrong")
-  expect(session.properties.label.color == "white", "healthy session color is wrong")
-  expect(weekly.properties.label.string == "30%", "weekly percentage is wrong")
-  expect(weekly.properties.label.color == "yellow", "low weekly color is wrong")
-  expect(bar.properties.background.image.string == "/tmp/codex-75.png", "bar image was not applied")
-  expect(popup_claude_session.properties.label.string == "15%", "popup session percentage is wrong")
-  expect(popup_claude_session.properties.label.color == "red", "critical session color is wrong")
-  expect(popup_claude_session.properties.width == 34, "single-scope session width is wrong")
-  expect(popup_claude_weekly.properties.label.drawing == false, "missing weekly quota is drawn")
-
-  state.emit("routine")
-  state.emit("system_woke")
-  expect(#state.execs == 3, "overlapping refreshes were not started")
-  state.execs[3].callback(usage_output("ok", "ok", "50", "50", "50", "50"))
-  state.execs[2].callback(usage_output("ok", "ok", "99", "99", "99", "99"))
-  expect(session.properties.label.string == "50%", "stale usage response overwrote the latest one")
-  expect(bar.properties.background.image.string == "/tmp/codex-50.png", "stale bar overwrote the latest one")
-
-  -- Opening the popup refreshes usage; closing it does not, and leaving the
-  -- bar closes it through a single mouse.exited.global subscription.
-  local bracket = state.brackets["ai_usage.codex.logo"]
-  local before_toggle = #state.execs
-  state.emit_object("ai_usage.codex.logo", "mouse.clicked", {})
-  expect(#state.execs == before_toggle + 1, "opening the popup did not refresh usage")
-  expect(bracket.properties.popup.drawing == true, "click did not open the popup")
-  state.emit_object("ai_usage.codex.bar", "mouse.clicked", {})
-  expect(#state.execs == before_toggle + 1, "closing the popup refreshed usage")
-  expect(bracket.properties.popup.drawing == false, "second click did not close the popup")
-  state.emit_object("ai_usage.codex.weekly_percent", "mouse.clicked", {})
-  expect(bracket.properties.popup.drawing == true, "third click did not reopen the popup")
-  expect(#state.subscriptions["mouse.exited.global"] == 1, "more than one usage item subscribes to mouse.exited.global")
-  state.emit("mouse.exited.global")
-  expect(bracket.properties.popup.drawing == false, "leaving the bar did not close the popup")
-end
-
--- At login the first fetch can run before OpenUsage listens; the item retries
--- a refused connection until one fetch reaches both providers.
-local function test_ai_usage_startup_retry()
-  local state = load_ai_usage()
-  local session = state.objects["ai_usage.codex.session_percent"]
-  state.emit("forced")
-  state.execs[1].callback(usage_output("unavailable", "unavailable"))
-  expect(#state.delays == 1 and state.delay_seconds[1] == 5, "refused first fetch did not schedule a retry")
-  expect(session.properties.label.drawing == false, "unavailable usage kept a session value")
-  state.delays[1]()
-  expect(#state.execs == 2, "startup retry did not run the usage script")
-  state.emit("routine")
-  state.execs[2].callback(usage_output("unavailable", "unavailable"))
-  expect(#state.delays == 1, "stale response scheduled a retry")
-  state.execs[3].callback(usage_output("ok", "unavailable", "75"))
-  expect(#state.delays == 2, "half-available response did not retry")
-  expect(session.properties.label.string == "75%", "partial response was not rendered")
-  state.delays[2]()
-  state.execs[4].callback(usage_output("ok", "empty", "60"))
-  expect(#state.delays == 2, "response reaching both providers scheduled a retry")
-  state.emit("routine")
-  state.execs[5].callback(usage_output("unavailable", "unavailable"))
-  expect(#state.delays == 2, "outage after the first full response scheduled a retry")
-
-  -- A provider that is down for another reason is not a startup race.
-  state = load_ai_usage()
-  state.emit("forced")
-  state.execs[1].callback(usage_output("empty", "parse_error"))
-  expect(#state.delays == 0, "empty or unparseable usage scheduled a retry")
-  state.emit("routine")
-  state.execs[2].callback(usage_output("unavailable", "unavailable"))
-  expect(#state.delays == 0, "retry started after a response had already arrived")
-
-  -- A provider that never answers stops costing script runs after 12 retries.
-  state = load_ai_usage()
-  state.emit("forced")
-  for attempt = 1, 12 do
-    state.execs[#state.execs].callback(usage_output("unavailable", "empty"))
-    expect(#state.delays == attempt, "startup retry " .. attempt .. " was not scheduled")
-    state.delays[attempt]()
-  end
-  state.execs[#state.execs].callback(usage_output("unavailable", "empty"))
-  expect(#state.delays == 12, "startup retries did not stop at the cap")
-  expect(#state.execs == 13, "capped retries ran an unexpected number of fetches")
-end
-
 test_spaces()
 test_space_visibility()
 test_spaces_startup_retry()
 test_menus()
 test_focus_refresh()
-test_media()
-test_wifi()
 test_battery()
-test_cpu()
 test_volume()
 test_calendar()
-test_ai_usage()
-test_ai_usage_startup_retry()
 print("SketchyBar runtime fixtures passed.")

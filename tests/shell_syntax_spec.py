@@ -9,11 +9,17 @@ source = (ROOT / "check.sh").read_text()
 block = source.split('log "Checking shell syntax"\n', 1)[1].split(
     'log "Checking public IP helper behavior"', 1
 )[0]
-paths = {"setup.sh", "check.sh", "home/.p10k.zsh", "home/.zprofile", "home/.zshrc",
-         "home/bin/abs", "home/bin/ip", "home/.config/aerospace/scripts/resize-edge"}
-for pattern in ("lib/*.zsh", "home/.config/sketchybar/scripts/*.sh",
-                "home/.config/tmux/scripts/*.sh", "home/.config/tmux/tmux-status/*.sh"):
-    paths.update(str(path.relative_to(ROOT)) for path in ROOT.glob(pattern))
+paths = {
+    "setup.sh",
+    "check.sh",
+    "home/.p10k.zsh",
+    "home/.zprofile",
+    "home/.zshrc",
+    "home/bin/abs",
+    "home/bin/ip",
+    "home/.config/aerospace/scripts/resize-edge",
+}
+paths.update(str(path.relative_to(ROOT)) for path in ROOT.glob("lib/*.zsh"))
 
 with tempfile.TemporaryDirectory(prefix="dotfiles-syntax-spec-") as directory:
     work = Path(directory)
@@ -27,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix="dotfiles-syntax-spec-") as directory:
                               text=True, capture_output=True)
 
     assert check().returncode == 0
-    for name in ("home/.zprofile", "home/.config/tmux/tmux-status/left.sh"):
+    for name in ("home/.zprofile", "home/bin/ip"):
         (work / name).write_text("if then\n")
         result = check()
         assert result.returncode != 0 and name in result.stderr, (name, result)

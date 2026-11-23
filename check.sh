@@ -123,7 +123,7 @@ repo_files() {
   git ls-files -co --exclude-standard -- "$@"
 }
 
-for command in json5 lua luac magick rg stow tmux; do
+for command in json5 lua luac rg stow tmux; do
   require "$command"
 done
 
@@ -149,16 +149,12 @@ snapshot_git checkout-index --all --prefix="$CANDIDATE_ROOT/"
 
 log "Checking shell syntax"
 for file in setup.sh check.sh lib/*.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
-  home/.config/aerospace/scripts/resize-edge \
-  home/.config/sketchybar/scripts/ai_usage.sh \
-  home/.config/sketchybar/scripts/media_state.sh; do
+  home/.config/aerospace/scripts/resize-edge; do
   zsh -n "$file"
 done
 for file in \
   home/bin/abs \
-  home/bin/ip \
-  home/.config/tmux/scripts/*.sh \
-  home/.config/tmux/tmux-status/*.sh; do
+  home/bin/ip; do
   /bin/bash -n "$file"
 done
 
@@ -185,108 +181,6 @@ if env "${ISOLATED_ENV[@]}" PATH="$IP_FIXTURE_DIR:$PATH" IP_MOCK_SCENARIO=all_fa
   exit 1
 fi
 [[ "$(<"$IP_FIXTURE_DIR/stderr")" == "unable to determine public IPv4" ]]
-
-log "Checking media-state helper behavior"
-media_cache="$CHECK_WORK_DIR/media-cache"
-mkdir -p "$media_cache"
-media_state() {
-  env "${ISOLATED_ENV[@]}" zsh \
-    home/.config/sketchybar/scripts/media_state.sh --stdin "$media_cache"
-}
-media_playing_json='{"title":"Fixture Song","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"iVBORw0KGgo="}'
-media_playing_output="$(media_state <<<"$media_playing_json")"
-jq -e \
-  --arg cache_prefix "$media_cache/media-artwork-" '
-    .playing == true
-      and .title == "Fixture Song"
-      and .artist == "Fixture Artist"
-      and (.artwork | startswith($cache_prefix))
-  ' <<<"$media_playing_output" >/dev/null
-media_artwork="$(jq -er '.artwork' <<<"$media_playing_output")"
-[[ -s "$media_artwork" ]]
-
-media_expired="$media_cache/media-artwork-expired-fixture"
-media_recent="$media_cache/media-artwork-recent-fixture"
-cp "$media_artwork" "$media_expired"
-cp "$media_artwork" "$media_recent"
-touch -t 200001010000 "$media_artwork" "$media_expired"
-media_reused_output="$(media_state <<<"$media_playing_json")"
-[[ "$(jq -er '.artwork' <<<"$media_reused_output")" == "$media_artwork" ]]
-[[ -s "$media_artwork" && ! -e "$media_expired" && -s "$media_recent" ]]
-
-media_stopped_output="$(media_state <<<'{"title":"Paused","playbackRate":0,"bundleIdentifier":"com.spotify.client"}')"
-jq -e '. == {playing:false}' <<<"$media_stopped_output" >/dev/null
-
-media_music_output="$(media_state <<<'{"title":"Music Fixture","artist":"Fixture Artist","playbackRate":1,"bundleIdentifier":"com.apple.Music"}')"
-jq -e \
-  '.playing == true and .title == "Music Fixture" and .artwork == ""' \
-  <<<"$media_music_output" >/dev/null
-
-media_unrelated_output="$(media_state <<<'{"title":"Browser Media","playbackRate":1,"bundleIdentifier":"com.google.Chrome","isMusicApp":true}')"
-jq -e '. == {playing:false}' <<<"$media_unrelated_output" >/dev/null
-
-media_malformed_output="$(media_state <<<'{invalid')"
-jq -e '. == {playing:false}' <<<"$media_malformed_output" >/dev/null
-
-media_invalid_artwork_output="$(media_state <<<'{"title":"Bad Art","playbackRate":1,"bundleIdentifier":"com.spotify.client","artworkData":"%%%"}')"
-jq -e \
-  '.playing == true and .title == "Bad Art" and .artwork == ""' \
-  <<<"$media_invalid_artwork_output" >/dev/null
-[[ -z "$(find "$media_cache" -type f -name 'media-artwork.??????' -print -quit)" ]]
-
-log "Checking tmux attach helper"
-ta_function="$(sed -n '/^function ta {$/,/^}$/p' home/.zshrc)"
-TA_FIXTURE_LOG="$CHECK_WORK_DIR/ta-calls.log"
-TA_FIXTURE_STDERR="$CHECK_WORK_DIR/ta-stderr.log"
-# From a plain shell the helper attaches; inside tmux, which refuses nested
-# attach, it switches the client and rejects attach-only options such as -d.
-# Bare and option-only calls always attach.
-for ta_case in outside inside; do
-  : >"$TA_FIXTURE_LOG"
-  env "${ISOLATED_ENV[@]}" TA_FIXTURE_LOG="$TA_FIXTURE_LOG" TA_CASE="$ta_case" \
-    zsh -fc '
-      eval "$1"
-      tmux() {
-        if [[ "$1" == list-sessions ]]; then
-          printf "%s\n" "\$3:::1-dot" "\$7:::2-spreadsheet-build"
-          return 0
-        fi
-        print -r -- "tmux $*" >>"$TA_FIXTURE_LOG"
-      }
-      [[ "$TA_CASE" == inside ]] && TMUX=fixture-socket,1,0
-      ta
-      ta -d
-      ta dot
-      ta 2 -d
-      ta spreadsheet-build
-      ta missing
-    ' ta-fixture "$ta_function" 2>"$TA_FIXTURE_STDERR"
-  case "$ta_case" in
-    outside)
-      ta_expected="tmux attach
-tmux attach -d
-tmux attach -t \$3
-tmux attach -t \$7 -d
-tmux attach -t \$7
-tmux attach -t missing"
-      [[ ! -s "$TA_FIXTURE_STDERR" ]]
-      ;;
-    inside)
-      ta_expected="tmux attach
-tmux attach -d
-tmux switch-client -t \$3
-tmux switch-client -t \$7
-tmux switch-client -t missing"
-      grep -Fxq 'ta: attach options are not supported inside tmux: -d' \
-        "$TA_FIXTURE_STDERR"
-      ;;
-  esac
-  [[ "$(<"$TA_FIXTURE_LOG")" == "$ta_expected" ]] || {
-    printf "ta ran the wrong tmux commands %s tmux:\n" "$ta_case" >&2
-    sed 's/^/  /' "$TA_FIXTURE_LOG" >&2
-    exit 1
-  }
-done
 
 log "Checking setup command-line behavior"
 # The runs below source setup.sh and replace its steps afterwards, so a guard
@@ -1068,12 +962,11 @@ done < <(repo_files '*.lua'; print -r -- home/.config/sketchybar/sketchybarrc)
 log "Checking Lua runtime regression fixtures"
 lua tests/sketchybar_runtime_spec.lua "$ROOT"
 
-log "Checking shell and tmux runtime regression fixtures"
-# The specs use separate temp dirs, tmux sockets and lock files, so they run
-# in parallel; their output is printed in a fixed order once all have finished.
+log "Checking shell runtime regression fixtures"
+# The specs use separate temp dirs and lock files, so they run in parallel;
+# their output is printed in a fixed order once all have finished.
 RUNTIME_SPECS=(
-  shell_syntax aerospace_resize zsh_completion zinit_update
-  brew_bundle tmux_runtime tmux_restore
+  shell_syntax aerospace_resize zsh_completion zinit_update brew_bundle
 )
 typeset -A RUNTIME_SPEC_PIDS
 for spec in "${RUNTIME_SPECS[@]}"; do
@@ -1089,63 +982,6 @@ if (( runtime_spec_failed )); then
   printf "Runtime regression fixtures failed.\n" >&2
   exit 1
 fi
-
-log "Checking tmux session-manager behavior"
-env "${ISOLATED_ENV[@]}" python3 - \
-  "$ROOT/home/.config/tmux/scripts/session_manager.py" <<'PY'
-import importlib.util
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-spec = importlib.util.spec_from_file_location("dotfiles_session_manager", path)
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-
-checks = (
-    (module.sanitize_label("  research  ") == "research", "label trimming"),
-    (module.sanitize_label("   ") == "session", "empty-label fallback"),
-)
-for passed, description in checks:
-    if not passed:
-        raise SystemExit(f"tmux session-manager smoke failed: {description}")
-
-sample = "\n".join(
-    (
-        "$2\t2-second\t200",
-        "$3\tunindexed\t100",
-        "$1\t1-first\t300",
-    )
-)
-module.run_tmux = lambda args, check=True, capture=False: sample
-sessions = module.list_sessions()
-if [entry["id"] for entry in sessions] != ["$1", "$2", "$3"]:
-    raise SystemExit("tmux session-manager smoke failed: session ordering")
-if [entry["label"] for entry in sessions] != ["first", "second", "unindexed"]:
-    raise SystemExit("tmux session-manager smoke failed: label parsing")
-
-tmux_calls = []
-
-
-def mock_refresh(args, check=True, capture=False):
-    tmux_calls.append((args, check, capture))
-    if args == ["list-clients", "-F", "#{client_name}"]:
-        return "client-a\nclient-b"
-    return ""
-
-
-module.run_tmux = mock_refresh
-module.refresh_clients()
-expected_calls = [
-    (["list-clients", "-F", "#{client_name}"], False, True),
-    (["refresh-client", "-S", "-t", "client-a"], False, False),
-    (["refresh-client", "-S", "-t", "client-b"], False, False),
-]
-if tmux_calls != expected_calls:
-    raise SystemExit(
-        f"tmux session-manager smoke failed: refresh routing: {tmux_calls!r}"
-    )
-PY
 
 log "Checking TOML"
 toml_files=("${(@f)$(repo_files '*.toml')}")
@@ -1175,64 +1011,6 @@ brew_trust_targets="$(
     'source "$1"; declared_brew_trust_targets' zsh "$ROOT/setup.sh"
 )"
 [[ "$brew_trust_targets" == $'brew\tfelixkratz/formulae/sketchybar\ncask\tnikitabobko/tap/aerospace\ncask\tabue-ammar/tinycast/tinycast\ncask\tphibrowser/tap/phi\ncask\toomol-lab/tap/lockime' ]]
-
-log "Checking AI usage fixtures"
-fixture_root="$CHECK_WORK_DIR/openusage"
-mkdir -p "$fixture_root"/{object,array,empty,malformed}
-for provider in codex claude; do
-  jq -n '
-    {
-      lines: [
-        {type: "progress", label: "Session", limit: 100, used: 25},
-        {type: "progress", label: "Weekly", limit: 100, used: 80}
-      ]
-    }
-  ' >"$fixture_root/object/${provider}.json"
-  jq -n '[
-    {
-      lines: [
-        {type: "progress", label: "Session", limit: 100, used: 40},
-        {type: "progress", label: "Weekly", limit: 100, used: 10}
-      ]
-    }
-  ]' >"$fixture_root/array/${provider}.json"
-  : >"$fixture_root/empty/${provider}.json"
-  printf '{invalid\n' >"$fixture_root/malformed/${provider}.json"
-done
-
-typeset -A usage_output
-for kind in object array empty malformed; do
-  usage_output[$kind]="$(env "${ISOLATED_ENV[@]}" \
-    OPENUSAGE_FIXTURE_DIR="$fixture_root/$kind" \
-    zsh home/.config/sketchybar/scripts/ai_usage.sh)"
-done
-
-for provider in codex claude; do
-  assert_line "${usage_output[object]}" "${provider}_status=ok"
-  assert_line "${usage_output[object]}" "${provider}_session=75"
-  assert_line "${usage_output[object]}" "${provider}_weekly=20"
-  assert_line "${usage_output[array]}" "${provider}_status=ok"
-  assert_line "${usage_output[array]}" "${provider}_session=60"
-  assert_line "${usage_output[array]}" "${provider}_weekly=90"
-  assert_line "${usage_output[empty]}" "${provider}_status=empty"
-  assert_line "${usage_output[malformed]}" "${provider}_status=parse_error"
-  for kind in object array empty malformed; do
-    bar_path="$(
-      awk -F= -v key="${provider}_bar" \
-        '$1 == key { print substr($0, index($0, "=") + 1); exit }' \
-        <<<"${usage_output[$kind]}"
-    )"
-    [[ -n "$bar_path" && -f "$bar_path" ]] || {
-      printf "Missing generated bar for %s: %s\n" "$provider" "$bar_path" >&2
-      exit 1
-    }
-    dimensions="$(magick identify -format '%wx%h' "$bar_path")"
-    [[ "$dimensions" == "52x14" ]] || {
-      printf "Unexpected bar dimensions for %s: %s\n" "$provider" "$dimensions" >&2
-      exit 1
-    }
-  done
-done
 
 log "Checking generated-state boundaries"
 [[ -s home/.codex/AGENTS.md ]]
@@ -1361,17 +1139,11 @@ log "Building and analyzing SketchyBar helpers"
 helper_bin_dir="$CHECK_WORK_DIR/helpers"
 # Build with the shared helpers/common.mk flags that setup.sh deploys, plus
 # -Werror, so the flags under test are the flags in use.
-make -C home/.config/sketchybar/helpers/event_providers \
-  EXTRA_CFLAGS=-Werror BINDIR="$helper_bin_dir"
 make -C home/.config/sketchybar/helpers/menus \
   EXTRA_CFLAGS=-Werror BINDIR="$helper_bin_dir"
-for source in \
-  home/.config/sketchybar/helpers/event_providers/cpu_load/cpu_load.c \
-  home/.config/sketchybar/helpers/event_providers/network_load/network_load.c \
-  home/.config/sketchybar/helpers/menus/menus.c; do
-  clang --analyze -std=c99 -Wall -Wextra \
-    -Xanalyzer -analyzer-output=text -Xanalyzer -analyzer-werror "$source"
-done
+clang --analyze -std=c99 -Wall -Wextra \
+  -Xanalyzer -analyzer-output=text -Xanalyzer -analyzer-werror \
+  home/.config/sketchybar/helpers/menus/menus.c
 
 log "Checking patch whitespace"
 snapshot_git diff --cached --check HEAD -- :/
@@ -1484,7 +1256,6 @@ PY
       "$installed_tmux_plugins/tpm/tpm" >&2
     exit 1
   }
-  python3 tests/tmux_restore_spec.py "$ROOT" "$installed_tmux_plugins"
   create_stow_target "$ISOLATED_HOME"
   (
     cd "$ISOLATED_TMP"
@@ -1514,29 +1285,6 @@ PY
     sed 's/^/  /' "$tmux_config_output" >&2
     exit 1
   }
-  for _ in {1..20}; do
-    session_name="$(env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
-      display-message -p '#{session_name}')"
-    [[ "$session_name" == "1-dotfiles-check" ]] && break
-    sleep 0.05
-  done
-  [[ "$session_name" == "1-dotfiles-check" ]] || {
-    printf "tmux session hook did not normalize the session name: %s\n" \
-      "$session_name" >&2
-    exit 1
-  }
-  for hook_name in client-attached client-resized client-session-changed; do
-    hook_value="$(
-      env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" \
-        show-hooks -g "$hook_name"
-    )"
-    grep -Fq 'refresh-client -S' <<<"$hook_value"
-    if grep -Fq 'run-shell' <<<"$hook_value"; then
-      printf "tmux hook %s must refresh in direct client context.\n" \
-        "$hook_name" >&2
-      exit 1
-    fi
-  done
   env "${ISOLATED_ENV[@]}" tmux -S "$TMUX_SOCKET" kill-server
   TMUX_STARTED=0
 
