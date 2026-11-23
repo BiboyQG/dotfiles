@@ -6,6 +6,7 @@ tap "oomol-lab/tap"
 
 brew "stow"
 brew "git"
+brew "starship"
 brew "lazygit"
 brew "zoxide"
 brew "eza"

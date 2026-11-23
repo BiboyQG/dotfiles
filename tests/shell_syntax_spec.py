@@ -12,7 +12,6 @@ block = source.split('log "Checking shell syntax"\n', 1)[1].split(
 paths = {
     "setup.sh",
     "check.sh",
-    "home/.p10k.zsh",
     "home/.zprofile",
     "home/.zshrc",
     "home/bin/abs",

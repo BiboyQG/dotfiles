@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(sys.argv[1]).resolve()
 source = (ROOT / "home/.zshrc").read_text()
 completion_block = "autoload -Uz compinit\n" + source.split("autoload -Uz compinit\n", 1)[1].split(
-    "# To customize prompt", 1
+    "bindkey -e", 1
 )[0]
 
 # Model Zinit's deferred-compdef contract while using real compinit/compdef.

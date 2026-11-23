@@ -148,7 +148,7 @@ snapshot_git ls-files --error-unmatch -- stow-target-dirs.txt >/dev/null
 snapshot_git checkout-index --all --prefix="$CANDIDATE_ROOT/"
 
 log "Checking shell syntax"
-for file in setup.sh check.sh lib/*.zsh home/.p10k.zsh home/.zprofile home/.zshrc \
+for file in setup.sh check.sh lib/*.zsh home/.zprofile home/.zshrc \
   home/.config/aerospace/scripts/resize-edge; do
   zsh -n "$file"
 done
